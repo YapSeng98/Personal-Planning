@@ -1,0 +1,51 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          GH_PAGES: '1'
+          VITE_SN_BASE: https://dev405150.service-now.com
+          # Set these in repo Settings → Secrets and variables → Actions
+          # once OAuth is registered on the instance (servicenow/README.md §6).
+          # Until then the app builds fine — sign-in just isn't wired.
+          VITE_SN_CLIENT_ID: ${{ vars.SN_CLIENT_ID }}
+          VITE_SN_CLIENT_SECRET: ${{ secrets.SN_CLIENT_SECRET }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

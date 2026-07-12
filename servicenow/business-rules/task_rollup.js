@@ -1,0 +1,67 @@
+// Business Rule on x_pps_task
+//   When: after · Insert = true, Update = true
+//   Condition: state changes OR goal changes
+// Recalculates the linked goal's progress from its tasks, then cascades the
+// average up the parent_goal chain: Week → Month → Quarter → Year (doc §06).
+(function executeRule(current, previous /*null when async/insert*/) {
+
+    function recalcFromTasks(goalSysId) {
+        var total = 0, done = 0;
+        var t = new GlideRecord('x_pps_task');
+        t.addQuery('goal', goalSysId);
+        t.addQuery('deleted', false);
+        t.addQuery('state', '!=', 'cancelled');
+        t.query();
+        while (t.next()) {
+            total++;
+            if (t.getValue('state') === 'done') done++;
+        }
+        return total === 0 ? 0 : Math.round((done / total) * 100);
+    }
+
+    function recalcFromChildren(goalSysId) {
+        var sum = 0, n = 0;
+        var c = new GlideRecord('x_pps_goal');
+        c.addQuery('parent_goal', goalSysId);
+        c.addQuery('deleted', false);
+        c.query();
+        while (c.next()) {
+            sum += parseInt(c.getValue('progress'), 10) || 0;
+            n++;
+        }
+        return n === 0 ? null : Math.round(sum / n);
+    }
+
+    function setProgress(goalSysId, value) {
+        var g = new GlideRecord('x_pps_goal');
+        if (!g.get(goalSysId)) return null;
+        g.setValue('progress', value);
+        if (value >= 100) g.setValue('status', 'completed');
+        else if (value > 0 && g.getValue('status') === 'not_started') g.setValue('status', 'in_progress');
+        g.setWorkflow(false); // don't re-trigger rules on the goal table
+        g.update();
+        return g.getValue('parent_goal');
+    }
+
+    var goalId = current.getValue('goal');
+    // If the task was re-linked, the old goal needs recalculating too.
+    var goalIds = [goalId];
+    if (previous && previous.getValue('goal') && previous.getValue('goal') !== goalId) {
+        goalIds.push(previous.getValue('goal'));
+    }
+
+    for (var i = 0; i < goalIds.length; i++) {
+        var id = goalIds[i];
+        if (!id) continue;
+        // Leaf level: progress from tasks.
+        var parent = setProgress(id, recalcFromTasks(id));
+        // Cascade: each ancestor is the average of its children.
+        var depth = 0;
+        while (parent && depth < 10) {
+            var avg = recalcFromChildren(parent);
+            if (avg === null) break;
+            parent = setProgress(parent, avg);
+            depth++;
+        }
+    }
+})(current, previous);

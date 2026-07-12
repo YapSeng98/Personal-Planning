@@ -1,0 +1,140 @@
+/* Design tokens — Personal Planning System (design doc §11).
+   "Sunrise energy": warm coral→amber accent, warm paper in light mode,
+   deep night with a warm glow in dark. Dark-first; light theme via
+   prefers-color-scheme, with a data-theme override winning both ways.
+
+   Note: amber is DECORATIVE ONLY (gradient endpoint). Data marks (rings,
+   bars) use --accent and --ok — that pair is validated for contrast and
+   colorblind separation on both surfaces. */
+
+:root {
+  --surface: #0B0D14;
+  --surface-2: #12141D;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-strong: rgba(255, 255, 255, 0.09);
+  --hairline: rgba(255, 255, 255, 0.09);
+  --text-1: #F5F3F0;
+  --text-2: #A8A4B0;
+  --text-3: #736F7D;
+  --accent: #E0563C;        /* coral — validated data mark */
+  --accent-bright: #FF7A59; /* decorative coral */
+  --amber: #FFB03A;         /* decorative only, never a data series */
+  --ok: #1CA97C;            /* validated data mark */
+  --danger: #E5697B;
+  --grad: linear-gradient(120deg, var(--accent-bright), var(--amber));
+  --on-grad: #2A1109;
+  --accent-wash: rgba(255, 122, 89, 0.16);
+  --radius-card: 20px;
+  --radius-chip: 999px;
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --surface: #FBF8F4;
+    --surface-2: #FFFFFF;
+    --glass: #FFFFFF;
+    --glass-strong: #FFF6EE;
+    --hairline: rgba(42, 24, 16, 0.10);
+    --text-1: #221A16;
+    --text-2: #5F5650;
+    --text-3: #93887F;
+    --accent: #D6472E;
+    --accent-bright: #D6472E;
+    --amber: #C07508;
+    --ok: #059669;
+    --danger: #C7364B;
+    --grad: linear-gradient(120deg, #D6472E, #C07508);
+    --on-grad: #FFFFFF;
+    --accent-wash: rgba(214, 71, 46, 0.10);
+    --shadow-float: 0 8px 24px rgba(42, 24, 16, 0.10);
+  }
+}
+:root[data-theme='dark'] {
+  --surface: #0B0D14; --surface-2: #12141D;
+  --glass: rgba(255,255,255,0.05); --glass-strong: rgba(255,255,255,0.09);
+  --hairline: rgba(255,255,255,0.09);
+  --text-1: #F5F3F0; --text-2: #A8A4B0; --text-3: #736F7D;
+  --accent: #E0563C; --accent-bright: #FF7A59; --amber: #FFB03A;
+  --ok: #1CA97C; --danger: #E5697B;
+  --grad: linear-gradient(120deg, #FF7A59, #FFB03A);
+  --on-grad: #2A1109;
+  --accent-wash: rgba(255,122,89,0.16);
+  --shadow-float: 0 8px 24px rgba(0,0,0,0.35);
+}
+:root[data-theme='light'] {
+  --surface: #FBF8F4; --surface-2: #FFFFFF;
+  --glass: #FFFFFF; --glass-strong: #FFF6EE;
+  --hairline: rgba(42,24,16,0.10);
+  --text-1: #221A16; --text-2: #5F5650; --text-3: #93887F;
+  --accent: #D6472E; --accent-bright: #D6472E; --amber: #C07508;
+  --ok: #059669; --danger: #C7364B;
+  --grad: linear-gradient(120deg, #D6472E, #C07508);
+  --on-grad: #FFFFFF;
+  --accent-wash: rgba(214,71,46,0.10);
+  --shadow-float: 0 8px 24px rgba(42,24,16,0.10);
+}
+
+* { box-sizing: border-box; }
+html { color-scheme: light dark; }
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text-1);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { letter-spacing: -0.02em; margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+
+.card {
+  background: var(--glass);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 0.9rem 1rem;
+}
+.card-ai {
+  background: linear-gradient(var(--surface), var(--surface)) padding-box,
+    var(--grad) border-box;
+  border: 1px solid transparent;
+}
+.grad-text {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-chip);
+  background: var(--accent-wash);
+  color: var(--accent-bright);
+  white-space: nowrap;
+}
+.btn {
+  border: 1px solid var(--hairline);
+  background: var(--glass);
+  border-radius: 12px;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms var(--ease);
+}
+.btn:hover { background: var(--glass-strong); }
+.btn-primary {
+  background: var(--grad);
+  border: none;
+  color: var(--on-grad);
+}
+.btn-primary:hover { filter: brightness(1.06); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
