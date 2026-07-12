@@ -1,13 +1,18 @@
 #!/bin/sh
-# Build the PWA and publish it to the gh-pages branch.
+# Build the PWA and publish it to GitHub Pages.
+# Pages serves the ROOT of main — index.html at root wins over README.md,
+# so deploying = copying the fresh build to the repo root and pushing.
 set -e
-cd "$(dirname "$0")/../frontend"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+cd "$ROOT/frontend"
 GH_PAGES=1 npm run build
-cd dist
-touch .nojekyll
-git init -b gh-pages -q
+
+cd "$ROOT"
+rm -rf assets            # drop old hashed bundles
+cp -R frontend/dist/. .
+touch .nojekyll          # tell Pages not to run Jekyll
 git add -A
-git -c user.name="YapSeng98" -c user.email="ycseng0398@gmail.com" commit -q -m "deploy $(date +%F-%H%M)"
-git push -f https://github.com/YapSeng98/Personal-Planning.git gh-pages
-rm -rf .git
-echo "Published → https://yapseng98.github.io/Personal-Planning/"
+git commit -m "deploy site $(date +%F-%H%M)" || echo "nothing new to deploy"
+git push origin main
+echo "Published → https://yapseng98.github.io/Personal-Planning/ (allow ~1 min)"
