@@ -3,7 +3,7 @@
 // and applies delta pulls when a connection and login exist. If the SN side
 // isn't built yet (404) or we're offline, the app keeps working locally.
 
-import { db } from '../db/db'
+import { db, notifyChange } from '../db/db'
 import { isAuthed, syncPush, syncPull, type PushItem } from './api'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
@@ -83,6 +83,7 @@ export async function syncNow(): Promise<void> {
       }
     }
     await db.meta.put({ key: 'syncCursor', value: pull.cursor })
+    if (pull.records.length > 0) notifyChange()
     setState('idle')
   } catch (err) {
     // 404 = SN endpoints not deployed yet; stay usable, just local.

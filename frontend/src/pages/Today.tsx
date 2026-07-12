@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { db, todayStr, uuid, writeAndQueue, habitStreak, type Task, type Habit } from '../db/db'
+import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, CHANGED, type Task, type Habit } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Insights from '../components/Insights'
 
@@ -54,12 +54,14 @@ export default function Today() {
 
   useEffect(() => {
     load()
+    window.addEventListener(CHANGED, load)
+    return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
   async function toggleTask(t: Task) {
     const updated: Task = { ...t, state: t.state === 'done' ? 'open' : 'done', updatedAt: Date.now() }
     await writeAndQueue(db.tasks, 'task', updated)
-    await load()
+    if (updated.goalId) await rollUpGoal(updated.goalId)
     syncNow()
   }
 

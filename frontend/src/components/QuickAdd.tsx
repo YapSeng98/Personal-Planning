@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { db, uuid, todayStr, writeAndQueue, type Task } from '../db/db'
+import { useEffect, useState } from 'react'
+import { db, uuid, todayStr, writeAndQueue, rollUpGoal, type Task, type Goal } from '../db/db'
 import { syncNow } from '../sync/engine'
 
 /** Lightweight natural-language parse: "gym tomorrow 6am", "report 2h friday".
@@ -43,12 +43,33 @@ function parse(input: string): Task {
 
 export default function QuickAdd({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('')
+  const [goalId, setGoalId] = useState('')
+  const [goals, setGoals] = useState<Goal[]>([])
+  const [savedNote, setSavedNote] = useState('')
+
+  useEffect(() => {
+    // Week/month goals are what daily tasks realistically serve.
+    db.goals
+      .filter((g) => !g.deleted && g.status !== 'completed' && (g.type === 'week' || g.type === 'month'))
+      .toArray()
+      .then(setGoals)
+  }, [])
 
   async function add() {
     if (!text.trim()) return
-    await writeAndQueue(db.tasks, 'task', parse(text))
+    const task = parse(text)
+    if (goalId) task.goalId = goalId
+    await writeAndQueue(db.tasks, 'task', task)
+    if (task.goalId) await rollUpGoal(task.goalId)
     syncNow()
-    onClose()
+    if (task.due !== todayStr()) {
+      // Don't let a "tomorrow" task vanish silently — say where it went.
+      setSavedNote(`Added for ${task.due} — you'll see it on the Plan page.`)
+      setText('')
+      setTimeout(onClose, 1400)
+    } else {
+      onClose()
+    }
   }
 
   return (
@@ -62,7 +83,19 @@ export default function QuickAdd({ onClose }: { onClose: () => void }) {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
-        <p className="hint">Understands “tomorrow”, times like “6am”, and durations like “2h”. Saved locally first, synced when online.</p>
+        {goals.length > 0 && (
+          <div className="form-grid" style={{ margin: '0.6rem 0 0' }}>
+            <select value={goalId} onChange={(e) => setGoalId(e.target.value)} aria-label="Link to goal">
+              <option value="">No goal link</option>
+              {goals.map((g) => (
+                <option key={g.id} value={g.id}>🎯 {g.title}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <p className="hint">
+          {savedNote || 'Understands “tomorrow”, times like “6am”, and durations like “2h”. Linked tasks move their goal\'s progress. Saved locally first, synced when online.'}
+        </p>
         <div className="row">
           <button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={add}>Add task</button>

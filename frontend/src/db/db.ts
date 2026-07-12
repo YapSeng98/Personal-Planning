@@ -122,7 +122,14 @@ export const db = new PlannerDB()
 export const uuid = () =>
   crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
 
-export const todayStr = (d = new Date()) => d.toISOString().slice(0, 10)
+/** Local-date YYYY-MM-DD. (toISOString would shift the date for TZs ahead
+    of UTC between midnight and ~08:00 — tasks would log to yesterday.) */
+export const todayStr = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/** Fired after any local write or applied sync pull; screens reload on it. */
+export const CHANGED = 'planner:changed'
+export const notifyChange = () => window.dispatchEvent(new CustomEvent(CHANGED))
 
 /** Write a record and queue it for sync in one transaction. */
 export async function writeAndQueue<T extends { id: string; updatedAt: number }>(
@@ -134,6 +141,49 @@ export async function writeAndQueue<T extends { id: string; updatedAt: number }>
     await table.put(record)
     await db.outbox.add({ table: tableName, recordId: record.id, editedAt: record.updatedAt })
   })
+  notifyChange()
+}
+
+/** Local mirror of the ServiceNow roll-up Business Rule (doc §06): a goal's
+    progress comes from its tasks; each ancestor is the average of its
+    children. Runs offline so bars move immediately; the server recomputes
+    authoritatively after sync, so these writes skip the outbox. */
+export async function rollUpGoal(goalId: string) {
+  const leaf = await db.goals.get(goalId)
+  if (!leaf) return
+
+  const setProgress = async (g: Goal, pct: number) => {
+    const status =
+      pct >= 100 ? 'completed' : pct > 0 && g.status === 'not_started' ? 'in_progress' : g.status
+    await db.goals.put({ ...g, progress: pct, status, updatedAt: Date.now() })
+  }
+
+  const tasks = await db.tasks
+    .where('goalId')
+    .equals(goalId)
+    .and((t) => !t.deleted && t.state !== 'cancelled')
+    .toArray()
+  if (tasks.length > 0) {
+    const pct = Math.round((tasks.filter((t) => t.state === 'done').length / tasks.length) * 100)
+    await setProgress(leaf, pct)
+  }
+
+  let parentId = leaf.parentId
+  let depth = 0
+  while (parentId && depth++ < 10) {
+    const parent = await db.goals.get(parentId)
+    if (!parent) break
+    const children = await db.goals
+      .where('parentId')
+      .equals(parentId)
+      .and((c) => !c.deleted)
+      .toArray()
+    if (children.length === 0) break
+    const avg = Math.round(children.reduce((s, c) => s + c.progress, 0) / children.length)
+    await setProgress(parent, avg)
+    parentId = parent.parentId
+  }
+  notifyChange()
 }
 
 /** Streaks derived from logs, never stored as a trusted counter (doc §06). */

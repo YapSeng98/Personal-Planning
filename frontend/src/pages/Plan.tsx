@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { db, uuid, todayStr, writeAndQueue, type Task, type Goal } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, rollUpGoal, CHANGED, type Task, type Goal } from '../db/db'
 import { syncNow } from '../sync/engine'
 
 interface DayView {
@@ -34,12 +34,14 @@ export default function Plan() {
 
   useEffect(() => {
     load()
+    window.addEventListener(CHANGED, load)
+    return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
   async function toggle(t: Task) {
     const updated: Task = { ...t, state: t.state === 'done' ? 'open' : 'done', updatedAt: Date.now() }
     await writeAndQueue(db.tasks, 'task', updated)
-    await load()
+    if (updated.goalId) await rollUpGoal(updated.goalId)
     syncNow()
   }
 

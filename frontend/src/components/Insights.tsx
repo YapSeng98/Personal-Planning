@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { db, todayStr, habitStreak, type Goal } from '../db/db'
+import { useEffect, useState, useCallback } from 'react'
+import { db, todayStr, habitStreak, CHANGED, type Goal } from '../db/db'
 
 interface WeekDay {
   label: string
@@ -12,7 +12,7 @@ export default function Insights() {
   const [week, setWeek] = useState<WeekDay[]>([])
   const [streak, setStreak] = useState(0)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     ;(async () => {
       const g = await db.goals.filter((x) => x.type === 'year' && !x.deleted).first()
       setGoal(g ?? null)
@@ -35,6 +35,12 @@ export default function Insights() {
       setStreak(best)
     })()
   }, [])
+
+  useEffect(() => {
+    load()
+    window.addEventListener(CHANGED, load)
+    return () => window.removeEventListener(CHANGED, load)
+  }, [load])
 
   const max = Math.max(1, ...week.map((w) => w.done))
 

@@ -8,6 +8,7 @@ import Goals from './pages/Goals'
 import { Reviews } from './pages/Stub'
 import { isAuthed } from './sync/api'
 import { startSyncLoop } from './sync/engine'
+import { seedIfEmpty } from './db/seed'
 
 function Guard({ children }: { children: React.ReactNode }) {
   const allowed = isAuthed() || localStorage.getItem('offline_mode') === '1'
@@ -16,6 +17,9 @@ function Guard({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   useEffect(() => {
+    // Demo users get seed top-ups (new demo content) at startup, not only
+    // on the login button they'll never press again.
+    if (localStorage.getItem('offline_mode') === '1') seedIfEmpty()
     startSyncLoop()
   }, [])
 

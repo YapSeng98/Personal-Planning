@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { db, uuid, writeAndQueue, type Goal, type GoalType } from '../db/db'
+import { db, uuid, writeAndQueue, CHANGED, type Goal, type GoalType } from '../db/db'
 import { syncNow } from '../sync/engine'
 
 const ORDER: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
@@ -24,6 +24,8 @@ export default function Goals() {
   }, [])
   useEffect(() => {
     load()
+    window.addEventListener(CHANGED, load)
+    return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
   async function add() {
