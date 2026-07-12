@@ -197,6 +197,32 @@
 }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 
+/* ---- Reviews + goal edit ---- */
+.tabs { display: flex; gap: 0.5rem; margin: 1.1rem 0 0.2rem; flex-wrap: wrap; }
+.tab { border: 1px solid var(--hairline); background: var(--glass); border-radius: 999px;
+  padding: 0.35rem 0.95rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; color: var(--text-2); }
+.tab.on { background: var(--grad); color: var(--on-grad); border-color: transparent; }
+textarea.field { background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
+  padding: 0.7rem 0.9rem; width: 100%; min-height: 72px; resize: vertical; color: var(--text-1);
+  font-size: 0.92rem; font-family: inherit; }
+.mood-row { display: flex; gap: 0.5rem; align-items: center; }
+.mood-btn { font-size: 1.3rem; background: var(--glass); border: 1px solid var(--hairline);
+  border-radius: 12px; padding: 0.3rem 0.55rem; cursor: pointer; opacity: 0.45; transition: opacity 150ms var(--ease); }
+.mood-btn.on { opacity: 1; border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright); }
+.energy-row { display: flex; gap: 0.4rem; margin-left: auto; }
+.dot { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--hairline);
+  background: var(--glass); cursor: pointer; padding: 0; }
+.dot.on { background: var(--ok); border-color: var(--ok); }
+.flash { color: var(--ok); font-weight: 700; font-size: 0.85rem; }
+.review-past { display: flex; flex-direction: column; gap: 0.5rem; }
+.review-past .rp { font-size: 0.8rem; color: var(--text-2); padding: 0.65rem 0.9rem; }
+button.goal-card { text-align: left; cursor: pointer; font: inherit; color: inherit; width: 100%; }
+button.goal-card:hover { background: var(--glass-strong); }
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+.progress-edit { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-2); }
+.progress-edit input { width: 76px; background: var(--glass); border: 1px solid var(--hairline);
+  border-radius: 10px; padding: 0.45rem 0.6rem; color: var(--text-1); }
+
 /* ---- Login hero ---- */
 .login-card { position: relative; }
 .login-card .logo { width: 68px; height: 68px; border-radius: 20px; box-shadow: 0 12px 32px var(--accent-wash); margin-bottom: 0.4rem; }
