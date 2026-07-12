@@ -35,8 +35,10 @@ export default function Login() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={signIn}>
+        <img className="logo" src={`${import.meta.env.BASE_URL}icon.svg`} alt="" />
         <h1 className="grad-text">Planner</h1>
-        <p className="sub">Your day, connected to your year. Signs in to dev405150.service-now.com.</p>
+        <p className="tagline">Plan the year. Win the day.</p>
+        <p className="sub">Your daily tasks roll up to your yearly goals — synced to dev405150.service-now.com.</p>
         <input
           type="text"
           placeholder="Username"

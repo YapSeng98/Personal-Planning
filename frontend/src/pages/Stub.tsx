@@ -17,6 +17,4 @@ export function makeStub(title: string, blurb: string) {
   }
 }
 
-export const Plan = makeStub('Plan', 'Week and month planning — time blocks, top priorities.')
-export const Goals = makeStub('Goals', 'Vision → Year → Quarter → Month → Week, with live roll-up.')
 export const Reviews = makeStub('Reviews', 'Daily, weekly, monthly, yearly — pre-filled, you reflect.')

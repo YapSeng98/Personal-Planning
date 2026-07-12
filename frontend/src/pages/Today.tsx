@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { db, todayStr, uuid, writeAndQueue, habitStreak, type Task, type Habit } from '../db/db'
 import { syncNow } from '../sync/engine'
+import Insights from '../components/Insights'
 
 interface HabitView extends Habit {
   doneToday: number
@@ -78,11 +79,17 @@ export default function Today() {
     day: 'numeric',
   })
 
+  const blocks = tasks.filter((t) => t.timeBlockStart).length
+
   return (
+    <div className="today-grid">
     <div>
       <div className="greet">
         <h1>{greeting()} ☀️</h1>
-        <div className="sub">{dateLabel}</div>
+        <div className="sub">
+          {dateLabel}
+          {blocks > 0 ? ` · ${blocks} ${blocks === 1 ? 'block' : 'blocks'} planned` : ''}
+        </div>
       </div>
 
       <div className="stack">
@@ -142,6 +149,8 @@ export default function Today() {
           </div>
         ))}
       </div>
+    </div>
+    <Insights />
     </div>
   )
 }
