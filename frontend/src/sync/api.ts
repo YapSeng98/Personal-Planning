@@ -1,21 +1,20 @@
-// ServiceNow client — Money Tracker (PFMT) integration pattern:
-// custom /auth/login on the instance issues a session token; every Planner
-// call carries it as X-PFMT-Token. Endpoints set CORS headers in-script and
-// have "Requires authentication" = false, so no OAuth and no CORS rules.
-// One account works for both the Money Tracker and the Planner.
+// ServiceNow client — the Planner's own standalone auth (pattern borrowed
+// from the Money Tracker, but nothing shared): the Planner app's
+// /auth/login issues a session token; every call carries it as
+// X-Planner-Token. Endpoints set CORS headers in-script and have
+// "Requires authentication" = false, so no OAuth and no CORS rules.
 //
-// In dev, paths are relative and Vite proxies them to the instance.
-// In production (GitHub Pages), VITE_SN_BASE points at the instance directly.
-
 // Dev: relative paths → Vite proxy. Prod: straight to the instance
 // (the endpoints send CORS headers themselves).
 const BASE =
   import.meta.env.VITE_SN_BASE ??
   (import.meta.env.DEV ? '' : 'https://dev405150.service-now.com')
-const PFMT = '/api/x_887486_0/pfmt'
-const PLANNER = '/api/x_887486_0/planner'
+// The Planner app's scope on the instance (Studio shows it after the app
+// is created; override with VITE_SN_SCOPE if it differs).
+const SCOPE = import.meta.env.VITE_SN_SCOPE ?? 'x_887486_planner'
+const PLANNER = `/api/${SCOPE}/planner`
 
-const TOKEN_KEY = 'pfmt_token'
+const TOKEN_KEY = 'planner_token'
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -48,7 +47,7 @@ async function call(
     'X-HTTP-Method': method,
   }
   const token = getToken()
-  if (token) headers['X-PFMT-Token'] = token
+  if (token) headers['X-Planner-Token'] = token
 
   let url = `${BASE}${base}${path}`
   const init: RequestInit = { method, headers }
@@ -78,19 +77,23 @@ async function call(
 }
 
 export async function login(username: string, password: string) {
-  const data = await call(PFMT, '/auth/login', 'POST', { username, password })
+  const data = await call(PLANNER, '/auth/login', 'POST', { username, password })
   const token = data.token as string | undefined
   if (!token) throw new Error('Sign-in failed — no session token returned.')
   localStorage.setItem(TOKEN_KEY, token)
   return data
 }
 
+/** Registration also returns a session token, so new users land signed in. */
 export async function register(username: string, password: string, displayName?: string) {
-  return call(PFMT, '/auth/register', 'POST', {
+  const data = await call(PLANNER, '/auth/register', 'POST', {
     username,
     password,
     display_name: displayName ?? username,
   })
+  const token = data.token as string | undefined
+  if (token) localStorage.setItem(TOKEN_KEY, token)
+  return data
 }
 
 // ---- Planner sync endpoints (servicenow/scripted-rest/) ----

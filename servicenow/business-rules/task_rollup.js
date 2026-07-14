@@ -1,10 +1,10 @@
-// Business Rule on x_887486_0_pps_task  (inside the PFMT app, scope x_887486_0)
+// Business Rule on x_887486_planner_pps_task  (inside the Planner app)
 //   When: after · Insert = true, Update = true
 //   Condition: state changes OR goal changes
 // Recalculates the linked goal's progress from its tasks, then cascades the
 // average up the parent_goal chain: Week → Month → Quarter → Year.
 (function executeRule(current, previous /*null when async/insert*/) {
-    var T = 'x_887486_0_pps_';
+    var T = new PlannerAuthHelper().SCOPE + '_pps_';
 
     function recalcFromTasks(goalSysId) {
         var total = 0, done = 0;

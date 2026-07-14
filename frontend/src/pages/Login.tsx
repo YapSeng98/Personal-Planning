@@ -1,26 +1,28 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login } from '../sync/api'
+import { login, register } from '../sync/api'
 import { seedIfEmpty } from '../db/seed'
 import { syncNow } from '../sync/engine'
 
 export default function Login() {
+  const [mode, setMode] = useState<'signin' | 'register'>('signin')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const nav = useNavigate()
 
-  async function signIn(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
     setErr('')
     try {
-      await login(username, password)
+      if (mode === 'register') await register(username, password)
+      else await login(username, password)
       syncNow()
       nav('/')
     } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : 'Sign-in failed.')
+      setErr(ex instanceof Error ? ex.message : 'Something went wrong — try again.')
     } finally {
       setBusy(false)
     }
@@ -34,11 +36,15 @@ export default function Login() {
 
   return (
     <div className="login-wrap">
-      <form className="login-card" onSubmit={signIn}>
+      <form className="login-card" onSubmit={submit}>
         <img className="logo" src={`${import.meta.env.BASE_URL}icon.svg`} alt="" />
         <h1 className="grad-text">Planner</h1>
         <p className="tagline">Plan the year. Win the day.</p>
-        <p className="sub">Sign in with your Money Tracker account — same username and password. Daily tasks roll up to yearly goals, synced to your ServiceNow instance.</p>
+        <p className="sub">
+          {mode === 'signin'
+            ? 'Daily tasks roll up to yearly goals — synced to your ServiceNow instance.'
+            : 'Pick any username and password (8+ characters) — your account lives in your own instance.'}
+        </p>
         <input
           type="text"
           placeholder="Username"
@@ -49,13 +55,23 @@ export default function Login() {
         <input
           type="password"
           placeholder="Password"
-          autoComplete="current-password"
+          autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         {err && <div className="err" role="alert">{err}</div>}
         <button className="btn btn-primary" type="submit" disabled={busy || !username || !password}>
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+        </button>
+        <button
+          className="btn"
+          type="button"
+          onClick={() => {
+            setMode(mode === 'signin' ? 'register' : 'signin')
+            setErr('')
+          }}
+        >
+          {mode === 'signin' ? 'New here? Create an account' : 'Have an account? Sign in'}
         </button>
         <div className="divider">or</div>
         <button className="btn" type="button" onClick={tryOffline}>

@@ -1,24 +1,24 @@
 // ============================================================
 // Planner Scripted REST API — /habit/checkin
-// Location : ServiceNow → Studio (inside the PFMT app, scope x_887486_0)
+// Location : ServiceNow → Studio (inside the Planner app)
 // API Name : Planner API   (API ID: planner)
 // Resource : /habit/checkin    Method: POST
 // Body     : { "habit": "<habit client_uuid>" }
-// Full URL : https://<instance>.service-now.com/api/x_887486_0/planner/habit/checkin
+// Full URL : https://<instance>.service-now.com/api/x_887486_planner/planner/habit/checkin
 //
-// All requests require header: X-PFMT-Token (same session as Money Tracker)
+// All requests require header: X-Planner-Token (Planner's own session)
 // NOTE: Set "Requires authentication" = false on this resource
 // ============================================================
 (function process(request, response) {
-    var helper = new PFMTAuthHelper();
-    var T = 'x_887486_0_pps_';
+    var helper = new PlannerAuthHelper();
+    var T = 'x_887486_planner_pps_';
 
     response.setHeader('Access-Control-Allow-Origin', '*');
     response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-PFMT-Token, X-HTTP-Method');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Planner-Token, X-HTTP-Method');
     if (request.getHeader('X-HTTP-Method') === 'OPTIONS') { response.setStatus(200); return; }
 
-    var profile = helper.validateToken(request.getHeader('X-PFMT-Token') || '');
+    var profile = helper.validateToken(request.getHeader('X-Planner-Token') || '');
     if (!profile) { helper.errorResponse(response, 401, 'Invalid or expired session. Please log in again.'); return; }
 
     var body = request.body ? request.body.data : {};
