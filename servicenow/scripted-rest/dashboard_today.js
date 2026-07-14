@@ -1,11 +1,30 @@
-// GET /api/x_pps/pps/dashboard/today
-// One-call aggregate for the Today screen: today's tasks, active habits with
-// today's log, and in-progress goal snapshots (design doc §07).
+// ============================================================
+// Planner Scripted REST API — /dashboard/today
+// Location : ServiceNow → Studio (inside the PFMT app, scope x_887486_0)
+// API Name : Planner API   (API ID: planner)
+// Resource : /dashboard/today    Method: GET
+// Full URL : https://<instance>.service-now.com/api/x_887486_0/planner/dashboard/today
+//
+// All requests require header: X-PFMT-Token (same session as Money Tracker)
+// NOTE: Set "Requires authentication" = false on this resource
+// ============================================================
 (function process(request, response) {
+    var helper = new PFMTAuthHelper();
+    var T = 'x_887486_0_pps_';
+
+    response.setHeader('Access-Control-Allow-Origin', '*');
+    response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-PFMT-Token, X-HTTP-Method');
+    if (request.getHeader('X-HTTP-Method') === 'OPTIONS') { response.setStatus(200); return; }
+
+    var profile = helper.validateToken(request.getHeader('X-PFMT-Token') || '');
+    if (!profile) { helper.errorResponse(response, 401, 'Invalid or expired session. Please log in again.'); return; }
+
     var today = new GlideDate().getValue(); // YYYY-MM-DD
 
     var tasks = [];
-    var tGr = new GlideRecord('x_pps_task');
+    var tGr = new GlideRecord(T + 'task');
+    tGr.addQuery('user_profile', profile);
     tGr.addQuery('due', today);
     tGr.addQuery('deleted', false);
     tGr.orderBy('time_block_start');
@@ -23,12 +42,13 @@
     }
 
     var habits = [];
-    var hGr = new GlideRecord('x_pps_habit');
+    var hGr = new GlideRecord(T + 'habit');
+    hGr.addQuery('user_profile', profile);
     hGr.addQuery('active', true);
     hGr.addQuery('deleted', false);
     hGr.query();
     while (hGr.next()) {
-        var log = new GlideRecord('x_pps_habit_log');
+        var log = new GlideRecord(T + 'habit_log');
         log.addQuery('habit', hGr.getUniqueValue());
         log.addQuery('date', today);
         log.addQuery('deleted', false);
@@ -43,7 +63,8 @@
     }
 
     var goals = [];
-    var gGr = new GlideRecord('x_pps_goal');
+    var gGr = new GlideRecord(T + 'goal');
+    gGr.addQuery('user_profile', profile);
     gGr.addQuery('status', 'in_progress');
     gGr.addQuery('deleted', false);
     gGr.addQuery('type', 'IN', 'year,quarter');

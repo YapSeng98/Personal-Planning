@@ -1,17 +1,15 @@
 #!/bin/sh
-# Smoke-tests the ServiceNow side alone (no app involved).
-# Reads credentials from frontend/.env.local:
-#   VITE_SN_TEST_USER=...
-#   VITE_SN_TEST_PASSWORD=...
+# Smoke-tests the Planner's ServiceNow integration — NO credentials needed.
+# Uses the Money Tracker's live /auth endpoints to register/login a dedicated
+# e2e account, then exercises the Planner API with its session token.
 set -e
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ENVF="$ROOT/frontend/.env.local"
-[ -f "$ENVF" ] || { echo "Missing $ENVF — create it with VITE_SN_TEST_USER / VITE_SN_TEST_PASSWORD"; exit 1; }
-USER=$(grep '^VITE_SN_TEST_USER=' "$ENVF" | cut -d= -f2-)
-PASS=$(grep '^VITE_SN_TEST_PASSWORD=' "$ENVF" | cut -d= -f2-)
 SN=https://dev405150.service-now.com
-AUTH="$USER:$PASS"
+PFMT="$SN/api/x_887486_0/pfmt"
+PLANNER="$SN/api/x_887486_0/planner"
+U="planner_e2e"
+P="PlannerE2E!2026"
 UUID="smoke-$(date +%s)"
+TODAY=$(date +%F)
 
 check() { # label, expected substring, actual
   case "$3" in
@@ -20,34 +18,43 @@ check() { # label, expected substring, actual
   esac
 }
 
-echo "1. Auth + x_pps_task table reachable"
-R=$(curl -s -u "$AUTH" "$SN/api/now/table/x_pps_task?sysparm_limit=1")
-check "table API + ACL" '"result"' "$R"
+echo "1. Auth — login (or first-time register) the e2e account"
+R=$(curl -s -X POST "$PFMT/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"username\":\"$U\",\"password\":\"$P\"}")
+case "$R" in
+  *token*) : ;;
+  *) curl -s -X POST "$PFMT/auth/register" -H 'Content-Type: application/json' \
+       -d "{\"username\":\"$U\",\"password\":\"$P\",\"display_name\":\"Planner E2E\"}" >/dev/null
+     R=$(curl -s -X POST "$PFMT/auth/login" -H 'Content-Type: application/json' \
+       -d "{\"username\":\"$U\",\"password\":\"$P\"}") ;;
+esac
+check "login returns session token" '"token"' "$R"
+TOKEN=$(echo "$R" | sed -n 's/.*"token" *: *"\([a-f0-9]*\)".*/\1/p')
+[ -n "$TOKEN" ] || { echo "  cannot continue without token"; exit 1; }
 
-echo "2. Scripted REST: sync pull"
-R=$(curl -s -u "$AUTH" "$SN/api/x_pps/pps/sync/pull?since=1970-01-01%2000:00:00")
+echo "2. Planner API — sync pull"
+R=$(curl -s "$PLANNER/sync/pull?since=1970-01-01%2000:00:00" -H "X-PFMT-Token: $TOKEN" -H "X-HTTP-Method: GET")
 check "GET /sync/pull returns cursor" '"cursor"' "$R"
 
-echo "3. Scripted REST: sync push (test task, due today, with time block)"
-TODAY=$(date +%F)
-R=$(curl -s -u "$AUTH" -X POST "$SN/api/x_pps/pps/sync/push" \
-  -H 'Content-Type: application/json' \
+echo "3. Planner API — sync push (store a test task)"
+R=$(curl -s -X POST "$PLANNER/sync/push" -H 'Content-Type: application/json' \
+  -H "X-PFMT-Token: $TOKEN" -H "X-HTTP-Method: POST" \
   -d "{\"items\":[{\"table\":\"task\",\"client_uuid\":\"$UUID\",\"edited_at\":$(date +%s)000,
        \"payload\":{\"title\":\"smoke test task\",\"state\":\"open\",\"priority\":3,
         \"due\":\"$TODAY\",\"timeBlockStart\":\"${TODAY}T09:00\",\"deleted\":false}}]}")
 check "POST /sync/push applied" '"applied"' "$R"
 
-echo "4. Round-trip: pushed task visible via table API"
-R=$(curl -s -u "$AUTH" "$SN/api/now/table/x_pps_task?sysparm_query=client_uuid=$UUID")
-check "record stored with title" 'smoke test task' "$R"
-check "time block stored with seconds" "$TODAY 09:00:00" "$R"
+echo "4. Fetch round-trip — pull sees the stored task"
+R=$(curl -s "$PLANNER/sync/pull?since=1970-01-01%2000:00:00" -H "X-PFMT-Token: $TOKEN" -H "X-HTTP-Method: GET")
+check "pull returns the smoke task uuid" "$UUID" "$R"
+check "title stored and fetched" 'smoke test task' "$R"
 
 echo "5. Dashboard aggregate"
-R=$(curl -s -u "$AUTH" "$SN/api/x_pps/pps/dashboard/today")
-check "GET /dashboard/today includes pushed task" 'smoke test task' "$R"
+R=$(curl -s "$PLANNER/dashboard/today" -H "X-PFMT-Token: $TOKEN" -H "X-HTTP-Method: GET")
+check "GET /dashboard/today includes the task" 'smoke test task' "$R"
 
-echo "6. Pull sees the new record"
-R=$(curl -s -u "$AUTH" "$SN/api/x_pps/pps/sync/pull?since=1970-01-01%2000:00:00")
-check "pull returns the smoke task" "$UUID" "$R"
+echo "6. Auth guard — planner API without token is rejected"
+R=$(curl -s "$PLANNER/sync/pull?since=1970-01-01%2000:00:00" -H "X-HTTP-Method: GET")
+check "401 error without token" 'error' "$R"
 
 [ -z "$FAILED" ] && echo "ALL SMOKE TESTS PASSED" || { echo "SMOKE TESTS FAILED — see above"; exit 1; }

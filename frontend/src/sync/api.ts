@@ -1,94 +1,99 @@
-// ServiceNow client — OAuth2 password grant + sync endpoints (design doc §07/§08).
-// In dev, paths are relative and Vite proxies them to the instance (vite.config.ts).
-// In production, set VITE_SN_BASE to the instance URL and add CORS rules on SN.
+// ServiceNow client — Money Tracker (PFMT) integration pattern:
+// custom /auth/login on the instance issues a session token; every Planner
+// call carries it as X-PFMT-Token. Endpoints set CORS headers in-script and
+// have "Requires authentication" = false, so no OAuth and no CORS rules.
+// One account works for both the Money Tracker and the Planner.
+//
+// In dev, paths are relative and Vite proxies them to the instance.
+// In production (GitHub Pages), VITE_SN_BASE points at the instance directly.
 
-const BASE = import.meta.env.VITE_SN_BASE ?? ''
-const CLIENT_ID = import.meta.env.VITE_SN_CLIENT_ID ?? ''
-const CLIENT_SECRET = import.meta.env.VITE_SN_CLIENT_SECRET ?? ''
+// Dev: relative paths → Vite proxy. Prod: straight to the instance
+// (the endpoints send CORS headers themselves).
+const BASE =
+  import.meta.env.VITE_SN_BASE ??
+  (import.meta.env.DEV ? '' : 'https://dev405150.service-now.com')
+const PFMT = '/api/x_887486_0/pfmt'
+const PLANNER = '/api/x_887486_0/planner'
 
-// TEST MODE: Basic auth via .env.local (gitignored, local dev only) — lets the
-// full app↔ServiceNow sync be verified before the OAuth flow is set up.
-// Never set these in a deployed build.
-const TEST_USER = import.meta.env.VITE_SN_TEST_USER ?? ''
-const TEST_PASSWORD = import.meta.env.VITE_SN_TEST_PASSWORD ?? ''
-export const testMode = Boolean(TEST_USER && TEST_PASSWORD)
+const TOKEN_KEY = 'pfmt_token'
 
-interface Tokens {
-  accessToken: string
-  refreshToken: string
-  expiresAt: number
-}
-
-const TOKENS_KEY = 'sn_tokens'
-
-export function getTokens(): Tokens | null {
-  const raw = localStorage.getItem(TOKENS_KEY)
-  return raw ? (JSON.parse(raw) as Tokens) : null
-}
-
-function saveTokens(t: Tokens) {
-  localStorage.setItem(TOKENS_KEY, JSON.stringify(t))
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
 }
 
 export function clearTokens() {
-  localStorage.removeItem(TOKENS_KEY)
+  localStorage.removeItem(TOKEN_KEY)
 }
 
 export function isAuthed(): boolean {
-  return testMode || getTokens() !== null
+  return getToken() !== null
 }
 
-async function tokenRequest(body: Record<string, string>): Promise<Tokens> {
-  const res = await fetch(`${BASE}/oauth_token.do`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      ...body,
-    }),
-  })
-  if (!res.ok) throw new Error(`Sign-in failed (${res.status}). Check username and password.`)
-  const json = await res.json()
-  const tokens: Tokens = {
-    accessToken: json.access_token,
-    refreshToken: json.refresh_token,
-    expiresAt: Date.now() + json.expires_in * 1000,
+/** Unwrap ServiceNow's {result:{…}} nesting (sometimes doubled). */
+function unwrap(json: unknown): Record<string, unknown> {
+  let data = json as Record<string, unknown>
+  if (data && typeof data === 'object' && 'result' in data) data = data.result as Record<string, unknown>
+  if (data && typeof data === 'object' && 'result' in data) data = data.result as Record<string, unknown>
+  return data
+}
+
+async function call(
+  base: string,
+  path: string,
+  method: 'GET' | 'POST',
+  body?: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-HTTP-Method': method,
   }
-  saveTokens(tokens)
-  return tokens
+  const token = getToken()
+  if (token) headers['X-PFMT-Token'] = token
+
+  let url = `${BASE}${base}${path}`
+  const init: RequestInit = { method, headers }
+  if (body) {
+    if (method === 'GET') {
+      const qs = Object.entries(body)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+        .join('&')
+      if (qs) url += (url.includes('?') ? '&' : '?') + qs
+    } else {
+      init.body = JSON.stringify(body)
+    }
+  }
+
+  const res = await fetch(url, init)
+  const json = await res.json().catch(() => ({}))
+  const data = unwrap(json)
+  if (!res.ok || (data && typeof data.error === 'string')) {
+    const msg =
+      (data && (data.error as string)) ||
+      (json?.error?.message as string) ||
+      `${method} ${path} → ${res.status}`
+    if (res.status === 401) clearTokens()
+    throw new Error(msg)
+  }
+  return data
 }
 
-export function login(username: string, password: string) {
-  return tokenRequest({ grant_type: 'password', username, password })
+export async function login(username: string, password: string) {
+  const data = await call(PFMT, '/auth/login', 'POST', { username, password })
+  const token = data.token as string | undefined
+  if (!token) throw new Error('Sign-in failed — no session token returned.')
+  localStorage.setItem(TOKEN_KEY, token)
+  return data
 }
 
-async function freshAccessToken(): Promise<string> {
-  const t = getTokens()
-  if (!t) throw new Error('Not signed in')
-  if (Date.now() < t.expiresAt - 60_000) return t.accessToken
-  const renewed = await tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refreshToken })
-  return renewed.accessToken
-}
-
-async function authFetch(path: string, init: RequestInit = {}) {
-  const auth = testMode
-    ? `Basic ${btoa(`${TEST_USER}:${TEST_PASSWORD}`)}`
-    : `Bearer ${await freshAccessToken()}`
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: auth,
-      ...init.headers,
-    },
+export async function register(username: string, password: string, displayName?: string) {
+  return call(PFMT, '/auth/register', 'POST', {
+    username,
+    password,
+    display_name: displayName ?? username,
   })
-  if (!res.ok) throw new Error(`${init.method ?? 'GET'} ${path} → ${res.status}`)
-  return res.json()
 }
 
-// ---- Sync endpoints (Scripted REST, servicenow/scripted-rest/) ----
+// ---- Planner sync endpoints (servicenow/scripted-rest/) ----
 
 export interface PushItem {
   table: string
@@ -102,10 +107,7 @@ export interface PushResult {
 }
 
 export function syncPush(items: PushItem[]): Promise<PushResult> {
-  return authFetch('/api/x_pps/pps/sync/push', {
-    method: 'POST',
-    body: JSON.stringify({ items }),
-  })
+  return call(PLANNER, '/sync/push', 'POST', { items }) as Promise<unknown> as Promise<PushResult>
 }
 
 export interface PullResponse {
@@ -114,9 +116,9 @@ export interface PullResponse {
 }
 
 export function syncPull(cursor: string): Promise<PullResponse> {
-  return authFetch(`/api/x_pps/pps/sync/pull?since=${encodeURIComponent(cursor)}`)
+  return call(PLANNER, '/sync/pull', 'GET', { since: cursor }) as Promise<unknown> as Promise<PullResponse>
 }
 
 export function fetchTodayDashboard() {
-  return authFetch('/api/x_pps/pps/dashboard/today')
+  return call(PLANNER, '/dashboard/today', 'GET')
 }

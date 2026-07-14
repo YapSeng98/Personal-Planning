@@ -1,17 +1,27 @@
-// GET /api/x_pps/pps/sync/pull?since=YYYY-MM-DD HH:mm:ss
-// Returns every record changed since the cursor across all synced tables,
-// including soft-deleted tombstones, plus the new cursor.
+// ============================================================
+// Planner Scripted REST API — /sync/pull
+// Location : ServiceNow → Studio (inside the PFMT app, scope x_887486_0)
+// API Name : Planner API   (API ID: planner)
+// Resource : /sync/pull    Method: GET
+// Full URL : https://<instance>.service-now.com/api/x_887486_0/planner/sync/pull?since=...
+//
+// All requests require header: X-PFMT-Token (same session as Money Tracker)
+// NOTE: Set "Requires authentication" = false on this resource
+// ============================================================
 (function process(request, response) {
-    var TABLES = {
-        task: 'x_pps_task',
-        habit: 'x_pps_habit',
-        habit_log: 'x_pps_habit_log',
-        goal: 'x_pps_goal',
-        review: 'x_pps_review'
-    };
+    var helper = new PFMTAuthHelper();
+    var T = 'x_887486_0_pps_';
 
-    // SN column -> frontend camelCase. 'ref:' resolves sys_id back to the
-    // referenced record's client_uuid.
+    response.setHeader('Access-Control-Allow-Origin', '*');
+    response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-PFMT-Token, X-HTTP-Method');
+    if (request.getHeader('X-HTTP-Method') === 'OPTIONS') { response.setStatus(200); return; }
+
+    var profile = helper.validateToken(request.getHeader('X-PFMT-Token') || '');
+    if (!profile) { helper.errorResponse(response, 401, 'Invalid or expired session. Please log in again.'); return; }
+
+    var TABLES = { task: T + 'task', habit: T + 'habit', habit_log: T + 'habit_log', goal: T + 'goal', review: T + 'review' };
+
     var FIELD_MAPS = {
         task: {
             title: 'title', notes: 'notes', state: 'state', priority: 'priority',
@@ -40,13 +50,14 @@
     var BOOL_FIELDS = { is_mit: 1, active: 1 };
 
     var since = request.queryParams.since || '1970-01-01 00:00:00';
-    // Capture the cursor BEFORE querying so concurrent writes land in the
-    // next pull; re-applying an overlap is harmless (idempotent puts).
+    // Cursor captured BEFORE querying: concurrent writes land in the next
+    // pull; re-applying an overlap is harmless (idempotent puts).
     var cursor = new GlideDateTime().getDisplayValue();
     var records = [];
 
     for (var key in TABLES) {
         var gr = new GlideRecord(TABLES[key]);
+        gr.addQuery('user_profile', profile);
         gr.addQuery('sys_updated_on', '>', since);
         gr.query();
         while (gr.next()) {

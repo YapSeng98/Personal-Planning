@@ -38,7 +38,7 @@ export default function Login() {
         <img className="logo" src={`${import.meta.env.BASE_URL}icon.svg`} alt="" />
         <h1 className="grad-text">Planner</h1>
         <p className="tagline">Plan the year. Win the day.</p>
-        <p className="sub">Your daily tasks roll up to your yearly goals — synced to dev405150.service-now.com.</p>
+        <p className="sub">Sign in with your Money Tracker account — same username and password. Daily tasks roll up to yearly goals, synced to your ServiceNow instance.</p>
         <input
           type="text"
           placeholder="Username"

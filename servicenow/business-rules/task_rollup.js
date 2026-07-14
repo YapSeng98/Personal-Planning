@@ -1,13 +1,14 @@
-// Business Rule on x_pps_task
+// Business Rule on x_887486_0_pps_task  (inside the PFMT app, scope x_887486_0)
 //   When: after · Insert = true, Update = true
 //   Condition: state changes OR goal changes
 // Recalculates the linked goal's progress from its tasks, then cascades the
-// average up the parent_goal chain: Week → Month → Quarter → Year (doc §06).
+// average up the parent_goal chain: Week → Month → Quarter → Year.
 (function executeRule(current, previous /*null when async/insert*/) {
+    var T = 'x_887486_0_pps_';
 
     function recalcFromTasks(goalSysId) {
         var total = 0, done = 0;
-        var t = new GlideRecord('x_pps_task');
+        var t = new GlideRecord(T + 'task');
         t.addQuery('goal', goalSysId);
         t.addQuery('deleted', false);
         t.addQuery('state', '!=', 'cancelled');
@@ -21,7 +22,7 @@
 
     function recalcFromChildren(goalSysId) {
         var sum = 0, n = 0;
-        var c = new GlideRecord('x_pps_goal');
+        var c = new GlideRecord(T + 'goal');
         c.addQuery('parent_goal', goalSysId);
         c.addQuery('deleted', false);
         c.query();
@@ -33,7 +34,7 @@
     }
 
     function setProgress(goalSysId, value) {
-        var g = new GlideRecord('x_pps_goal');
+        var g = new GlideRecord(T + 'goal');
         if (!g.get(goalSysId)) return null;
         g.setValue('progress', value);
         if (value >= 100) g.setValue('status', 'completed');
@@ -53,9 +54,7 @@
     for (var i = 0; i < goalIds.length; i++) {
         var id = goalIds[i];
         if (!id) continue;
-        // Leaf level: progress from tasks.
         var parent = setProgress(id, recalcFromTasks(id));
-        // Cascade: each ancestor is the average of its children.
         var depth = 0;
         while (parent && depth < 10) {
             var avg = recalcFromChildren(parent);
