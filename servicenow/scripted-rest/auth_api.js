@@ -49,8 +49,8 @@
     if (action === 'register') {
         var regUser = (body.username || '').trim().toLowerCase();
         var regPassword = body.password || '';
-        if (!regUser || regUser.length < 3) { helper.errorResponse(response, 400, 'Username must be at least 3 characters.'); return; }
-        if (regPassword.length < 8) { helper.errorResponse(response, 400, 'Password must be at least 8 characters.'); return; }
+        if (!regUser) { helper.errorResponse(response, 400, 'Username is required.'); return; }
+        if (!regPassword) { helper.errorResponse(response, 400, 'Password is required.'); return; }
 
         var dupe = new GlideRecord(SCOPE + '_user_profile');
         dupe.addQuery('user_name', regUser);

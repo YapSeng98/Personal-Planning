@@ -43,7 +43,7 @@ export default function Login() {
         <p className="sub">
           {mode === 'signin'
             ? 'Daily tasks roll up to yearly goals — synced to your ServiceNow instance.'
-            : 'Pick any username and password (8+ characters) — your account lives in your own instance.'}
+            : 'Pick any username and password — your account lives in your own instance.'}
         </p>
         <input
           type="text"
