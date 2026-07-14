@@ -137,6 +137,7 @@ export function syncPull(cursor: string): Promise<PullResponse> {
   return call(PLANNER, '/sync/pull', 'GET', { since: cursor }) as Promise<unknown> as Promise<PullResponse>
 }
 
-export function fetchTodayDashboard() {
-  return call(PLANNER, '/dashboard/today', 'GET')
+export function fetchTodayDashboard(localDate: string) {
+  // The server has no idea what timezone the user is in — send our "today".
+  return call(PLANNER, '/dashboard/today', 'GET', { date: localDate })
 }

@@ -20,7 +20,10 @@
     var profile = helper.validateToken(request.getHeader('X-Planner-Token') || '');
     if (!profile) { helper.errorResponse(response, 401, 'Invalid or expired session. Please log in again.'); return; }
 
-    var today = new GlideDate().getValue(); // YYYY-MM-DD
+    // The client sends its LOCAL date (?date=YYYY-MM-DD) — the user's "today",
+    // not the instance's. Server date is only a fallback.
+    var today = String(request.queryParams.date || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) today = new GlideDate().getValue();
 
     var tasks = [];
     var tGr = new GlideRecord(T + 'task');

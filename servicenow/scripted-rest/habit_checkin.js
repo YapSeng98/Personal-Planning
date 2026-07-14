@@ -33,7 +33,9 @@
         return;
     }
 
-    var today = new GlideDate().getValue();
+    // The client sends its LOCAL date — the user's "today", not the instance's.
+    var today = String((body && body.date) || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) today = new GlideDate().getValue();
     var log = new GlideRecord(T + 'habit_log');
     log.addQuery('habit', habit.getUniqueValue());
     log.addQuery('date', today);
@@ -53,19 +55,22 @@
         log.insert();
     }
 
-    // Walk backwards from today counting consecutive logged days.
+    // Walk backwards from the user's today counting consecutive logged days.
+    // GlideDateTime anchored at midnight: date strings compare literally, so
+    // UTC day-arithmetic is safe here.
     var streak = 0;
-    var cursor = new GlideDate();
+    var walker = new GlideDateTime(today + ' 00:00:00');
     while (true) {
+        var dayStr = walker.getValue().substring(0, 10);
         var dayLog = new GlideRecord(T + 'habit_log');
         dayLog.addQuery('habit', habit.getUniqueValue());
-        dayLog.addQuery('date', cursor.getValue());
+        dayLog.addQuery('date', dayStr);
         dayLog.addQuery('count', '>', 0);
         dayLog.addQuery('deleted', false);
         dayLog.query();
         if (!dayLog.next()) break;
         streak++;
-        cursor.addDays(-1);
+        walker.addDaysUTC(-1);
         if (streak > 3650) break; // sanity bound
     }
 

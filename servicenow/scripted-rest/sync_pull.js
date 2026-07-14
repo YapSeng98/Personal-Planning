@@ -52,7 +52,9 @@
     var since = request.queryParams.since || '1970-01-01 00:00:00';
     // Cursor captured BEFORE querying: concurrent writes land in the next
     // pull; re-applying an overlap is harmless (idempotent puts).
-    var cursor = new GlideDateTime().getDisplayValue();
+    // getValue() = UTC, matching how addQuery compares sys_updated_on —
+    // getDisplayValue() would be display-timezone and could skip records.
+    var cursor = new GlideDateTime().getValue();
     var records = [];
 
     for (var key in TABLES) {
