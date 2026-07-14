@@ -10,6 +10,9 @@ const links = [
   { to: '/reviews', label: 'Review', ico: '✍️' },
 ]
 
+/** Anywhere in the app can request the quick-add sheet. */
+export const openQuickAdd = () => window.dispatchEvent(new CustomEvent('planner:quickadd'))
+
 const stateLabel: Record<SyncState, string> = {
   idle: 'Synced',
   syncing: 'Syncing…',
@@ -22,6 +25,11 @@ export default function Shell() {
   const [adding, setAdding] = useState(false)
   const [sync, setSync] = useState<SyncState>('idle')
   useEffect(() => onSyncState(setSync), [])
+  useEffect(() => {
+    const open = () => setAdding(true)
+    window.addEventListener('planner:quickadd', open)
+    return () => window.removeEventListener('planner:quickadd', open)
+  }, [])
 
   const nav = (cls: string) =>
     links.map((l) => (
@@ -37,7 +45,13 @@ export default function Shell() {
         <div className="brand grad-text">Planner</div>
         {nav('')}
         <div style={{ flex: 1 }} />
-        <span className={`sync-dot ${sync}`}><i />{stateLabel[sync]}</span>
+        <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <span className="ico" aria-hidden>⚙️</span>
+          <span>Settings</span>
+        </NavLink>
+        <NavLink to="/settings" className="sync-link" title="Sync status — open settings">
+          <span className={`sync-dot ${sync}`}><i />{stateLabel[sync]}</span>
+        </NavLink>
       </nav>
       <main className="shell-main">
         <Outlet />
@@ -48,6 +62,7 @@ export default function Shell() {
         {nav('').slice(2)}
       </nav>
       <button className="fab fab-desktop" aria-label="Quick add" onClick={() => setAdding(true)}>+</button>
+      <NavLink to="/settings" className="gear-mobile" aria-label="Settings">⚙️</NavLink>
       {adding && <QuickAdd onClose={() => setAdding(false)} />}
     </div>
   )

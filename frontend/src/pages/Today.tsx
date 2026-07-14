@@ -8,11 +8,11 @@ interface HabitView extends Habit {
   streak: number
 }
 
-function greeting() {
+function greeting(): [string, string] {
   const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 18) return 'Good afternoon'
-  return 'Good evening'
+  if (h < 12) return ['Good morning', '☀️']
+  if (h < 18) return ['Good afternoon', '🌤️']
+  return ['Good evening', '🌙']
 }
 
 /** Rule-based briefing for Phase 1; the AI assistant takes over this card in Phase 3. */
@@ -82,12 +82,13 @@ export default function Today() {
   })
 
   const blocks = tasks.filter((t) => t.timeBlockStart).length
+  const [hello, emoji] = greeting()
 
   return (
     <div className="today-grid">
     <div>
       <div className="greet">
-        <h1>{greeting()} ☀️</h1>
+        <h1>{hello} {emoji}</h1>
         <div className="sub">
           {dateLabel}
           {blocks > 0 ? ` · ${blocks} ${blocks === 1 ? 'block' : 'blocks'} planned` : ''}
@@ -130,7 +131,14 @@ export default function Today() {
 
       <div className="section-h">Today's tasks</div>
       <div className="stack" style={{ marginTop: 0 }}>
-        {tasks.length === 0 && <div className="empty">Nothing planned yet. Tap + to add your first task.</div>}
+        {tasks.length === 0 && (
+          <div className="card empty-cta">
+            <p>Nothing planned yet — what's the one thing that would make today a win?</p>
+            <button className="btn btn-primary" onClick={() => window.dispatchEvent(new CustomEvent('planner:quickadd'))}>
+              + Add your first task
+            </button>
+          </div>
+        )}
         {tasks.map((t) => (
           <div key={t.id} className="card task-row">
             <button

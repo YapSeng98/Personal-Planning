@@ -81,6 +81,7 @@ export async function login(username: string, password: string) {
   const token = data.token as string | undefined
   if (!token) throw new Error('Sign-in failed — no session token returned.')
   localStorage.setItem(TOKEN_KEY, token)
+  localStorage.setItem('planner_user', String(data.username ?? username))
   return data
 }
 
@@ -93,7 +94,21 @@ export async function register(username: string, password: string, displayName?:
   })
   const token = data.token as string | undefined
   if (token) localStorage.setItem(TOKEN_KEY, token)
+  localStorage.setItem('planner_user', String(data.username ?? username))
   return data
+}
+
+export function currentUser(): string | null {
+  return localStorage.getItem('planner_user')
+}
+
+/** Best-effort server logout; local cleanup is the caller's job. */
+export async function serverLogout() {
+  try {
+    await call(PLANNER, '/auth/logout', 'POST', {})
+  } catch {
+    // token already dead or offline — fine, we're leaving anyway
+  }
 }
 
 // ---- Planner sync endpoints (servicenow/scripted-rest/) ----

@@ -60,7 +60,10 @@ export default function Insights() {
         <div className="bars" role="img" aria-label={`Tasks completed each day this week, peak ${max}`}>
           {week.map((w, i) => (
             <div key={i} className="bar-col">
-              <i style={{ height: `${(w.done / max) * 100}%` }} className={i === 6 ? 'hot' : ''} />
+              <i
+                style={{ height: `${(w.done / max) * 100}%` }}
+                className={`${i === 6 ? 'hot' : ''} ${w.done === 0 ? 'zero' : ''}`}
+              />
               <span>{w.label}</span>
             </div>
           ))}

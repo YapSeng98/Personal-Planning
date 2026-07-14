@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Plan from './pages/Plan'
 import Goals from './pages/Goals'
 import Reviews from './pages/Reviews'
+import Settings from './pages/Settings'
 import { isAuthed } from './sync/api'
 import { startSyncLoop } from './sync/engine'
 import { seedIfEmpty } from './db/seed'
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/plan" element={<Plan />} />
           <Route path="/goals" element={<Goals />} />
           <Route path="/reviews" element={<Reviews />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
     </HashRouter>
