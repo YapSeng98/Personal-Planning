@@ -75,7 +75,14 @@
                     data[target] = gr.getValue(col) === 'true' ? 1 : 0;
                 } else {
                     var v = gr.getValue(col);
-                    data[target] = v === null ? undefined : String(v).replace(' ', 'T');
+                    if (v === null) {
+                        data[target] = undefined;
+                    } else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(v)) {
+                        // datetime → ISO 'T' separator; plain text stays untouched
+                        data[target] = String(v).replace(' ', 'T');
+                    } else {
+                        data[target] = String(v);
+                    }
                 }
             }
             data.deleted = gr.getValue('deleted') === 'true' ? 1 : 0;

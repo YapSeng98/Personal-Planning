@@ -7,7 +7,7 @@ SN=https://dev405150.service-now.com
 # The Planner app's scope — Studio shows it after creating the app;
 # adjust here if it differs.
 SCOPE="x_887486_persona_0"
-PLANNER="$SN/api/$SCOPE/planner"
+PLANNER="$SN/api/$SCOPE/pps"
 PLANNER_AUTH="$PLANNER"
 U="planner_e2e"
 P="PlannerE2E!2026"

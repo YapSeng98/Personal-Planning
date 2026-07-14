@@ -28,7 +28,7 @@
         if (!username || !password) { helper.errorResponse(response, 400, 'username and password are required'); return; }
 
         var gr = new GlideRecord(SCOPE + '_user_profile');
-        gr.addQuery('username', username);
+        gr.addQuery('user_name', username);
         gr.setLimit(1);
         gr.query();
         if (!gr.next() || gr.getValue('password_hash') !== helper.hashPassword(password)) {
@@ -39,7 +39,7 @@
         response.setStatus(200);
         response.setBody({
             token: helper.createSession(gr.getUniqueValue(), body.device_hint),
-            username: gr.getValue('username'),
+            username: gr.getValue('user_name'),
             display_name: gr.getValue('display_name')
         });
         return;
@@ -53,14 +53,14 @@
         if (regPassword.length < 8) { helper.errorResponse(response, 400, 'Password must be at least 8 characters.'); return; }
 
         var dupe = new GlideRecord(SCOPE + '_user_profile');
-        dupe.addQuery('username', regUser);
+        dupe.addQuery('user_name', regUser);
         dupe.setLimit(1);
         dupe.query();
         if (dupe.next()) { helper.errorResponse(response, 409, 'That username is taken.'); return; }
 
         var newGR = new GlideRecord(SCOPE + '_user_profile');
         newGR.initialize();
-        newGR.setValue('username', regUser);
+        newGR.setValue('user_name', regUser);
         newGR.setValue('display_name', body.display_name || regUser);
         newGR.setValue('password_hash', helper.hashPassword(regPassword));
         var sysId = newGR.insert();
