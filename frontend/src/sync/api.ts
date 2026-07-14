@@ -6,6 +6,13 @@ const BASE = import.meta.env.VITE_SN_BASE ?? ''
 const CLIENT_ID = import.meta.env.VITE_SN_CLIENT_ID ?? ''
 const CLIENT_SECRET = import.meta.env.VITE_SN_CLIENT_SECRET ?? ''
 
+// TEST MODE: Basic auth via .env.local (gitignored, local dev only) — lets the
+// full app↔ServiceNow sync be verified before the OAuth flow is set up.
+// Never set these in a deployed build.
+const TEST_USER = import.meta.env.VITE_SN_TEST_USER ?? ''
+const TEST_PASSWORD = import.meta.env.VITE_SN_TEST_PASSWORD ?? ''
+export const testMode = Boolean(TEST_USER && TEST_PASSWORD)
+
 interface Tokens {
   accessToken: string
   refreshToken: string
@@ -28,7 +35,7 @@ export function clearTokens() {
 }
 
 export function isAuthed(): boolean {
-  return getTokens() !== null
+  return testMode || getTokens() !== null
 }
 
 async function tokenRequest(body: Record<string, string>): Promise<Tokens> {
@@ -65,13 +72,15 @@ async function freshAccessToken(): Promise<string> {
 }
 
 async function authFetch(path: string, init: RequestInit = {}) {
-  const token = await freshAccessToken()
+  const auth = testMode
+    ? `Basic ${btoa(`${TEST_USER}:${TEST_PASSWORD}`)}`
+    : `Bearer ${await freshAccessToken()}`
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: auth,
       ...init.headers,
     },
   })

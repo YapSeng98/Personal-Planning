@@ -47,8 +47,11 @@
     }
 
     function isoToGlide(v) {
-        // Accepts YYYY-MM-DD or YYYY-MM-DDTHH:mm; SN wants space-separated.
-        return String(v).replace('T', ' ');
+        // Accepts YYYY-MM-DD or YYYY-MM-DDTHH:mm[:ss]; SN wants
+        // space-separated with seconds.
+        var s = String(v).replace('T', ' ');
+        if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(s)) s += ':00';
+        return s;
     }
 
     var body = request.body.data;
