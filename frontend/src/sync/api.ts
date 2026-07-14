@@ -11,7 +11,7 @@ const BASE =
   (import.meta.env.DEV ? '' : 'https://dev405150.service-now.com')
 // The Planner app's scope on the instance (Studio shows it after the app
 // is created; override with VITE_SN_SCOPE if it differs).
-const SCOPE = import.meta.env.VITE_SN_SCOPE ?? 'x_887486_planner'
+const SCOPE = import.meta.env.VITE_SN_SCOPE ?? 'x_887486_persona_0'
 const PLANNER = `/api/${SCOPE}/planner`
 
 const TOKEN_KEY = 'planner_token'

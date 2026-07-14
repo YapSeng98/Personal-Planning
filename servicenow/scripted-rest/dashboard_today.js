@@ -3,14 +3,14 @@
 // Location : ServiceNow → Studio (inside the Planner app)
 // API Name : Planner API   (API ID: planner)
 // Resource : /dashboard/today    Method: GET
-// Full URL : https://<instance>.service-now.com/api/x_887486_planner/planner/dashboard/today
+// Full URL : https://<instance>.service-now.com/api/x_887486_persona_0/planner/dashboard/today
 //
 // All requests require header: X-Planner-Token (Planner's own session)
 // NOTE: Set "Requires authentication" = false on this resource
 // ============================================================
 (function process(request, response) {
     var helper = new PlannerAuthHelper();
-    var T = 'x_887486_planner_pps_';
+    var T = helper.SCOPE + '_x_pps_'; // derived from PlannerAuthHelper.SCOPE
 
     response.setHeader('Access-Control-Allow-Origin', '*');
     response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');

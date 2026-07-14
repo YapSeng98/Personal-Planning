@@ -3,14 +3,14 @@
 // Location : ServiceNow → Studio (inside the Planner app)
 // API Name : Planner API   (API ID: planner)
 // Resource : /sync/push    Method: POST
-// Full URL : https://<instance>.service-now.com/api/x_887486_planner/planner/sync/push
+// Full URL : https://<instance>.service-now.com/api/x_887486_persona_0/planner/sync/push
 //
 // All requests require header: X-Planner-Token (Planner's own session)
 // NOTE: Set "Requires authentication" = false on this resource
 // ============================================================
 (function process(request, response) {
     var helper = new PlannerAuthHelper();
-    var T = 'x_887486_planner_pps_'; // planner table prefix
+    var T = helper.SCOPE + '_x_pps_'; // derived from PlannerAuthHelper.SCOPE
 
     // ── CORS ─────────────────────────────────────────────────
     response.setHeader('Access-Control-Allow-Origin', '*');

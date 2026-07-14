@@ -3,14 +3,14 @@
 // Location : ServiceNow → Studio (inside the Planner app) → Script Include
 // Name     : PlannerAuthHelper       Client callable: NO
 //
-// If your app's scope is not x_887486_planner, change SCOPE below
+// If your app's scope is not x_887486_persona_0, change SCOPE below
 // (Studio shows the scope after you create the application).
 // ============================================================
 
 var PlannerAuthHelper = Class.create();
 PlannerAuthHelper.prototype = {
 
-  SCOPE: 'x_887486_planner',
+  SCOPE: 'x_887486_persona_0',
 
   initialize: function() {},
 
