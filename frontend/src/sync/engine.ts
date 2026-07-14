@@ -76,6 +76,12 @@ export async function syncNow(): Promise<void> {
     for (const r of pull.records) {
       const table = tableMap[r.table as keyof typeof tableMap]
       if (!table) continue
+      // Client-side LWW guard: never let an older server copy clobber a
+      // newer local one (e.g. a local goal roll-up racing a pull). The
+      // server wins later once its copy is genuinely newer.
+      const local = (await table.get(r.client_uuid)) as { updatedAt?: number } | undefined
+      const serverAt = Number((r.data as Record<string, unknown>).updatedAt ?? 0)
+      if (local?.updatedAt && local.updatedAt > serverAt) continue
       if (r.deleted) {
         await table.delete(r.client_uuid)
       } else {
