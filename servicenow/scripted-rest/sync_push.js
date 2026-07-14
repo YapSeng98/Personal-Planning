@@ -68,6 +68,7 @@
     var body = request.body ? request.body.data : {};
     var items = (body && body.items) || [];
     var results = [];
+    var affectedGoals = {};
 
     for (var i = 0; i < items.length; i++) {
         var item = items[i];
@@ -114,6 +115,72 @@
 
         var sysId = exists ? gr.update() : gr.insert();
         results.push({ client_uuid: item.client_uuid, sys_id: String(sysId), outcome: 'applied' });
+
+        // remember which goals need their progress recalculated
+        if (item.table === 'task') {
+            var linkedGoal = gr.getValue('goal');
+            if (linkedGoal) affectedGoals[linkedGoal] = true;
+        } else if (item.table === 'goal') {
+            affectedGoals[String(sysId)] = true;
+        }
+    }
+
+    // ── Server-side roll-up, inline (same math as the Business Rule, but
+    //     independent of BR configuration): a goal's progress = done/total
+    //     of its tasks; each ancestor = average of its children. ──────────
+    function recalcFromTasks(goalSysId) {
+        var total = 0, done = 0;
+        var t = new GlideRecord(T + 'task');
+        t.addQuery('goal', goalSysId);
+        t.addQuery('deleted', false);
+        t.addQuery('state', '!=', 'cancelled');
+        t.query();
+        while (t.next()) {
+            total++;
+            if (t.getValue('state') === 'done') done++;
+        }
+        return total === 0 ? null : Math.round((done / total) * 100);
+    }
+
+    function recalcFromChildren(goalSysId) {
+        var sum = 0, n = 0;
+        var c = new GlideRecord(T + 'goal');
+        c.addQuery('parent_goal', goalSysId);
+        c.addQuery('deleted', false);
+        c.query();
+        while (c.next()) {
+            sum += parseInt(c.getValue('progress'), 10) || 0;
+            n++;
+        }
+        return n === 0 ? null : Math.round(sum / n);
+    }
+
+    function setProgress(goalSysId, value) {
+        var g = new GlideRecord(T + 'goal');
+        if (!g.get(goalSysId)) return null;
+        g.setValue('progress', value);
+        if (value >= 100) g.setValue('status', 'completed');
+        else if (value > 0 && g.getValue('status') === 'not_started') g.setValue('status', 'in_progress');
+        g.update();
+        return g.getValue('parent_goal');
+    }
+
+    for (var goalId in affectedGoals) {
+        var fromTasks = recalcFromTasks(goalId);
+        var parent;
+        if (fromTasks === null) {
+            // no linked tasks: keep the goal's manual progress, cascade only
+            var self = new GlideRecord(T + 'goal');
+            parent = self.get(goalId) ? self.getValue('parent_goal') : null;
+        } else {
+            parent = setProgress(goalId, fromTasks);
+        }
+        var depth = 0;
+        while (parent && depth++ < 10) {
+            var avg = recalcFromChildren(parent);
+            if (avg === null) break;
+            parent = setProgress(parent, avg);
+        }
     }
 
     response.setStatus(200);

@@ -214,10 +214,18 @@
 }
 .add-inline::placeholder { color: var(--text-3); }
 .form-grid { display: flex; flex-direction: column; gap: 0.6rem; margin: 0.4rem 0 0.9rem; }
-.form-grid select, .form-grid input[type='date'] {
+.form-grid select, .form-grid input[type='date'], .form-grid input[type='time'] {
   background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
   padding: 0.6rem 0.8rem; width: 100%; color: var(--text-1);
 }
+.time-row { display: flex; align-items: center; gap: 0.5rem; color: var(--text-3); }
+button.title-btn { background: none; border: none; padding: 0; text-align: left; cursor: pointer;
+  font: inherit; color: inherit; }
+button.title-btn:hover { color: var(--accent-bright); }
+.chip-toggle { background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
+  padding: 0.6rem 0.8rem; cursor: pointer; text-align: left; font-size: 0.9rem; color: var(--text-2); }
+.chip-toggle.on { border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright);
+  background: var(--accent-wash); color: var(--text-1); }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 
 /* ---- Reviews + goal edit ---- */

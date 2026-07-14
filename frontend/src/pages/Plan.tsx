@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { db, uuid, todayStr, writeAndQueue, rollUpGoal, CHANGED, type Task, type Goal } from '../db/db'
 import { syncNow } from '../sync/engine'
+import TaskEdit from '../components/TaskEdit'
 
 interface DayView {
   date: string
@@ -12,6 +13,7 @@ export default function Plan() {
   const [days, setDays] = useState<DayView[]>([])
   const [monthGoals, setMonthGoals] = useState<Goal[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [editing, setEditing] = useState<Task | null>(null)
   const today = todayStr()
 
   const load = useCallback(async () => {
@@ -107,7 +109,9 @@ export default function Plan() {
                 >
                   ✓
                 </button>
-                <span className={`title ${t.state === 'done' ? 'done' : ''}`}>{t.title}</span>
+                <button className={`title title-btn ${t.state === 'done' ? 'done' : ''}`} onClick={() => setEditing(t)} title="Tap to edit">
+                  {t.title}
+                </button>
                 {t.timeBlockStart && <span className="when num">{t.timeBlockStart.slice(11, 16)}</span>}
               </div>
             ))}
@@ -123,6 +127,7 @@ export default function Plan() {
           </div>
         ))}
       </div>
+      {editing && <TaskEdit task={editing} onClose={() => setEditing(null)} />}
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, CHANGED, type Task, type Habit } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Insights from '../components/Insights'
+import TaskEdit from '../components/TaskEdit'
 
 interface HabitView extends Habit {
   doneToday: number
@@ -36,6 +37,7 @@ function briefingText(tasks: Task[]): string {
 export default function Today() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [habits, setHabits] = useState<HabitView[]>([])
+  const [editing, setEditing] = useState<Task | null>(null)
   const today = todayStr()
 
   const load = useCallback(async () => {
@@ -148,7 +150,9 @@ export default function Today() {
             >
               ✓
             </button>
-            <span className={`title ${t.state === 'done' ? 'done' : ''}`}>{t.title}</span>
+            <button className={`title title-btn ${t.state === 'done' ? 'done' : ''}`} onClick={() => setEditing(t)} title="Tap to edit">
+              {t.title}
+            </button>
             {t.isMit && <span className="chip">MIT</span>}
             {t.timeBlockStart && (
               <span className="when num">
@@ -161,6 +165,7 @@ export default function Today() {
       </div>
     </div>
     <Insights />
+    {editing && <TaskEdit task={editing} onClose={() => setEditing(null)} />}
     </div>
   )
 }
