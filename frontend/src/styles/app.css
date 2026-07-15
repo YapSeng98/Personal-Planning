@@ -81,9 +81,11 @@
 .ring-btn { background: none; border: none; cursor: pointer; padding: 0; border-radius: 50%; }
 .ring-btn:hover .ring { transform: scale(1.06); }
 .habit-cell .ring { transition: transform 150ms var(--ease); }
-.habit-name-btn { background: none; border: none; padding: 0; cursor: pointer;
-  font-size: 0.66rem; color: var(--text-2); font-weight: 600; font-family: inherit; }
-.habit-name-btn:hover { color: var(--accent-bright); }
+.habit-name-btn { background: none; border: none; padding: 0.05rem 0; cursor: pointer;
+  font-size: 0.66rem; color: var(--text-2); font-weight: 600; font-family: inherit;
+  text-decoration: underline dotted; text-underline-offset: 2px;
+  text-decoration-color: var(--text-3); }
+.habit-name-btn:hover { color: var(--accent-bright); text-decoration-color: var(--accent-bright); }
 .ring.add { border: 2px dashed var(--text-3); color: var(--text-3); font-size: 1.3rem; font-weight: 400; }
 .ring.add::before { content: none; }
 .emoji-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
