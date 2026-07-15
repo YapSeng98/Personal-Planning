@@ -59,19 +59,28 @@ export default function TaskEdit({ task, onClose }: { task: Task; onClose: () =>
           aria-label="Task title"
         />
         <div className="form-grid">
-          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Due date" />
-          <div className="time-row">
-            <input type="time" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Start time" />
-            <span>–</span>
-            <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} aria-label="End time" />
+          <div className="f">
+            <label className="fl">Due date</label>
+            <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+          </div>
+          <div className="f">
+            <label className="fl">Time block (optional)</label>
+            <div className="time-row">
+              <input type="time" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Start time" />
+              <span>–</span>
+              <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} aria-label="End time" />
+            </div>
           </div>
           {goals.length > 0 && (
-            <select value={goalId} onChange={(e) => setGoalId(e.target.value)} aria-label="Link to goal">
-              <option value="">No goal link</option>
-              {goals.map((g) => (
-                <option key={g.id} value={g.id}>🎯 {g.title}</option>
-              ))}
-            </select>
+            <div className="f">
+              <label className="fl">Counts toward goal</label>
+              <select value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+                <option value="">No goal link</option>
+                {goals.map((g) => (
+                  <option key={g.id} value={g.id}>🎯 {g.title}</option>
+                ))}
+              </select>
+            </div>
           )}
           <button
             type="button"

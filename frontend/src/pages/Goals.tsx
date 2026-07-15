@@ -143,45 +143,56 @@ export default function Goals() {
               onKeyDown={(e) => e.key === 'Enter' && save()}
             />
             <div className="form-grid">
-              <select
-                value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value as GoalType, parentId: '' })}
-                aria-label="Goal level"
-              >
-                {ORDER.map((t) => <option key={t} value={t}>{LABEL[t]}</option>)}
-              </select>
+              <div className="f-pair">
+                <div className="f">
+                  <label className="fl">Level</label>
+                  <select
+                    value={form.type}
+                    onChange={(e) => setForm({ ...form, type: e.target.value as GoalType, parentId: '' })}
+                  >
+                    {ORDER.map((t) => <option key={t} value={t}>{LABEL[t]}</option>)}
+                  </select>
+                </div>
+                <div className="f">
+                  <label className="fl">Status</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as Goal['status'] })}
+                  >
+                    {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                  </select>
+                </div>
+              </div>
               {parentOptions.length > 0 && (
-                <select
-                  value={form.parentId}
-                  onChange={(e) => setForm({ ...form, parentId: e.target.value })}
-                  aria-label="Parent goal"
-                >
-                  <option value="">No parent</option>
-                  {parentOptions.map((p) => <option key={p.id} value={p.id}>↑ {p.title}</option>)}
-                </select>
+                <div className="f">
+                  <label className="fl">Part of (parent goal)</label>
+                  <select
+                    value={form.parentId}
+                    onChange={(e) => setForm({ ...form, parentId: e.target.value })}
+                  >
+                    <option value="">No parent</option>
+                    {parentOptions.map((p) => <option key={p.id} value={p.id}>↑ {p.title}</option>)}
+                  </select>
+                </div>
               )}
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as Goal['status'] })}
-                aria-label="Status"
-              >
-                {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-              </select>
-              <input
-                type="date"
-                value={form.targetDate}
-                onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
-                aria-label="Target date"
-              />
-              <label className="progress-edit">
-                Progress
-                <input
-                  type="number" min="0" max="100"
-                  value={form.progress}
-                  onChange={(e) => setForm({ ...form, progress: Number(e.target.value) })}
-                />
-                %
-              </label>
+              <div className="f-pair">
+                <div className="f">
+                  <label className="fl">Target date</label>
+                  <input
+                    type="date"
+                    value={form.targetDate}
+                    onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
+                  />
+                </div>
+                <div className="f">
+                  <label className="fl">Progress %</label>
+                  <input
+                    type="number" min="0" max="100" inputMode="numeric"
+                    value={form.progress}
+                    onChange={(e) => setForm({ ...form, progress: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
             </div>
             <p className="hint">
               {hasLinkedTasks ? '' : 'Progress you type here is kept until tasks are linked — once tasks (or child goals) exist, it\'s calculated from them automatically.'}

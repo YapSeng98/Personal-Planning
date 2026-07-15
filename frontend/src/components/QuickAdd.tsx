@@ -85,12 +85,15 @@ export default function QuickAdd({ onClose }: { onClose: () => void }) {
         />
         {goals.length > 0 && (
           <div className="form-grid" style={{ margin: '0.6rem 0 0' }}>
-            <select value={goalId} onChange={(e) => setGoalId(e.target.value)} aria-label="Link to goal">
-              <option value="">No goal link</option>
-              {goals.map((g) => (
-                <option key={g.id} value={g.id}>🎯 {g.title}</option>
-              ))}
-            </select>
+            <div className="f">
+              <label className="fl">Counts toward goal (optional)</label>
+              <select value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+                <option value="">No goal link</option>
+                {goals.map((g) => (
+                  <option key={g.id} value={g.id}>🎯 {g.title}</option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
         <p className="hint">
