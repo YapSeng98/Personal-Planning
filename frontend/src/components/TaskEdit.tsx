@@ -50,6 +50,7 @@ export default function TaskEdit({ task, onClose }: { task: Task; onClose: () =>
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-body">
         <input
           type="text"
           autoFocus
@@ -91,7 +92,8 @@ export default function TaskEdit({ task, onClose }: { task: Task; onClose: () =>
             ⭐ Most Important Task {isMit ? '· on' : ''}
           </button>
         </div>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
+        </div>
+        <div className="row sheet-actions" style={{ justifyContent: 'space-between' }}>
           <button className="btn btn-danger" onClick={remove}>Delete</button>
           <span style={{ display: 'flex', gap: '0.6rem' }}>
             <button className="btn" onClick={onClose}>Cancel</button>

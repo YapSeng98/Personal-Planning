@@ -107,21 +107,36 @@
 
 .section-h { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-3); font-weight: 800; margin: 1.4rem 0 0.6rem; }
 
-/* ---- Quick add sheet ---- */
+/* ---- Bottom-sheet (add/edit) — flexible for phone + laptop ---- */
 .sheet-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 30;
   display: flex; align-items: flex-end; justify-content: center;
 }
 .sheet {
   background: var(--surface-2); border: 1px solid var(--hairline);
-  border-radius: 20px 20px 0 0; padding: 1.2rem; width: 100%; max-width: 560px;
+  border-radius: 20px 20px 0 0; width: 100%; max-width: 560px;
+  /* never taller than the visible viewport; the body scrolls, actions stay put */
+  max-height: min(88vh, 88dvh);
+  display: flex; flex-direction: column; overflow: hidden;
 }
+/* content scrolls; actions are pinned so they never hide under the keyboard */
+.sheet-body { overflow-y: auto; padding: 1.2rem 1.2rem 0.4rem; }
+.sheet > input[type='text'],            /* sheets without a .sheet-body wrapper */
+.sheet > .form-grid, .sheet > .hint, .sheet > .row:not(.sheet-actions) { padding-left: 1.2rem; padding-right: 1.2rem; }
+.sheet > input[type='text']:first-child { margin-top: 1.2rem; }
 .sheet input[type='text'] {
   width: 100%; background: var(--glass); border: 1px solid var(--hairline);
   border-radius: 12px; padding: 0.75rem 0.9rem; font-size: 1rem;
 }
 .sheet .hint { font-size: 0.74rem; color: var(--text-3); margin: 0.5rem 0 0.9rem; }
-.sheet .row { display: flex; gap: 0.6rem; justify-content: flex-end; }
+.sheet .row { display: flex; gap: 0.6rem; justify-content: flex-end; flex-wrap: wrap; }
+.sheet-actions {
+  padding: 0.8rem 1.2rem calc(0.8rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--hairline); background: var(--surface-2);
+}
+/* min-width:0 lets flex/grid children shrink instead of overflowing the sheet */
+.sheet select, .sheet input { min-width: 0; max-width: 100%; }
+.sheet .f-pair { min-width: 0; }
 @media (min-width: 640px) {
   .sheet-backdrop { align-items: center; }
   .sheet { border-radius: 20px; }
@@ -234,7 +249,17 @@
 .form-grid select, .form-grid input[type='date'], .form-grid input[type='time'], .form-grid input[type='number'] {
   background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
   padding: 0.6rem 0.8rem; width: 100%; color: var(--text-1);
+  font-family: inherit; font-size: 0.95rem; -webkit-appearance: none; appearance: none;
 }
+/* An empty native date input renders blank on iOS — overlay a "tap to set"
+   hint so it never reads as a broken empty box. */
+.date-wrap { position: relative; }
+.date-wrap input[type='date'] { width: 100%; }
+.date-wrap.empty::after {
+  content: attr(data-ph); position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
+  color: var(--text-3); font-size: 0.9rem; pointer-events: none;
+}
+.date-wrap.empty input[type='date'] { color: transparent; }
 .time-row { display: flex; align-items: center; gap: 0.5rem; color: var(--text-3); }
 button.title-btn { background: none; border: none; padding: 0; text-align: left; cursor: pointer;
   font: inherit; color: inherit; }

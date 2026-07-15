@@ -134,6 +134,7 @@ export default function Goals() {
       {open && (
         <div className="sheet-backdrop" onClick={() => setOpen(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-body">
             <input
               type="text"
               autoFocus
@@ -177,12 +178,14 @@ export default function Goals() {
               )}
               <div className="f-pair">
                 <div className="f">
-                  <label className="fl">Target date</label>
-                  <input
-                    type="date"
-                    value={form.targetDate}
-                    onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
-                  />
+                  <label className="fl">Target date (optional)</label>
+                  <div className={`date-wrap ${form.targetDate ? '' : 'empty'}`} data-ph="Tap to set">
+                    <input
+                      type="date"
+                      value={form.targetDate}
+                      onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="f">
                   <label className="fl">Progress %</label>
@@ -197,7 +200,8 @@ export default function Goals() {
             <p className="hint">
               {hasLinkedTasks ? '' : 'Progress you type here is kept until tasks are linked — once tasks (or child goals) exist, it\'s calculated from them automatically.'}
             </p>
-            <div className="row" style={{ justifyContent: editingId ? 'space-between' : 'flex-end' }}>
+            </div>
+            <div className="row sheet-actions" style={{ justifyContent: editingId ? 'space-between' : 'flex-end' }}>
               {editingId && <button className="btn btn-danger" onClick={remove}>Delete</button>}
               <span style={{ display: 'flex', gap: '0.6rem' }}>
                 <button className="btn" onClick={() => setOpen(false)}>Cancel</button>

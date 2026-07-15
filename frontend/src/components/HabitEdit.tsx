@@ -41,6 +41,7 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-body">
         <input
           type="text"
           autoFocus
@@ -75,7 +76,8 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
             />
           </div>
         </div>
-        <div className="row" style={{ justifyContent: habit ? 'space-between' : 'flex-end' }}>
+        </div>
+        <div className="row sheet-actions" style={{ justifyContent: habit ? 'space-between' : 'flex-end' }}>
           {habit && <button className="btn btn-danger" onClick={remove}>Delete</button>}
           <span style={{ display: 'flex', gap: '0.6rem' }}>
             <button className="btn" onClick={onClose}>Cancel</button>
