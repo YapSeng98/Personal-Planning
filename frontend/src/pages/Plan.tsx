@@ -112,7 +112,9 @@ export default function Plan() {
                 <button className={`title title-btn ${t.state === 'done' ? 'done' : ''}`} onClick={() => setEditing(t)} title="Tap to edit">
                   {t.title}
                 </button>
-                {t.timeBlockStart && <span className="when num">{t.timeBlockStart.slice(11, 16)}</span>}
+                <span className={`when num ${t.timeBlockStart ? '' : 'faint'}`}>
+                  {t.timeBlockStart ? t.timeBlockStart.slice(11, 16) : 'anytime'}
+                </span>
               </div>
             ))}
             <input

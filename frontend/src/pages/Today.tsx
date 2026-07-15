@@ -153,13 +153,12 @@ export default function Today() {
             <button className={`title title-btn ${t.state === 'done' ? 'done' : ''}`} onClick={() => setEditing(t)} title="Tap to edit">
               {t.title}
             </button>
-            {t.isMit && <span className="chip">MIT</span>}
-            {t.timeBlockStart && (
-              <span className="when num">
-                {t.timeBlockStart.slice(11, 16)}
-                {t.timeBlockEnd ? `–${t.timeBlockEnd.slice(11, 16)}` : ''}
-              </span>
-            )}
+            {Boolean(t.isMit) && <span className="chip">⭐ MIT</span>}
+            <span className={`when num ${t.timeBlockStart ? '' : 'faint'}`}>
+              {t.timeBlockStart
+                ? `${t.timeBlockStart.slice(11, 16)}${t.timeBlockEnd ? `–${t.timeBlockEnd.slice(11, 16)}` : ''}`
+                : 'anytime'}
+            </span>
           </div>
         ))}
       </div>
