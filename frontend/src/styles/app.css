@@ -272,12 +272,12 @@
    the wrapper ~2x the input height and misaligns paired rows. */
 .date-wrap { position: relative; display: block; }
 .date-wrap input { display: block; width: 100%; }
-.date-wrap.empty::after {
+.date-wrap.no-val::after {
   content: attr(data-ph); position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
   color: var(--text-3); font-size: 0.9rem; pointer-events: none;
 }
-.date-wrap.empty input[type='date'],
-.date-wrap.empty input[type='time'] { color: transparent; }
+.date-wrap.no-val input[type='date'],
+.date-wrap.no-val input[type='time'] { color: transparent; }
 .time-row .date-wrap { flex: 1; }
 .clear-link { background: none; border: none; padding: 0.25rem 0 0; font-size: 0.72rem;
   color: var(--text-3); text-decoration: underline; cursor: pointer; font-family: inherit; }

@@ -117,18 +117,18 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
           <div className="form-grid">
             <div className="f">
               <label className="fl">Due date</label>
-              <div className={`date-wrap ${due ? '' : 'empty'}`} data-ph="Tap to set">
+              <div className={`date-wrap ${due ? '' : 'no-val'}`} data-ph="Tap to set">
                 <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
               </div>
             </div>
             <div className="f">
               <label className="fl">Time block (optional)</label>
               <div className="time-row">
-                <div className={`date-wrap ${start ? '' : 'empty'}`} data-ph="Start">
+                <div className={`date-wrap ${start ? '' : 'no-val'}`} data-ph="Start">
                   <input type="time" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Start time" />
                 </div>
                 <span>–</span>
-                <div className={`date-wrap ${end ? '' : 'empty'}`} data-ph="End">
+                <div className={`date-wrap ${end ? '' : 'no-val'}`} data-ph="End">
                   <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} aria-label="End time" />
                 </div>
               </div>
