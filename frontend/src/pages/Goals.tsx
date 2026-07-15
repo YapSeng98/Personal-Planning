@@ -178,7 +178,7 @@ export default function Goals() {
               )}
               <div className="f-pair">
                 <div className="f">
-                  <label className="fl">Target date (optional)</label>
+                  <label className="fl">Target date</label>
                   <div className={`date-wrap ${form.targetDate ? '' : 'empty'}`} data-ph="Tap to set">
                     <input
                       type="date"

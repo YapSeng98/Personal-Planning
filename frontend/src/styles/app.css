@@ -250,15 +250,22 @@
 }
 .add-inline::placeholder { color: var(--text-3); }
 .form-grid { display: flex; flex-direction: column; gap: 0.7rem; margin: 0.6rem 0 0.9rem; }
-.f { display: flex; flex-direction: column; gap: 0.28rem; }
+.f { display: flex; flex-direction: column; gap: 0.28rem; min-width: 0; }
+/* Labels stay one line at a fixed height so paired columns' controls always
+   align — a wrapping label must never push one box below its neighbour. */
 .fl { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em;
-  color: var(--text-3); font-weight: 800; }
-.f-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-.form-grid select, .form-grid input[type='date'], .form-grid input[type='time'], .form-grid input[type='number'] {
+  color: var(--text-3); font-weight: 800; line-height: 1.3; min-height: 1.3em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; align-items: start; }
+/* Every control the same box metrics so rows line up regardless of type. */
+.form-grid select, .form-grid input[type='date'], .form-grid input[type='time'],
+.form-grid input[type='number'], .form-grid .sel-btn, .date-wrap input {
   background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
   padding: 0.6rem 0.8rem; width: 100%; color: var(--text-1);
-  font-family: inherit; font-size: 0.95rem; -webkit-appearance: none; appearance: none;
+  font-family: inherit; font-size: 0.95rem; line-height: 1.4;
+  -webkit-appearance: none; appearance: none;
 }
+.form-grid .sel-btn { background: var(--glass); }
 /* An empty native date input renders blank on iOS — overlay a "tap to set"
    hint so it never reads as a broken empty box. */
 .date-wrap { position: relative; }
