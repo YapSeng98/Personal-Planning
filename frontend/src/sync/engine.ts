@@ -79,13 +79,23 @@ export async function syncNow(): Promise<void> {
       // Client-side LWW guard: never let an older server copy clobber a
       // newer local one (e.g. a local goal roll-up racing a pull). The
       // server wins later once its copy is genuinely newer.
-      const local = (await table.get(r.client_uuid)) as { updatedAt?: number } | undefined
-      const serverAt = Number((r.data as Record<string, unknown>).updatedAt ?? 0)
+      const local = (await table.get(r.client_uuid)) as { updatedAt?: number; emoji?: string } | undefined
+      const data = r.data as Record<string, unknown>
+      const serverAt = Number(data.updatedAt ?? 0)
       if (local?.updatedAt && local.updatedAt > serverAt) continue
       if (r.deleted) {
         await table.delete(r.client_uuid)
       } else {
-        await table.put({ ...(r.data as Record<string, unknown>), id: r.client_uuid, sysId: r.sys_id } as never)
+        if (r.table === 'habit') {
+          // The app has no "deactivate" — a non-deleted habit is active.
+          // Guards against a ServiceNow boolean round-trip quirk that can
+          // return active:0 and make the habit vanish.
+          data.active = 1
+          // Keep a good local emoji if the server's copy came back mangled.
+          const emojiOk = (s: unknown) => /\p{Extended_Pictographic}/u.test(String(s ?? ''))
+          if (local?.emoji && emojiOk(local.emoji) && !emojiOk(data.emoji)) data.emoji = local.emoji
+        }
+        await table.put({ ...data, id: r.client_uuid, sysId: r.sys_id } as never)
       }
     }
     await db.meta.put({ key: 'syncCursor', value: pull.cursor })

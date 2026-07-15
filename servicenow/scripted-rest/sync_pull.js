@@ -74,7 +74,8 @@
                 } else if (INT_FIELDS[col]) {
                     data[target] = parseInt(gr.getValue(col), 10) || 0;
                 } else if (BOOL_FIELDS[col]) {
-                    data[target] = gr.getValue(col) === 'true' ? 1 : 0;
+                    var bv = gr.getValue(col);
+                    data[target] = (bv === 'true' || bv === '1') ? 1 : 0;
                 } else {
                     var v = gr.getValue(col);
                     if (v === null) {
@@ -87,7 +88,8 @@
                     }
                 }
             }
-            data.deleted = gr.getValue('deleted') === 'true' ? 1 : 0;
+            var delv = gr.getValue('deleted');
+            data.deleted = (delv === 'true' || delv === '1') ? 1 : 0;
             data.updatedAt = new GlideDateTime(gr.getValue('sys_updated_on')).getNumericValue();
             records.push({
                 table: key,

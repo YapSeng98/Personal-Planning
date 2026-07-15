@@ -65,6 +65,11 @@
         return s;
     }
 
+    // True/False columns must be written as real booleans so they read back
+    // as 'true'/'false' — the app may send them as 1/0, true/false, or "1"/"0".
+    var BOOL_COLS = { deleted: 1, active: 1, is_mit: 1 };
+    function truthy(v) { return v === true || v === 1 || v === '1' || v === 'true'; }
+
     var body = request.body ? request.body.data : {};
     var items = (body && body.items) || [];
     var results = [];
@@ -103,11 +108,11 @@
             if (target.indexOf('ref:') === 0) {
                 var parts = target.split(':'); // ref : column : tableKey
                 gr.setValue(parts[1], resolveRef(parts[2], p[key]));
+            } else if (BOOL_COLS[target]) {
+                gr.setValue(target, truthy(p[key]));
             } else if (key === 'due' || key === 'date' || key.indexOf('timeBlock') === 0 ||
                        key === 'targetDate' || key.indexOf('period') === 0) {
                 gr.setValue(target, isoToGlide(p[key]));
-            } else if (typeof p[key] === 'boolean') {
-                gr.setValue(target, p[key] ? 'true' : 'false');
             } else {
                 gr.setValue(target, p[key]);
             }
