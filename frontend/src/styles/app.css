@@ -326,9 +326,7 @@
   display: flex; align-items: center; text-align: left;
 }
 .form-grid input[type='date']::-webkit-date-and-time-value,
-.form-grid input[type='time']::-webkit-date-and-time-value { text-align: left; }
-.form-grid input[type='date']::-webkit-calendar-picker-indicator,
-.form-grid input[type='time']::-webkit-calendar-picker-indicator { margin-left: auto; }
+.form-grid input[type='time']::-webkit-date-and-time-value { text-align: left; flex: 1; }
 /* An empty native date input renders blank on iOS — overlay a "tap to set"
    hint so it never reads as a broken empty box. */
 /* display:block removes the inline-block baseline gap that otherwise makes
