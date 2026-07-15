@@ -319,6 +319,11 @@
   -webkit-appearance: none; appearance: none;
 }
 .form-grid .sel-btn { background: var(--glass); }
+/* Native date/time inputs center their value on iOS — left-align it so it
+   matches every other field in the form. */
+.form-grid input[type='date'], .form-grid input[type='time'] { text-align: left; }
+.form-grid input[type='date']::-webkit-date-and-time-value,
+.form-grid input[type='time']::-webkit-date-and-time-value { text-align: left; margin: 0; }
 /* An empty native date input renders blank on iOS — overlay a "tap to set"
    hint so it never reads as a broken empty box. */
 /* display:block removes the inline-block baseline gap that otherwise makes
