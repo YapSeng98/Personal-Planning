@@ -62,15 +62,26 @@ export default function TaskEdit({ task, onClose }: { task: Task; onClose: () =>
         <div className="form-grid">
           <div className="f">
             <label className="fl">Due date</label>
-            <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            <div className={`date-wrap ${due ? '' : 'empty'}`} data-ph="Tap to set">
+              <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            </div>
           </div>
           <div className="f">
             <label className="fl">Time block (optional)</label>
             <div className="time-row">
-              <input type="time" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Start time" />
+              <div className={`date-wrap ${start ? '' : 'empty'}`} data-ph="Start">
+                <input type="time" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Start time" />
+              </div>
               <span>–</span>
-              <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} aria-label="End time" />
+              <div className={`date-wrap ${end ? '' : 'empty'}`} data-ph="End">
+                <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} aria-label="End time" />
+              </div>
             </div>
+            {(start || end) && (
+              <button type="button" className="clear-link" onClick={() => { setStart(''); setEnd('') }}>
+                Clear time block
+              </button>
+            )}
           </div>
           {goals.length > 0 && (
             <div className="f">
