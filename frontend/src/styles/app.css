@@ -257,11 +257,12 @@
   color: var(--text-3); font-weight: 800; line-height: 1.3; min-height: 1.3em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .f-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; align-items: start; }
-/* Every control the same box metrics so rows line up regardless of type. */
+/* Every control the same fixed height + box so rows line up to the pixel
+   regardless of input type (native date/time fields have taller intrinsics). */
 .form-grid select, .form-grid input[type='date'], .form-grid input[type='time'],
 .form-grid input[type='number'], .form-grid .sel-btn, .date-wrap input {
   background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
-  padding: 0.6rem 0.8rem; width: 100%; color: var(--text-1);
+  padding: 0 0.8rem; width: 100%; height: 2.75rem; box-sizing: border-box; color: var(--text-1);
   font-family: inherit; font-size: 0.95rem; line-height: 1.4;
   -webkit-appearance: none; appearance: none;
 }
