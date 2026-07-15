@@ -52,9 +52,31 @@ R=$(curl -s "$PLANNER/sync/pull?since=1970-01-01%2000:00:00" -H "X-Planner-Token
 check "pull returns the smoke task uuid" "$UUID" "$R"
 check "title stored and fetched" 'smoke test task' "$R"
 
-echo "5. Dashboard aggregate"
-R=$(curl -s "$PLANNER/dashboard/today" -H "X-Planner-Token: $TOKEN" -H "X-HTTP-Method: GET")
+echo "5. Dashboard aggregate (with the client's local date)"
+R=$(curl -s "$PLANNER/dashboard/today?date=$TODAY" -H "X-Planner-Token: $TOKEN" -H "X-HTTP-Method: GET")
 check "GET /dashboard/today includes the task" 'smoke test task' "$R"
+
+echo "5b. Server-side goal roll-up (needs latest sync_push.js pasted)"
+curl -s -X POST "$PLANNER/sync/push" -H 'Content-Type: application/json' \
+  -H "X-Planner-Token: $TOKEN" -H "X-HTTP-Method: POST" \
+  -d "{\"items\":[
+   {\"table\":\"goal\",\"client_uuid\":\"rollup-$UUID\",\"edited_at\":$(date +%s)000,
+    \"payload\":{\"title\":\"rollup probe\",\"type\":\"month\",\"status\":\"in_progress\",\"progress\":0,\"deleted\":false}},
+   {\"table\":\"task\",\"client_uuid\":\"rolluptask-$UUID\",\"edited_at\":$(date +%s)000,
+    \"payload\":{\"title\":\"rollup probe task\",\"state\":\"done\",\"priority\":3,\"due\":\"$TODAY\",\"goalId\":\"rollup-$UUID\",\"deleted\":false}}]}" >/dev/null
+sleep 2
+R=$(curl -s "$PLANNER/sync/pull?since=$(date -u -v-2M '+%Y-%m-%d %H:%M:%S' | sed 's/ /%20/')" -H "X-Planner-Token: $TOKEN" -H "X-HTTP-Method: GET")
+OK=$(echo "$R" | python3 -c "
+import json,sys
+d = json.load(sys.stdin)['result']
+print(any(r['table']=='goal' and r['data'].get('title')=='rollup probe' and r['data'].get('progress')==100 for r in d['records']))
+" 2>/dev/null)
+if [ "$OK" = "True" ]; then
+  echo "  PASS  done task rolled its goal to 100% server-side"
+else
+  echo "  PEND  server roll-up not active — sync_push.js re-paste still pending"
+  FAILED=1
+fi
 
 echo "6. Auth guard — planner API without token is rejected"
 R=$(curl -s "$PLANNER/sync/pull?since=1970-01-01%2000:00:00" -H "X-HTTP-Method: GET")

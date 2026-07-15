@@ -7,7 +7,9 @@ const EMOJIS = ['💧', '🏃', '📖', '🧘', '💪', '😴', '🥗', '✍️'
 export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onClose: () => void }) {
   const [name, setName] = useState(habit?.name ?? '')
   const [emoji, setEmoji] = useState(habit?.emoji ?? '💧')
-  const [target, setTarget] = useState(habit?.targetPerDay ?? 1)
+  // Kept as text while typing (so clearing the field doesn't snap back to 0);
+  // parsed and clamped only on save.
+  const [target, setTarget] = useState(habit ? String(habit.targetPerDay) : '1')
 
   async function save() {
     if (!name.trim()) return
@@ -17,7 +19,7 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
       name: name.trim(),
       emoji: emoji.trim() || '✅',
       frequency: 'daily',
-      targetPerDay: Math.max(1, Number(target) || 1),
+      targetPerDay: Math.max(1, parseInt(target, 10) || 1),
       active: 1,
       deleted: 0,
       updatedAt: Date.now(),
@@ -67,9 +69,9 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
           <div className="f">
             <label className="fl">Times per day (water = 8, most habits = 1)</label>
             <input
-              type="number" min="1" max="99" inputMode="numeric"
+              type="number" min="1" max="99" inputMode="numeric" placeholder="1"
               value={target}
-              onChange={(e) => setTarget(Number(e.target.value))}
+              onChange={(e) => setTarget(e.target.value)}
             />
           </div>
         </div>

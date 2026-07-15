@@ -18,7 +18,7 @@ const blank = {
   parentId: '',
   targetDate: '',
   status: 'not_started' as Goal['status'],
-  progress: 0,
+  progress: '0', // text while editing — parsed on save so clearing doesn't snap to 0
 }
 
 export default function Goals() {
@@ -50,7 +50,7 @@ export default function Goals() {
       parentId: g.parentId ?? '',
       targetDate: g.targetDate ?? '',
       status: g.status,
-      progress: g.progress,
+      progress: String(g.progress),
     })
     setOpen(true)
   }
@@ -67,7 +67,7 @@ export default function Goals() {
       parentId: form.parentId || undefined,
       targetDate: form.targetDate || undefined,
       status: form.status,
-      progress: Math.max(0, Math.min(100, Number(form.progress) || 0)),
+      progress: Math.max(0, Math.min(100, parseInt(form.progress, 10) || 0)),
       deleted: 0,
       updatedAt: Date.now(),
     }
@@ -187,9 +187,9 @@ export default function Goals() {
                 <div className="f">
                   <label className="fl">Progress %</label>
                   <input
-                    type="number" min="0" max="100" inputMode="numeric"
+                    type="number" min="0" max="100" inputMode="numeric" placeholder="0"
                     value={form.progress}
-                    onChange={(e) => setForm({ ...form, progress: Number(e.target.value) })}
+                    onChange={(e) => setForm({ ...form, progress: e.target.value })}
                   />
                 </div>
               </div>
