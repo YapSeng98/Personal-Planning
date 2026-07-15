@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { onSyncState, type SyncState } from '../sync/engine'
-import QuickAdd from './QuickAdd'
+import TaskForm from './TaskForm'
 
 const links = [
   { to: '/', label: 'Today', ico: '☀️' },
@@ -63,7 +63,7 @@ export default function Shell() {
       </nav>
       <button className="fab fab-desktop" aria-label="Quick add" onClick={() => setAdding(true)}>+</button>
       <NavLink to="/settings" className="gear-mobile" aria-label="Settings">⚙️</NavLink>
-      {adding && <QuickAdd onClose={() => setAdding(false)} />}
+      {adding && <TaskForm task={null} onClose={() => setAdding(false)} />}
     </div>
   )
 }

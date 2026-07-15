@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { db, uuid, todayStr, writeAndQueue, rollUpGoal, CHANGED, type Task, type Goal } from '../db/db'
 import { syncNow } from '../sync/engine'
-import TaskEdit from '../components/TaskEdit'
+import TaskForm from '../components/TaskForm'
 
 interface DayView {
   date: string
@@ -129,7 +129,7 @@ export default function Plan() {
           </div>
         ))}
       </div>
-      {editing && <TaskEdit task={editing} onClose={() => setEditing(null)} />}
+      {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
     </div>
   )
 }

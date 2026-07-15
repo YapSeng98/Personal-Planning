@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, CHANGED, type Task, type Habit } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Insights from '../components/Insights'
-import TaskEdit from '../components/TaskEdit'
+import TaskForm from '../components/TaskForm'
 import HabitEdit from '../components/HabitEdit'
 
 interface HabitView extends Habit {
@@ -172,7 +172,7 @@ export default function Today() {
       </div>
     </div>
     <Insights />
-    {editing && <TaskEdit task={editing} onClose={() => setEditing(null)} />}
+    {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
     {editingHabit && (
       <HabitEdit habit={editingHabit === 'new' ? null : editingHabit} onClose={() => setEditingHabit(null)} />
     )}
