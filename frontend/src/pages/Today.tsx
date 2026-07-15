@@ -3,6 +3,7 @@ import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, CHANGED, ty
 import { syncNow } from '../sync/engine'
 import Insights from '../components/Insights'
 import TaskEdit from '../components/TaskEdit'
+import HabitEdit from '../components/HabitEdit'
 
 interface HabitView extends Habit {
   doneToday: number
@@ -38,6 +39,7 @@ export default function Today() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [habits, setHabits] = useState<HabitView[]>([])
   const [editing, setEditing] = useState<Task | null>(null)
+  const [editingHabit, setEditingHabit] = useState<Habit | 'new' | null>(null)
   const today = todayStr()
 
   const load = useCallback(async () => {
@@ -105,31 +107,37 @@ export default function Today() {
       </div>
 
       <div className="section-h">Habits</div>
-      {habits.length === 0 ? (
-        <div className="empty">No habits yet — they'll appear here once added.</div>
-      ) : (
-        <div className="habit-row">
-          {habits.map((h) => {
-            const pct = Math.min(100, (h.doneToday / h.targetPerDay) * 100)
-            return (
+      <div className="habit-row">
+        {habits.map((h) => {
+          const pct = Math.min(100, (h.doneToday / h.targetPerDay) * 100)
+          return (
+            <div key={h.id} className="habit-cell">
               <button
-                key={h.id}
-                className="habit-cell"
+                className="ring-btn"
                 style={{ ['--p' as string]: pct }}
                 onClick={() => tickHabit(h)}
                 aria-label={`${h.name}: ${h.doneToday} of ${h.targetPerDay} today. Tap to log.`}
               >
                 <span className="ring">{h.emoji}</span>
-                <span className="name">{h.name}</span>
-                <br />
-                <span className="streak num">
-                  {h.targetPerDay > 1 ? `${h.doneToday}/${h.targetPerDay}` : h.streak > 0 ? `${h.streak}d 🔥` : '—'}
-                </span>
               </button>
-            )
-          })}
+              <button className="habit-name-btn" onClick={() => setEditingHabit(h)} title="Tap to edit">
+                {h.name}
+              </button>
+              <span className="streak num">
+                {h.targetPerDay > 1 ? `${h.doneToday}/${h.targetPerDay}` : h.streak > 0 ? `${h.streak}d 🔥` : '—'}
+              </span>
+            </div>
+          )
+        })}
+        <div className="habit-cell">
+          <button className="ring-btn" onClick={() => setEditingHabit('new')} aria-label="Add a habit">
+            <span className="ring add">＋</span>
+          </button>
+          <span className="habit-name-btn" style={{ cursor: 'default' }}>
+            {habits.length === 0 ? 'Add your first habit' : 'Add'}
+          </span>
         </div>
-      )}
+      </div>
 
       <div className="section-h">Today's tasks</div>
       <div className="stack" style={{ marginTop: 0 }}>
@@ -165,6 +173,9 @@ export default function Today() {
     </div>
     <Insights />
     {editing && <TaskEdit task={editing} onClose={() => setEditing(null)} />}
+    {editingHabit && (
+      <HabitEdit habit={editingHabit === 'new' ? null : editingHabit} onClose={() => setEditingHabit(null)} />
+    )}
     </div>
   )
 }
