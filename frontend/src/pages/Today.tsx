@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, CHANGED, type Task, type Habit } from '../db/db'
+import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji, CHANGED, type Task, type Habit } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
@@ -118,7 +118,7 @@ export default function Today() {
                 onClick={() => tickHabit(h)}
                 aria-label={`${h.name}: ${h.doneToday} of ${h.targetPerDay} today. Tap to log.`}
               >
-                <span className="ring">{h.emoji}</span>
+                <span className="ring">{cleanEmoji(h.emoji, h.name)}</span>
               </button>
               <button className="habit-name-btn" onClick={() => setEditingHabit(h)} title="Tap to edit">
                 {h.name}

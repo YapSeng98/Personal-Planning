@@ -122,6 +122,27 @@ export const db = new PlannerDB()
 export const uuid = () =>
   crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
 
+const EMOJI_RE = /\p{Extended_Pictographic}/u
+const EMOJI_GUESS: [RegExp, string][] = [
+  [/water|drink|hydrat/i, '💧'],
+  [/read|book/i, '📖'],
+  [/exerc|gym|run|workout|walk/i, '🏃'],
+  [/sleep|bed|rest/i, '😴'],
+  [/medit|calm|breath/i, '🧘'],
+  [/eat|meal|food|diet/i, '🥗'],
+  [/journal|write|note/i, '✍️'],
+  [/vitamin|pill|med/i, '💊'],
+  [/stretch|yoga/i, '🤸'],
+]
+/** A habit's stored emoji may be corrupted (old ServiceNow round-trip bug).
+    Show a real emoji regardless: the stored one if valid, else a guess from
+    the name, else a neutral marker. */
+export function cleanEmoji(emoji?: string, name = ''): string {
+  if (emoji && EMOJI_RE.test(emoji)) return emoji
+  for (const [re, e] of EMOJI_GUESS) if (re.test(name)) return e
+  return '✅'
+}
+
 /** Local-date YYYY-MM-DD. (toISOString would shift the date for TZs ahead
     of UTC between midnight and ~08:00 — tasks would log to yesterday.) */
 export const todayStr = (d = new Date()) =>

@@ -3,7 +3,7 @@
 // and applies delta pulls when a connection and login exist. If the SN side
 // isn't built yet (404) or we're offline, the app keeps working locally.
 
-import { db, notifyChange } from '../db/db'
+import { db, notifyChange, cleanEmoji } from '../db/db'
 import { isAuthed, syncPush, syncPull, type PushItem } from './api'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
@@ -91,9 +91,14 @@ export async function syncNow(): Promise<void> {
           // Guards against a ServiceNow boolean round-trip quirk that can
           // return active:0 and make the habit vanish.
           data.active = 1
-          // Keep a good local emoji if the server's copy came back mangled.
+          // Keep a good local emoji if the server's came back mangled;
+          // otherwise fall back to a name-based guess so it never shows garbage.
           const emojiOk = (s: unknown) => /\p{Extended_Pictographic}/u.test(String(s ?? ''))
-          if (local?.emoji && emojiOk(local.emoji) && !emojiOk(data.emoji)) data.emoji = local.emoji
+          if (!emojiOk(data.emoji)) {
+            data.emoji = local?.emoji && emojiOk(local.emoji)
+              ? local.emoji
+              : cleanEmoji(String(data.emoji ?? ''), String(data.name ?? ''))
+          }
         }
         await table.put({ ...data, id: r.client_uuid, sysId: r.sys_id } as never)
       }

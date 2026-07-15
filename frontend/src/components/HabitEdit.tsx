@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { db, uuid, writeAndQueue, type Habit } from '../db/db'
+import { db, uuid, writeAndQueue, cleanEmoji, type Habit } from '../db/db'
 import { syncNow } from '../sync/engine'
 
 const EMOJIS = ['💧', '🏃', '📖', '🧘', '💪', '😴', '🥗', '✍️', '🌿', '💊']
 
 export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onClose: () => void }) {
   const [name, setName] = useState(habit?.name ?? '')
-  const [emoji, setEmoji] = useState(habit?.emoji ?? '💧')
+  const [emoji, setEmoji] = useState(cleanEmoji(habit?.emoji, habit?.name))
   // Kept as text while typing (so clearing the field doesn't snap back to 0);
   // parsed and clamped only on save.
   const [target, setTarget] = useState(habit ? String(habit.targetPerDay) : '1')
