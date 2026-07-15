@@ -8,6 +8,7 @@ const links = [
   { to: '/plan', label: 'Plan', ico: '🗓️' },
   { to: '/goals', label: 'Goals', ico: '🎯' },
   { to: '/reviews', label: 'Review', ico: '✍️' },
+  { to: '/analytics', label: 'Stats', ico: '📊' },
 ]
 
 /** Anywhere in the app can request the quick-add sheet. */
