@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { db, uuid, writeAndQueue, rollUpGoal, CHANGED, type Goal, type GoalType } from '../db/db'
 import { syncNow } from '../sync/engine'
+import Select from '../components/Select'
 
 const ORDER: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
 const LABEL: Record<GoalType, string> = {
@@ -147,33 +148,32 @@ export default function Goals() {
               <div className="f-pair">
                 <div className="f">
                   <label className="fl">Level</label>
-                  <select
+                  <Select
+                    ariaLabel="Goal level"
                     value={form.type}
-                    onChange={(e) => setForm({ ...form, type: e.target.value as GoalType, parentId: '' })}
-                  >
-                    {ORDER.map((t) => <option key={t} value={t}>{LABEL[t]}</option>)}
-                  </select>
+                    onChange={(v) => setForm({ ...form, type: v as GoalType, parentId: '' })}
+                    options={ORDER.map((t) => ({ value: t, label: LABEL[t] }))}
+                  />
                 </div>
                 <div className="f">
                   <label className="fl">Status</label>
-                  <select
+                  <Select
+                    ariaLabel="Status"
                     value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value as Goal['status'] })}
-                  >
-                    {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                  </select>
+                    onChange={(v) => setForm({ ...form, status: v as Goal['status'] })}
+                    options={STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') }))}
+                  />
                 </div>
               </div>
               {parentOptions.length > 0 && (
                 <div className="f">
                   <label className="fl">Part of (parent goal)</label>
-                  <select
+                  <Select
+                    ariaLabel="Parent goal"
                     value={form.parentId}
-                    onChange={(e) => setForm({ ...form, parentId: e.target.value })}
-                  >
-                    <option value="">No parent</option>
-                    {parentOptions.map((p) => <option key={p.id} value={p.id}>↑ {p.title}</option>)}
-                  </select>
+                    onChange={(v) => setForm({ ...form, parentId: v })}
+                    options={[{ value: '', label: 'No parent' }, ...parentOptions.map((p) => ({ value: p.id, label: `↑ ${p.title}` }))]}
+                  />
                 </div>
               )}
               <div className="f-pair">

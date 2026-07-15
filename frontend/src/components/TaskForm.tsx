@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { db, uuid, todayStr, writeAndQueue, rollUpGoal, type Task, type Goal } from '../db/db'
 import { syncNow } from '../sync/engine'
+import Select from './Select'
 
 // One form for BOTH adding and editing a task, so the two can never diverge.
 // task=null → create mode; task=existing → edit mode (adds Delete).
@@ -140,12 +141,12 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
             {goals.length > 0 && (
               <div className="f">
                 <label className="fl">Counts toward goal (optional)</label>
-                <select value={goalId} onChange={(e) => setGoalId(e.target.value)}>
-                  <option value="">No goal link</option>
-                  {goals.map((g) => (
-                    <option key={g.id} value={g.id}>🎯 {g.title}</option>
-                  ))}
-                </select>
+                <Select
+                  ariaLabel="Link to goal"
+                  value={goalId}
+                  onChange={setGoalId}
+                  options={[{ value: '', label: 'No goal link' }, ...goals.map((g) => ({ value: g.id, label: `🎯 ${g.title}` }))]}
+                />
               </div>
             )}
             <button

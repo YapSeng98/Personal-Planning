@@ -274,6 +274,23 @@
   color: var(--text-3); text-decoration: underline; cursor: pointer; font-family: inherit; }
 .clear-link:hover { color: var(--accent-bright); }
 .time-row { display: flex; align-items: center; gap: 0.5rem; color: var(--text-3); }
+
+/* ---- Custom dark dropdown (replaces native <select>) ---- */
+.sel { position: relative; }
+.sel-btn { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  width: 100%; background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
+  padding: 0.6rem 0.8rem; font-size: 0.95rem; color: var(--text-1); cursor: pointer; font-family: inherit; text-align: left; }
+.sel.open .sel-btn { border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright); }
+.sel-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-caret { color: var(--text-3); font-size: 0.7rem; transition: transform 150ms var(--ease); flex-shrink: 0; }
+.sel.open .sel-caret { transform: rotate(180deg); }
+.sel-list { margin-top: 0.35rem; background: var(--surface-2); border: 1px solid var(--hairline);
+  border-radius: 12px; padding: 0.25rem; display: flex; flex-direction: column; gap: 0.1rem;
+  max-height: 220px; overflow-y: auto; box-shadow: var(--shadow-float); }
+.sel-opt { text-align: left; background: none; border: none; border-radius: 8px; padding: 0.55rem 0.7rem;
+  font-size: 0.9rem; color: var(--text-1); cursor: pointer; font-family: inherit; }
+.sel-opt:hover { background: var(--glass-strong); }
+.sel-opt.on { background: var(--accent-wash); color: var(--accent-bright); font-weight: 700; }
 button.title-btn { background: none; border: none; padding: 0; text-align: left; cursor: pointer;
   font: inherit; color: inherit; }
 button.title-btn:hover { color: var(--accent-bright); }
