@@ -202,6 +202,12 @@
 /* ---- Today grid + insights rail (laptop) ---- */
 .today-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; }
 .insights { display: none; flex-direction: column; gap: 0.8rem; }
+/* Tablet portrait: too narrow for a side rail, so show the insights as a
+   3-across row below the day instead of hiding them (phone-only behavior). */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .insights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem; align-items: start; }
+  .insights .ins-card { padding: 0.9rem 0.8rem; }
+}
 @media (min-width: 1024px) {
   .today-grid { grid-template-columns: minmax(0, 1fr) 264px; }
   .insights { display: flex; }
