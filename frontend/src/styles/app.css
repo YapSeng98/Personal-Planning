@@ -268,8 +268,10 @@
 .form-grid .sel-btn { background: var(--glass); }
 /* An empty native date input renders blank on iOS — overlay a "tap to set"
    hint so it never reads as a broken empty box. */
-.date-wrap { position: relative; }
-.date-wrap input[type='date'] { width: 100%; }
+/* display:block removes the inline-block baseline gap that otherwise makes
+   the wrapper ~2x the input height and misaligns paired rows. */
+.date-wrap { position: relative; display: block; }
+.date-wrap input { display: block; width: 100%; }
 .date-wrap.empty::after {
   content: attr(data-ph); position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
   color: var(--text-3); font-size: 0.9rem; pointer-events: none;
