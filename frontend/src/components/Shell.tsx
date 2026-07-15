@@ -58,11 +58,10 @@ export default function Shell() {
         <Outlet />
       </main>
       <nav className="nav-bottom" aria-label="Main">
-        {nav('').slice(0, 2)}
-        <button className="fab" aria-label="Quick add" onClick={() => setAdding(true)}>+</button>
-        {nav('').slice(2)}
+        {nav('')}
       </nav>
-      <button className="fab fab-desktop" aria-label="Quick add" onClick={() => setAdding(true)}>+</button>
+      <button className="fab fab-desktop" aria-label="Add task" onClick={() => setAdding(true)}>+</button>
+      <button className="fab fab-float" aria-label="Add task" onClick={() => setAdding(true)}>+</button>
       <NavLink to="/settings" className="gear-mobile" aria-label="Settings">⚙️</NavLink>
       {adding && <TaskForm task={null} onClose={() => setAdding(false)} />}
     </div>

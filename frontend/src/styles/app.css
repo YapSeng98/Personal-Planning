@@ -32,24 +32,37 @@
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--hairline);
 }
-.nav-bottom .nav-link { flex-direction: column; gap: 0.1rem; font-size: 0.64rem; border-left: none; padding: 0.25rem 0.6rem; }
-.nav-bottom .nav-link .ico { font-size: 1.15rem; }
-.nav-bottom .nav-link.active { background: none; color: var(--text-1); }
+.nav-bottom .nav-link { flex: 1; flex-direction: column; gap: 0.15rem; font-size: 0.62rem; font-weight: 600;
+  border-left: none; padding: 0.3rem 0.2rem; color: var(--text-3); position: relative; border-radius: 0; }
+.nav-bottom .nav-link .ico { font-size: 1.2rem; opacity: 0.75; transition: transform 150ms var(--ease); }
+.nav-bottom .nav-link.active { background: none; color: var(--accent-bright); font-weight: 700; }
+.nav-bottom .nav-link.active .ico { opacity: 1; transform: translateY(-1px); }
+/* active-tab indicator pip */
+.nav-bottom .nav-link.active::before {
+  content: ''; position: absolute; top: -0.5rem; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 3px; border-radius: 0 0 3px 3px; background: var(--grad);
+}
 
 .fab {
-  width: 52px; height: 52px; border-radius: 50%;
+  width: 56px; height: 56px; border-radius: 50%;
   background: var(--grad); color: var(--on-grad); border: none;
-  font-size: 1.6rem; font-weight: 700; line-height: 1;
-  box-shadow: 0 8px 20px var(--accent-wash), var(--shadow-float);
-  cursor: pointer; margin-top: -26px;
-  display: flex; align-items: center; justify-content: center;
+  font-size: 1.7rem; font-weight: 700; line-height: 1;
+  box-shadow: 0 10px 24px var(--accent-wash), var(--shadow-float);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: transform 150ms var(--ease), filter 150ms var(--ease);
 }
-.fab-desktop { position: fixed; right: 2rem; bottom: 2rem; margin: 0; display: none; }
+.fab:hover { filter: brightness(1.06); transform: scale(1.05); }
+.fab:active { transform: scale(0.96); }
+.fab-desktop { position: fixed; right: 2rem; bottom: 2rem; display: none; }
+/* mobile: float above the bottom bar, bottom-right, so the 5 tabs stay even */
+.fab-float { position: fixed; right: 1.1rem; z-index: 25;
+  bottom: calc(4.8rem + env(safe-area-inset-bottom)); }
 
 @media (min-width: 640px) {
   .nav-rail { display: flex; }
   .nav-bottom { display: none; }
   .fab-desktop { display: flex; }
+  .fab-float { display: none; }
   .shell-main { padding: 2rem 2.5rem; }
 }
 
