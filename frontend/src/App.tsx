@@ -11,6 +11,7 @@ import Settings from './pages/Settings'
 import { isAuthed } from './sync/api'
 import { startSyncLoop } from './sync/engine'
 import { seedIfEmpty } from './db/seed'
+import { LangProvider } from './lib/i18n'
 
 function Guard({ children }: { children: React.ReactNode }) {
   const allowed = isAuthed() || localStorage.getItem('offline_mode') === '1'
@@ -26,6 +27,7 @@ export default function App() {
   }, [])
 
   return (
+    <LangProvider>
     <HashRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -45,5 +47,6 @@ export default function App() {
         </Route>
       </Routes>
     </HashRouter>
+    </LangProvider>
   )
 }

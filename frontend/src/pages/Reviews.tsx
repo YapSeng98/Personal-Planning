@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { db, uuid, todayStr, writeAndQueue, CHANGED, type Review } from '../db/db'
 import { syncNow } from '../sync/engine'
+import { useLang } from '../lib/i18n'
 
 type RType = Review['type']
 const TYPES: RType[] = ['daily', 'weekly', 'monthly', 'yearly']
@@ -14,8 +15,8 @@ const MOODS: [Review['mood'], string][] = [
 function periodFor(type: RType): { start: string; end: string } {
   const now = new Date()
   if (type === 'daily') {
-    const t = todayStr()
-    return { start: t, end: t }
+    const d = todayStr()
+    return { start: d, end: d }
   }
   if (type === 'weekly') {
     const mon = new Date(now)
@@ -42,6 +43,7 @@ export default function Reviews() {
   const [stats, setStats] = useState('')
   const [past, setPast] = useState<Review[]>([])
   const [flash, setFlash] = useState('')
+  const { t } = useLang()
 
   const load = useCallback(async () => {
     const { start, end } = periodFor(type)
@@ -56,8 +58,8 @@ export default function Reviews() {
       .count()
     setStats(
       tasks.length || checkins
-        ? `${done} of ${tasks.length} tasks done · ${checkins} habit check-in${checkins === 1 ? '' : 's'}`
-        : 'Nothing logged in this period yet.',
+        ? t(checkins === 1 ? 'rev.statLine' : 'rev.statLinePlural', { done, total: tasks.length, checkins })
+        : t('rev.statsEmpty'),
     )
 
     const existing = await db.reviews
@@ -80,7 +82,7 @@ export default function Reviews() {
     const all = await db.reviews.filter((r) => !r.deleted).toArray()
     all.sort((a, b) => b.periodStart.localeCompare(a.periodStart))
     setPast(all.slice(0, 6))
-  }, [type])
+  }, [type, t])
 
   useEffect(() => {
     load()
@@ -105,7 +107,7 @@ export default function Reviews() {
       updatedAt: Date.now(),
     })
     syncNow()
-    setFlash('Saved ✓')
+    setFlash(t('rev.saved'))
     setTimeout(() => setFlash(''), 2000)
   }
 
@@ -115,39 +117,39 @@ export default function Reviews() {
   return (
     <div>
       <div className="greet">
-        <h1>Reviews</h1>
-        <div className="sub">Reflect on facts, not memory — the numbers are pre-filled.</div>
+        <h1>{t('rev.title')}</h1>
+        <div className="sub">{t('rev.sub')}</div>
       </div>
 
       <div className="tabs" role="tablist">
-        {TYPES.map((t) => (
-          <button key={t} role="tab" aria-selected={t === type} className={`tab ${t === type ? 'on' : ''}`} onClick={() => setType(t)}>
-            {t[0].toUpperCase() + t.slice(1)}
+        {TYPES.map((rt) => (
+          <button key={rt} role="tab" aria-selected={rt === type} className={`tab ${rt === type ? 'on' : ''}`} onClick={() => setType(rt)}>
+            {t('rev.' + rt)}
           </button>
         ))}
       </div>
 
       <div className="stack">
         <div className="card card-ai briefing">
-          <div className="lbl grad-text">✦ {periodLabel}, in numbers</div>
+          <div className="lbl grad-text">✦ {t('rev.inNumbers', { period: periodLabel })}</div>
           <div className="txt">{stats}</div>
         </div>
 
         <div>
-          <div className="section-h">What went well?</div>
-          <textarea className="field" value={form.wins} onChange={(e) => setForm({ ...form, wins: e.target.value })} placeholder="Wins, big or small…" />
+          <div className="section-h">{t('rev.wins')}</div>
+          <textarea className="field" value={form.wins} onChange={(e) => setForm({ ...form, wins: e.target.value })} placeholder={t('rev.winsPh')} />
         </div>
         <div>
-          <div className="section-h">What didn't?</div>
-          <textarea className="field" value={form.failures} onChange={(e) => setForm({ ...form, failures: e.target.value })} placeholder="What failed or slipped…" />
+          <div className="section-h">{t('rev.fails')}</div>
+          <textarea className="field" value={form.failures} onChange={(e) => setForm({ ...form, failures: e.target.value })} placeholder={t('rev.failsPh')} />
         </div>
         <div>
-          <div className="section-h">Biggest lesson</div>
-          <textarea className="field" value={form.lesson} onChange={(e) => setForm({ ...form, lesson: e.target.value })} placeholder="One thing to carry forward…" />
+          <div className="section-h">{t('rev.lesson')}</div>
+          <textarea className="field" value={form.lesson} onChange={(e) => setForm({ ...form, lesson: e.target.value })} placeholder={t('rev.lessonPh')} />
         </div>
 
         <div>
-          <div className="section-h">Mood · Energy</div>
+          <div className="section-h">{t('rev.moodEnergy')}</div>
           <div className="card mood-row">
             {MOODS.map(([m, emoji]) => (
               <button key={m} className={`mood-btn ${form.mood === m ? 'on' : ''}`} onClick={() => setForm({ ...form, mood: m })} aria-label={`Mood: ${m}`}>
@@ -163,22 +165,22 @@ export default function Reviews() {
         </div>
 
         <div>
-          <div className="section-h">{type === 'daily' ? "Tomorrow's priorities" : 'Next period priorities'}</div>
-          <textarea className="field" value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} placeholder="Top things to focus on next…" />
+          <div className="section-h">{type === 'daily' ? t('rev.nextDaily') : t('rev.nextOther')}</div>
+          <textarea className="field" value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} placeholder={t('rev.nextPh')} />
         </div>
 
         <div className="row" style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-          <button className="btn btn-primary" onClick={save}>{existingId ? 'Update review' : 'Save review'}</button>
+          <button className="btn btn-primary" onClick={save}>{existingId ? t('rev.update') : t('rev.save')}</button>
           {flash && <span className="flash" role="status">{flash}</span>}
         </div>
 
         {past.length > 0 && (
           <div>
-            <div className="section-h">Past reviews</div>
+            <div className="section-h">{t('rev.past')}</div>
             <div className="review-past">
               {past.map((r) => (
                 <div key={r.id} className="card rp">
-                  <b>{r.type}</b> · {r.periodStart}
+                  <b>{t('rev.' + r.type)}</b> · {r.periodStart}
                   {r.mood ? ` · ${MOODS.find(([m]) => m === r.mood)?.[1]}` : ''}
                   {r.wins ? ` — ${r.wins.slice(0, 60)}${r.wins.length > 60 ? '…' : ''}` : ''}
                 </div>

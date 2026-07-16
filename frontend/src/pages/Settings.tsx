@@ -3,26 +3,24 @@ import { db } from '../db/db'
 import { isAuthed, currentUser, clearTokens, serverLogout } from '../sync/api'
 import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
-
-const THEMES: { value: Theme; label: string; hint: string }[] = [
-  { value: 'system', label: 'System', hint: 'follow device' },
-  { value: 'light', label: 'Light', hint: 'warm paper' },
-  { value: 'dark', label: 'Dark', hint: 'deep night' },
-]
-
-const stateLabel: Record<SyncState, string> = {
-  idle: 'Synced with ServiceNow',
-  syncing: 'Syncing…',
-  offline: 'Offline — changes queued locally',
-  'local-only': 'Local only — not signed in to sync',
-  error: 'Sync error — retrying automatically',
-}
+import { useLang, LANGS, type Lang } from '../lib/i18n'
 
 export default function Settings() {
   const [theme, setThemeState] = useState<Theme>(getTheme())
   const [sync, setSync] = useState<SyncState>('idle')
   const [pending, setPending] = useState(0)
+  const { t, lang, setLang } = useLang()
   const offlineMode = localStorage.getItem('offline_mode') === '1' && !isAuthed()
+
+  const themes: { value: Theme; label: string; hint: string }[] = [
+    { value: 'system', label: t('set.themeSystem'), hint: t('set.themeSystemHint') },
+    { value: 'light', label: t('set.themeLight'), hint: t('set.themeLightHint') },
+    { value: 'dark', label: t('set.themeDark'), hint: t('set.themeDarkHint') },
+  ]
+  const stateLabel: Record<SyncState, string> = {
+    idle: t('set.syncIdle'), syncing: t('set.syncSyncing'), offline: t('set.syncOffline'),
+    'local-only': t('set.syncLocal'), error: t('set.syncError'),
+  }
 
   useEffect(() => {
     const off = onSyncState(setSync)
@@ -30,18 +28,16 @@ export default function Settings() {
     return off
   }, [])
 
-  function pick(t: Theme) {
-    setTheme(t)
-    setThemeState(t)
+  function pick(th: Theme) {
+    setTheme(th)
+    setThemeState(th)
   }
 
   async function logout() {
     const unsynced = await db.outbox.count()
     const msg = unsynced > 0
-      ? `You have ${unsynced} change${unsynced === 1 ? '' : 's'} not yet synced — they will be lost. Log out anyway?`
-      : offlineMode
-        ? 'Exit demo mode? Local demo data will be cleared.'
-        : 'Log out? Local data is cleared; it syncs back next time you sign in.'
+      ? t(unsynced === 1 ? 'set.logoutUnsynced' : 'set.logoutUnsyncedPlural', { n: unsynced })
+      : offlineMode ? t('set.exitConfirm') : t('set.logoutConfirm')
     if (!window.confirm(msg)) return
     if (isAuthed()) await serverLogout()
     clearTokens()
@@ -55,57 +51,69 @@ export default function Settings() {
   return (
     <div>
       <div className="greet">
-        <h1>Settings</h1>
-        <div className="sub">Appearance, account, and sync.</div>
+        <h1>{t('set.title')}</h1>
+        <div className="sub">{t('set.sub')}</div>
       </div>
 
-      <div className="section-h">Appearance</div>
+      <div className="section-h">{t('set.appearance')}</div>
       <div className="card">
-        <div className="seg" role="radiogroup" aria-label="Theme">
-          {THEMES.map((t) => (
+        <div className="seg" role="radiogroup" aria-label={t('set.appearance')}>
+          {themes.map((th) => (
             <button
-              key={t.value}
+              key={th.value}
               role="radio"
-              aria-checked={theme === t.value}
-              className={`seg-btn ${theme === t.value ? 'on' : ''}`}
-              onClick={() => pick(t.value)}
+              aria-checked={theme === th.value}
+              className={`seg-btn ${theme === th.value ? 'on' : ''}`}
+              onClick={() => pick(th.value)}
             >
-              <b>{t.label}</b>
-              <span>{t.hint}</span>
+              <b>{th.label}</b>
+              <span>{th.hint}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="section-h">Account</div>
+      <div className="section-h">{t('set.language')}</div>
+      <div className="card">
+        <div className="seg" role="radiogroup" aria-label={t('set.language')}>
+          {LANGS.map((l) => (
+            <button
+              key={l.value}
+              role="radio"
+              aria-checked={lang === l.value}
+              className={`seg-btn ${lang === l.value ? 'on' : ''}`}
+              onClick={() => setLang(l.value as Lang)}
+            >
+              <b>{l.native}</b>
+              <span>{l.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="section-h">{t('set.account')}</div>
       <div className="card settings-row">
         <div>
-          <b>{offlineMode ? 'Offline demo' : currentUser() ?? 'Signed in'}</b>
-          <div className="row-sub">
-            {offlineMode
-              ? 'Exploring with sample data — nothing leaves this device.'
-              : 'Signed in to dev405150.service-now.com'}
-          </div>
+          <b>{offlineMode ? t('set.offlineDemo') : currentUser() ?? '—'}</b>
+          <div className="row-sub">{offlineMode ? t('set.demoDesc') : t('set.signedInAs')}</div>
         </div>
         <button className="btn btn-danger-soft" onClick={logout}>
-          {offlineMode ? 'Exit demo' : 'Log out'}
+          {offlineMode ? t('set.exitDemo') : t('set.logout')}
         </button>
       </div>
 
-      <div className="section-h">Sync</div>
+      <div className="section-h">{t('set.sync')}</div>
       <div className="card settings-row">
         <div>
           <b><span className={`sync-dot ${sync}`}><i /></span> {stateLabel[sync]}</b>
           <div className="row-sub">
-            {pending > 0 ? `${pending} change${pending === 1 ? '' : 's'} waiting to sync` : 'Everything saved'}
+            {pending > 0 ? t(pending === 1 ? 'set.pending' : 'set.pendingPlural', { n: pending }) : t('set.allSaved')}
           </div>
         </div>
-        {!offlineMode && (
-          <button className="btn" onClick={() => syncNow()}>Sync now</button>
-        )}
+        {!offlineMode && <button className="btn" onClick={() => syncNow()}>{t('set.syncNow')}</button>}
       </div>
 
-      <p className="about-line">Planner · offline-first · your data lives in your own ServiceNow instance</p>
+      <p className="about-line">{t('set.about')}</p>
     </div>
   )
 }

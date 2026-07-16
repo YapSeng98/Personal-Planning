@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { login, register } from '../sync/api'
 import { seedIfEmpty } from '../db/seed'
 import { syncNow } from '../sync/engine'
+import { useLang } from '../lib/i18n'
 
 export default function Login() {
   const [mode, setMode] = useState<'signin' | 'register'>('signin')
@@ -11,6 +12,7 @@ export default function Login() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const nav = useNavigate()
+  const { t } = useLang()
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -22,7 +24,7 @@ export default function Login() {
       syncNow()
       nav('/')
     } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : 'Something went wrong — try again.')
+      setErr(ex instanceof Error ? ex.message : t('login.failed'))
     } finally {
       setBusy(false)
     }
@@ -38,30 +40,26 @@ export default function Login() {
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
         <img className="logo" src={`${import.meta.env.BASE_URL}icon.svg`} alt="" />
-        <h1 className="grad-text">Planner</h1>
-        <p className="tagline">Plan the year. Win the day.</p>
-        <p className="sub">
-          {mode === 'signin'
-            ? 'Daily tasks roll up to yearly goals — synced to your ServiceNow instance.'
-            : 'Pick any username and password — your account lives in your own instance.'}
-        </p>
+        <h1 className="grad-text">{t('brand')}</h1>
+        <p className="tagline">{t('login.tagline')}</p>
+        <p className="sub">{mode === 'signin' ? t('login.subSignin') : t('login.subRegister')}</p>
         <input
           type="text"
-          placeholder="Username"
+          placeholder={t('login.username')}
           autoComplete="username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
         <input
           type="password"
-          placeholder="Password"
+          placeholder={t('login.password')}
           autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         {err && <div className="err" role="alert">{err}</div>}
         <button className="btn btn-primary" type="submit" disabled={busy || !username || !password}>
-          {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+          {busy ? t('login.working') : mode === 'signin' ? t('login.signin') : t('login.create')}
         </button>
         <button
           className="btn"
@@ -71,11 +69,11 @@ export default function Login() {
             setErr('')
           }}
         >
-          {mode === 'signin' ? 'New here? Create an account' : 'Have an account? Sign in'}
+          {mode === 'signin' ? t('login.toRegister') : t('login.toSignin')}
         </button>
-        <div className="divider">or</div>
+        <div className="divider">{t('login.or')}</div>
         <button className="btn" type="button" onClick={tryOffline}>
-          Explore offline with sample data
+          {t('login.offline')}
         </button>
       </form>
     </div>

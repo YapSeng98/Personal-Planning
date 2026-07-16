@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { db, uuid, todayStr, writeAndQueue, rollUpGoal, type Task, type Goal } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
+import { useLang } from '../lib/i18n'
 
 // One form for BOTH adding and editing a task, so the two can never diverge.
 // task=null → create mode; task=existing → edit mode (adds Delete).
@@ -37,6 +38,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [isMit, setIsMit] = useState(Boolean(task?.isMit))
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [goals, setGoals] = useState<Goal[]>([])
+  const { t } = useLang()
 
   useEffect(() => {
     db.goals
@@ -93,7 +95,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
 
   async function remove() {
     if (!task) return
-    if (!window.confirm(`Delete "${task.title}"? It disappears everywhere after sync.`)) return
+    if (!window.confirm(t('task.deleteConfirm', { title: task.title }))) return
     const tombstone: Task = { ...task, deleted: 1, updatedAt: Date.now() }
     await writeAndQueue(db.tasks, 'task', tombstone)
     if (task.goalId) await rollUpGoal(task.goalId)
@@ -108,7 +110,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
           <input
             type="text"
             autoFocus
-            placeholder={editing ? '' : 'Add a task… e.g. “gym 6am” or “report 2h”'}
+            placeholder={editing ? '' : t('task.titlePh')}
             value={title}
             onChange={(e) => onTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && save()}
@@ -116,36 +118,36 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
           />
           <div className="form-grid">
             <div className="f">
-              <label className="fl">Due date</label>
-              <div className={`date-wrap ${due ? '' : 'no-val'}`} data-ph="Tap to set">
+              <label className="fl">{t('task.due')}</label>
+              <div className={`date-wrap ${due ? '' : 'no-val'}`} data-ph={t('task.tapToSet')}>
                 <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
               </div>
             </div>
             <div className="f">
-              <label className="fl">Time block (optional)</label>
+              <label className="fl">{t('task.timeBlock')}</label>
               <div className="time-row">
-                <div className={`date-wrap ${start ? '' : 'no-val'}`} data-ph="Start">
-                  <input type="time" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Start time" />
+                <div className={`date-wrap ${start ? '' : 'no-val'}`} data-ph={t('task.start')}>
+                  <input type="time" value={start} onChange={(e) => setStart(e.target.value)} aria-label={t('task.start')} />
                 </div>
                 <span>–</span>
-                <div className={`date-wrap ${end ? '' : 'no-val'}`} data-ph="End">
-                  <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} aria-label="End time" />
+                <div className={`date-wrap ${end ? '' : 'no-val'}`} data-ph={t('task.end')}>
+                  <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} aria-label={t('task.end')} />
                 </div>
               </div>
               {(start || end) && (
                 <button type="button" className="clear-link" onClick={() => { setStart(''); setEnd('') }}>
-                  Clear time block
+                  {t('task.clearTime')}
                 </button>
               )}
             </div>
             {goals.length > 0 && (
               <div className="f">
-                <label className="fl">Counts toward goal (optional)</label>
+                <label className="fl">{t('task.goal')}</label>
                 <Select
-                  ariaLabel="Link to goal"
+                  ariaLabel={t('task.goal')}
                   value={goalId}
                   onChange={setGoalId}
-                  options={[{ value: '', label: 'No goal link' }, ...goals.map((g) => ({ value: g.id, label: `🎯 ${g.title}` }))]}
+                  options={[{ value: '', label: t('task.noGoal') }, ...goals.map((g) => ({ value: g.id, label: `🎯 ${g.title}` }))]}
                 />
               </div>
             )}
@@ -155,15 +157,15 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
               onClick={() => setIsMit(!isMit)}
               aria-pressed={isMit}
             >
-              ⭐ Most Important Task {isMit ? '· on' : ''}
+              ⭐ {t('task.mitFull')} {isMit ? t('task.on') : ''}
             </button>
           </div>
         </div>
         <div className="row sheet-actions" style={{ justifyContent: editing ? 'space-between' : 'flex-end' }}>
-          {editing && <button className="btn btn-danger" onClick={remove}>Delete</button>}
+          {editing && <button className="btn btn-danger" onClick={remove}>{t('common.delete')}</button>}
           <span style={{ display: 'flex', gap: '0.6rem' }}>
-            <button className="btn" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" onClick={save}>{editing ? 'Save task' : 'Add task'}</button>
+            <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
+            <button className="btn btn-primary" onClick={save}>{editing ? t('task.save') : t('task.addTask')}</button>
           </span>
         </div>
       </div>

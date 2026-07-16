@@ -4,34 +4,35 @@ import { syncNow } from '../sync/engine'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
 import HabitEdit from '../components/HabitEdit'
+import { useLang, type TFn } from '../lib/i18n'
 
 interface HabitView extends Habit {
   doneToday: number
   streak: number
 }
 
-function greeting(): [string, string] {
+function greeting(t: TFn): [string, string] {
   const h = new Date().getHours()
-  if (h < 12) return ['Good morning', '☀️']
-  if (h < 18) return ['Good afternoon', '🌤️']
-  return ['Good evening', '🌙']
+  if (h < 12) return [t('today.morning'), '☀️']
+  if (h < 18) return [t('today.afternoon'), '🌤️']
+  return [t('today.evening'), '🌙']
 }
 
-/** Rule-based briefing for Phase 1; the AI assistant takes over this card in Phase 3. */
-function briefingText(tasks: Task[]): string {
-  const open = tasks.filter((t) => t.state === 'open')
-  const done = tasks.filter((t) => t.state === 'done')
-  if (tasks.length === 0) return 'A clean slate. Add your first task with the + button — small starts count.'
-  if (open.length === 0) return `All ${done.length} done — that's a full sweep. Enjoy the win! 🎉`
-  const mit = open.find((t) => t.isMit)
+/** Rule-based briefing (parameterized so it translates). */
+function briefingText(tasks: Task[], t: TFn): string {
+  const open = tasks.filter((x) => x.state === 'open')
+  const done = tasks.filter((x) => x.state === 'done')
+  if (tasks.length === 0) return t('brief.cleanSlate')
+  if (open.length === 0) return t('brief.allDone', { n: done.length })
+  const mit = open.find((x) => x.isMit)
   const next = open
-    .filter((t) => t.timeBlockStart)
+    .filter((x) => x.timeBlockStart)
     .sort((a, b) => a.timeBlockStart!.localeCompare(b.timeBlockStart!))[0]
   const parts: string[] = []
-  if (done.length > 0) parts.push(`${done.length} down, ${open.length} to go — good momentum.`)
-  else parts.push(`${open.length} planned today. One block at a time.`)
-  if (mit) parts.push(`Your most important task: ${mit.title}.`)
-  if (next?.timeBlockStart) parts.push(`Next block at ${next.timeBlockStart.slice(11, 16)}.`)
+  if (done.length > 0) parts.push(t('brief.momentum', { done: done.length, left: open.length }))
+  else parts.push(t('brief.planned', { n: open.length }))
+  if (mit) parts.push(t('brief.mit', { title: mit.title }))
+  if (next?.timeBlockStart) parts.push(t('brief.next', { time: next.timeBlockStart.slice(11, 16) }))
   return parts.join(' ')
 }
 
@@ -40,12 +41,13 @@ export default function Today() {
   const [habits, setHabits] = useState<HabitView[]>([])
   const [editing, setEditing] = useState<Task | null>(null)
   const [editingHabit, setEditingHabit] = useState<Habit | 'new' | null>(null)
+  const { t, lang } = useLang()
   const today = todayStr()
 
   const load = useCallback(async () => {
-    const t = await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()
-    t.sort((a, b) => (a.timeBlockStart ?? 'z').localeCompare(b.timeBlockStart ?? 'z'))
-    setTasks(t)
+    const rows = await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()
+    rows.sort((a, b) => (a.timeBlockStart ?? 'z').localeCompare(b.timeBlockStart ?? 'z'))
+    setTasks(rows)
 
     const hs = await db.habits.where('active').equals(1).and((x) => !x.deleted).toArray()
     const views: HabitView[] = []
@@ -79,14 +81,14 @@ export default function Today() {
     syncNow()
   }
 
-  const dateLabel = new Date().toLocaleDateString(undefined, {
+  const dateLabel = new Date().toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   })
 
-  const blocks = tasks.filter((t) => t.timeBlockStart).length
-  const [hello, emoji] = greeting()
+  const blocks = tasks.filter((x) => x.timeBlockStart).length
+  const [hello, emoji] = greeting(t)
 
   return (
     <div className="today-grid">
@@ -95,18 +97,18 @@ export default function Today() {
         <h1>{hello} {emoji}</h1>
         <div className="sub">
           {dateLabel}
-          {blocks > 0 ? ` · ${blocks} ${blocks === 1 ? 'block' : 'blocks'} planned` : ''}
+          {blocks > 0 ? ` · ${t(blocks === 1 ? 'today.block' : 'today.blocks', { n: blocks })}` : ''}
         </div>
       </div>
 
       <div className="stack">
         <div className="card card-ai briefing">
-          <div className="lbl grad-text">✦ Briefing</div>
-          <div className="txt">{briefingText(tasks)}</div>
+          <div className="lbl grad-text">✦ {t('today.briefing')}</div>
+          <div className="txt">{briefingText(tasks, t)}</div>
         </div>
       </div>
 
-      <div className="section-h">Habits</div>
+      <div className="section-h">{t('today.habits')}</div>
       <div className="habit-row">
         {habits.map((h) => {
           const pct = Math.min(100, (h.doneToday / h.targetPerDay) * 100)
@@ -134,38 +136,38 @@ export default function Today() {
             <span className="ring add">＋</span>
           </button>
           <span className="habit-name-btn" style={{ cursor: 'default' }}>
-            {habits.length === 0 ? 'Add your first habit' : 'Add'}
+            {habits.length === 0 ? t('today.addFirstHabit') : t('today.add')}
           </span>
         </div>
       </div>
 
-      <div className="section-h">Today's tasks</div>
+      <div className="section-h">{t('today.tasks')}</div>
       <div className="stack" style={{ marginTop: 0 }}>
         {tasks.length === 0 && (
           <div className="card empty-cta">
-            <p>Nothing planned yet — what's the one thing that would make today a win?</p>
+            <p>{t('today.emptyTasks')}</p>
             <button className="btn btn-primary" onClick={() => window.dispatchEvent(new CustomEvent('planner:quickadd'))}>
-              + Add your first task
+              {t('today.addFirstTask')}
             </button>
           </div>
         )}
-        {tasks.map((t) => (
-          <div key={t.id} className="card task-row">
+        {tasks.map((task) => (
+          <div key={task.id} className="card task-row">
             <button
-              className={`check ${t.state === 'done' ? 'on' : ''}`}
-              onClick={() => toggleTask(t)}
-              aria-label={t.state === 'done' ? `Mark ${t.title} not done` : `Complete ${t.title}`}
+              className={`check ${task.state === 'done' ? 'on' : ''}`}
+              onClick={() => toggleTask(task)}
+              aria-label={task.title}
             >
               ✓
             </button>
-            <button className={`title title-btn ${t.state === 'done' ? 'done' : ''}`} onClick={() => setEditing(t)} title="Tap to edit">
-              {t.title}
+            <button className={`title title-btn ${task.state === 'done' ? 'done' : ''}`} onClick={() => setEditing(task)} title={task.title}>
+              {task.title}
             </button>
-            {Boolean(t.isMit) && <span className="chip">⭐ MIT</span>}
-            <span className={`when num ${t.timeBlockStart ? '' : 'faint'}`}>
-              {t.timeBlockStart
-                ? `${t.timeBlockStart.slice(11, 16)}${t.timeBlockEnd ? `–${t.timeBlockEnd.slice(11, 16)}` : ''}`
-                : 'anytime'}
+            {Boolean(task.isMit) && <span className="chip">⭐ {t('today.mit')}</span>}
+            <span className={`when num ${task.timeBlockStart ? '' : 'faint'}`}>
+              {task.timeBlockStart
+                ? `${task.timeBlockStart.slice(11, 16)}${task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}`
+                : t('today.anytime')}
             </span>
           </div>
         ))}

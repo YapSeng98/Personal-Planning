@@ -2,15 +2,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { db, uuid, writeAndQueue, rollUpGoal, CHANGED, type Goal, type GoalType } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
+import { useLang } from '../lib/i18n'
 
 const ORDER: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
-const LABEL: Record<GoalType, string> = {
-  vision: 'Vision',
-  year: 'Year goals',
-  quarter: 'Quarter goals',
-  month: 'Month goals',
-  week: 'Week goals',
-}
 const STATUSES = ['not_started', 'in_progress', 'at_risk', 'completed', 'abandoned'] as const
 
 const blank = {
@@ -27,6 +21,7 @@ export default function Goals() {
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ ...blank })
+  const { t } = useLang()
 
   const load = useCallback(async () => {
     setGoals(await db.goals.filter((g) => !g.deleted).toArray())
@@ -99,18 +94,18 @@ export default function Goals() {
     <div>
       <div className="greet page-head">
         <div>
-          <h1>Goals</h1>
-          <div className="sub">Vision → Year → Quarter → Month → Week — progress rolls up. Tap a goal to edit.</div>
+          <h1>{t('goals.title')}</h1>
+          <div className="sub">{t('goals.sub')}</div>
         </div>
-        <button className="btn btn-primary" onClick={startCreate}>+ Goal</button>
+        <button className="btn btn-primary" onClick={startCreate}>{t('goals.add')}</button>
       </div>
 
-      {ORDER.map((t) => {
-        const group = goals.filter((g) => g.type === t)
+      {ORDER.map((lvl) => {
+        const group = goals.filter((g) => g.type === lvl)
         if (group.length === 0) return null
         return (
-          <div key={t}>
-            <div className="section-h">{LABEL[t]}</div>
+          <div key={lvl}>
+            <div className="section-h">{t('level.' + lvl)}</div>
             <div className="stack" style={{ marginTop: 0 }}>
               {group.map((g) => (
                 <button key={g.id} className="card goal-card" onClick={() => startEdit(g)}>
@@ -121,8 +116,8 @@ export default function Goals() {
                   <div className="pbar"><i style={{ width: `${g.progress}%` }} /></div>
                   <div className="meta">
                     {g.parentId && byId.get(g.parentId) ? `↑ ${byId.get(g.parentId)!.title}` : ''}
-                    {g.targetDate ? `  ·  due ${g.targetDate}` : ''}
-                    {`  ·  ${g.status.replace('_', ' ')}`}
+                    {g.targetDate ? `  ·  ${g.targetDate}` : ''}
+                    {`  ·  ${t('status.' + g.status)}`}
                   </div>
                 </button>
               ))}
@@ -130,7 +125,7 @@ export default function Goals() {
           </div>
         )
       })}
-      {goals.length === 0 && <div className="empty">No goals yet — add a Year goal to anchor everything.</div>}
+      {goals.length === 0 && <div className="empty">{t('goals.empty')}</div>}
 
       {open && (
         <div className="sheet-backdrop" onClick={() => setOpen(false)}>
@@ -139,7 +134,7 @@ export default function Goals() {
             <input
               type="text"
               autoFocus
-              placeholder="Goal title… e.g. “Increase portfolio by 20%”"
+              placeholder={t('goals.titlePh')}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               onKeyDown={(e) => e.key === 'Enter' && save()}
@@ -147,39 +142,39 @@ export default function Goals() {
             <div className="form-grid">
               <div className="f-pair">
                 <div className="f">
-                  <label className="fl">Level</label>
+                  <label className="fl">{t('goals.level')}</label>
                   <Select
-                    ariaLabel="Goal level"
+                    ariaLabel={t('goals.level')}
                     value={form.type}
                     onChange={(v) => setForm({ ...form, type: v as GoalType, parentId: '' })}
-                    options={ORDER.map((t) => ({ value: t, label: LABEL[t] }))}
+                    options={ORDER.map((lvl) => ({ value: lvl, label: t('level.' + lvl) }))}
                   />
                 </div>
                 <div className="f">
-                  <label className="fl">Status</label>
+                  <label className="fl">{t('goals.status')}</label>
                   <Select
-                    ariaLabel="Status"
+                    ariaLabel={t('goals.status')}
                     value={form.status}
                     onChange={(v) => setForm({ ...form, status: v as Goal['status'] })}
-                    options={STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') }))}
+                    options={STATUSES.map((s) => ({ value: s, label: t('status.' + s) }))}
                   />
                 </div>
               </div>
               {parentOptions.length > 0 && (
                 <div className="f">
-                  <label className="fl">Part of (parent goal)</label>
+                  <label className="fl">{t('goals.parent')}</label>
                   <Select
-                    ariaLabel="Parent goal"
+                    ariaLabel={t('goals.parent')}
                     value={form.parentId}
                     onChange={(v) => setForm({ ...form, parentId: v })}
-                    options={[{ value: '', label: 'No parent' }, ...parentOptions.map((p) => ({ value: p.id, label: `↑ ${p.title}` }))]}
+                    options={[{ value: '', label: t('goals.noParent') }, ...parentOptions.map((p) => ({ value: p.id, label: `↑ ${p.title}` }))]}
                   />
                 </div>
               )}
               <div className="f-pair">
                 <div className="f">
-                  <label className="fl">Target date</label>
-                  <div className={`date-wrap ${form.targetDate ? '' : 'no-val'}`} data-ph="Tap to set">
+                  <label className="fl">{t('goals.targetDate')}</label>
+                  <div className={`date-wrap ${form.targetDate ? '' : 'no-val'}`} data-ph={t('task.tapToSet')}>
                     <input
                       type="date"
                       value={form.targetDate}
@@ -188,7 +183,7 @@ export default function Goals() {
                   </div>
                 </div>
                 <div className="f">
-                  <label className="fl">Progress %</label>
+                  <label className="fl">{t('goals.progress')}</label>
                   <input
                     type="number" min="0" max="100" inputMode="numeric" placeholder="0"
                     value={form.progress}
@@ -197,15 +192,13 @@ export default function Goals() {
                 </div>
               </div>
             </div>
-            <p className="hint">
-              {hasLinkedTasks ? '' : 'Progress you type here is kept until tasks are linked — once tasks (or child goals) exist, it\'s calculated from them automatically.'}
-            </p>
+            <p className="hint">{hasLinkedTasks ? '' : t('goals.hint')}</p>
             </div>
             <div className="row sheet-actions" style={{ justifyContent: editingId ? 'space-between' : 'flex-end' }}>
-              {editingId && <button className="btn btn-danger" onClick={remove}>Delete</button>}
+              {editingId && <button className="btn btn-danger" onClick={remove}>{t('common.delete')}</button>}
               <span style={{ display: 'flex', gap: '0.6rem' }}>
-                <button className="btn" onClick={() => setOpen(false)}>Cancel</button>
-                <button className="btn btn-primary" onClick={save}>{editingId ? 'Save goal' : 'Add goal'}</button>
+                <button className="btn" onClick={() => setOpen(false)}>{t('common.cancel')}</button>
+                <button className="btn btn-primary" onClick={save}>{editingId ? t('goals.save') : t('goals.addGoal')}</button>
               </span>
             </div>
           </div>

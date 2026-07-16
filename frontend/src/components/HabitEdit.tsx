@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { db, uuid, writeAndQueue, cleanEmoji, type Habit } from '../db/db'
 import { syncNow } from '../sync/engine'
+import { useLang } from '../lib/i18n'
 
 const EMOJIS = ['💧', '🏃', '📖', '🧘', '💪', '😴', '🥗', '✍️', '🌿', '💊']
 
@@ -10,6 +11,7 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
   // Kept as text while typing (so clearing the field doesn't snap back to 0);
   // parsed and clamped only on save.
   const [target, setTarget] = useState(habit ? String(habit.targetPerDay) : '1')
+  const { t } = useLang()
 
   async function save() {
     if (!name.trim()) return
@@ -31,7 +33,7 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
 
   async function remove() {
     if (!habit) return
-    if (!window.confirm(`Delete habit "${habit.name}"? Its logged history stays saved.`)) return
+    if (!window.confirm(t('habit.deleteConfirm', { name: habit.name }))) return
     const tombstone: Habit = { ...habit, deleted: 1, active: 0, updatedAt: Date.now() }
     await writeAndQueue(db.habits, 'habit', tombstone)
     syncNow()
@@ -45,14 +47,14 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
         <input
           type="text"
           autoFocus
-          placeholder="Habit name… e.g. “Drink water”"
+          placeholder={t('habit.namePh')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && save()}
         />
         <div className="form-grid">
           <div className="f">
-            <label className="fl">Icon</label>
+            <label className="fl">{t('habit.icon')}</label>
             <div className="emoji-row">
               {EMOJIS.map((e) => (
                 <button
@@ -68,7 +70,7 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
             </div>
           </div>
           <div className="f">
-            <label className="fl">Times per day (water = 8, most habits = 1)</label>
+            <label className="fl">{t('habit.perDay')}</label>
             <input
               type="number" min="1" max="99" inputMode="numeric" placeholder="1"
               value={target}
@@ -78,10 +80,10 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
         </div>
         </div>
         <div className="row sheet-actions" style={{ justifyContent: habit ? 'space-between' : 'flex-end' }}>
-          {habit && <button className="btn btn-danger" onClick={remove}>Delete</button>}
+          {habit && <button className="btn btn-danger" onClick={remove}>{t('common.delete')}</button>}
           <span style={{ display: 'flex', gap: '0.6rem' }}>
-            <button className="btn" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" onClick={save}>{habit ? 'Save habit' : 'Add habit'}</button>
+            <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
+            <button className="btn btn-primary" onClick={save}>{habit ? t('habit.save') : t('habit.add')}</button>
           </span>
         </div>
       </div>

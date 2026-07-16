@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import { CHANGED, cleanEmoji } from '../db/db'
 import { computeAnalytics, type Analytics as Data } from '../lib/analytics'
+import { useLang } from '../lib/i18n'
 
 export default function Analytics() {
   const [d, setD] = useState<Data | null>(null)
+  const { t } = useLang()
   const load = useCallback(() => {
     computeAnalytics().then(setD)
   }, [])
@@ -13,7 +15,7 @@ export default function Analytics() {
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
-  if (!d) return <div className="greet"><h1>Analytics</h1><div className="empty">Crunching your numbers…</div></div>
+  if (!d) return <div className="greet"><h1>{t('an.title')}</h1><div className="empty">{t('an.loading')}</div></div>
 
   const maxDaily = Math.max(1, ...d.daily.map((x) => x.total || x.done))
   const hasData = d.weekTotal > 0 || d.habits.length > 0 || d.reviewsLogged > 0
@@ -21,13 +23,13 @@ export default function Analytics() {
   return (
     <div>
       <div className="greet">
-        <h1>Analytics 📊</h1>
-        <div className="sub">Your momentum, from the data you're already logging.</div>
+        <h1>{t('an.title')} 📊</h1>
+        <div className="sub">{t('an.sub')}</div>
       </div>
 
       {!hasData && (
         <div className="card empty-cta">
-          <p>No stats yet — complete a few tasks and log some habits, and your trends will appear here.</p>
+          <p>{t('an.empty')}</p>
         </div>
       )}
 
@@ -35,28 +37,28 @@ export default function Analytics() {
       <div className="stat-row">
         <div className="stat-tile">
           <div className="stat-v num">{d.weekPct}<span className="stat-u">%</span></div>
-          <div className="stat-l">This week done</div>
-          <div className="stat-sub num">{d.weekDone}/{d.weekTotal} tasks</div>
+          <div className="stat-l">{t('an.weekDone')}</div>
+          <div className="stat-sub num">{d.weekDone}/{d.weekTotal} {t('an.tasks')}</div>
         </div>
         <div className="stat-tile">
           <div className="stat-v num">{d.bestStreak}</div>
-          <div className="stat-l">Best streak 🔥</div>
-          <div className="stat-sub">consecutive days</div>
+          <div className="stat-l">{t('an.bestStreak')}</div>
+          <div className="stat-sub">{t('an.consecutive')}</div>
         </div>
         <div className="stat-tile">
           <div className="stat-v num">{d.activeGoals}</div>
-          <div className="stat-l">Active goals</div>
-          <div className="stat-sub num">avg {d.avgProgress}% done</div>
+          <div className="stat-l">{t('an.activeGoals')}</div>
+          <div className="stat-sub num">{t('an.avgDone', { n: d.avgProgress })}</div>
         </div>
         <div className="stat-tile">
           <div className="stat-v num">{d.reviewsLogged}</div>
-          <div className="stat-l">Reviews</div>
-          <div className="stat-sub">reflections logged</div>
+          <div className="stat-l">{t('an.reviews')}</div>
+          <div className="stat-sub">{t('an.reflections')}</div>
         </div>
       </div>
 
       {/* Task completion — last 14 days */}
-      <div className="section-h">Task completion · last 14 days</div>
+      <div className="section-h">{t('an.taskCompletion')}</div>
       <div className="card chart-card">
         <div className="chart-bars" role="img" aria-label={`Tasks completed each of the last 14 days, peak ${maxDaily}`}>
           {d.daily.map((day, i) => {
@@ -75,15 +77,15 @@ export default function Analytics() {
           })}
         </div>
         <div className="chart-legend">
-          <span><i className="lg lg-done" /> Completed</span>
-          <span><i className="lg lg-total" /> Planned</span>
+          <span><i className="lg lg-done" /> {t('an.completed')}</span>
+          <span><i className="lg lg-total" /> {t('an.planned')}</span>
         </div>
       </div>
 
       {/* Habit consistency */}
       {d.habits.length > 0 && (
         <>
-          <div className="section-h">Habit consistency · last 30 days</div>
+          <div className="section-h">{t('an.habitConsistency')}</div>
           <div className="card">
             {d.habits.map((h) => (
               <div className="hbar-row" key={h.id} title={`${h.name}: logged ${h.days} of 30 days`}>
@@ -102,7 +104,7 @@ export default function Analytics() {
       {/* Mood trend */}
       {d.moods.length > 0 && (
         <>
-          <div className="section-h">Mood &amp; energy · recent reviews</div>
+          <div className="section-h">{t('an.moodEnergy')}</div>
           <div className="card mood-trend">
             {d.moods.map((m, i) => (
               <div className="mt-col" key={i} title={`${m.date}: energy ${m.energy}/5`}>

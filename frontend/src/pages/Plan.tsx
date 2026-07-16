@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { db, uuid, todayStr, writeAndQueue, rollUpGoal, CHANGED, type Task, type Goal } from '../db/db'
 import { syncNow } from '../sync/engine'
 import TaskForm from '../components/TaskForm'
+import { useLang, type TFn } from '../lib/i18n'
 
 interface DayView {
   date: string
@@ -9,11 +10,11 @@ interface DayView {
   tasks: Task[]
 }
 
-function relativeWeek(offset: number): string {
-  if (offset === 0) return 'This week'
-  if (offset === -1) return 'Last week'
-  if (offset === 1) return 'Next week'
-  return offset < 0 ? `${-offset} weeks ago` : `In ${offset} weeks`
+function relativeWeek(offset: number, t: TFn): string {
+  if (offset === 0) return t('plan.thisWeek')
+  if (offset === -1) return t('plan.lastWeek')
+  if (offset === 1) return t('plan.nextWeek')
+  return offset < 0 ? t('plan.weeksAgo', { n: -offset }) : t('plan.inWeeks', { n: offset })
 }
 
 export default function Plan() {
@@ -22,6 +23,7 @@ export default function Plan() {
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [editing, setEditing] = useState<Task | null>(null)
   const [weekOffset, setWeekOffset] = useState(0)
+  const { t, lang } = useLang()
   const today = todayStr()
 
   const load = useCallback(async () => {
@@ -34,13 +36,13 @@ export default function Plan() {
       const d = new Date(monday)
       d.setDate(monday.getDate() + i)
       const date = todayStr(d)
-      const tasks = await db.tasks.where('due').equals(date).and((t) => !t.deleted).toArray()
+      const tasks = await db.tasks.where('due').equals(date).and((x) => !x.deleted).toArray()
       tasks.sort((a, b) => (a.timeBlockStart ?? 'z').localeCompare(b.timeBlockStart ?? 'z'))
-      views.push({ date, name: d.toLocaleDateString(undefined, { weekday: 'long' }), tasks })
+      views.push({ date, name: d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined, { weekday: 'long' }), tasks })
     }
     setDays(views)
     setMonthGoals(await db.goals.filter((g) => g.type === 'month' && !g.deleted).toArray())
-  }, [weekOffset])
+  }, [weekOffset, lang])
 
   useEffect(() => {
     load()
@@ -72,34 +74,35 @@ export default function Plan() {
     syncNow()
   }
 
-  const monthName = new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-  const weekDone = days.reduce((s, d) => s + d.tasks.filter((t) => t.state === 'done').length, 0)
+  const locale = lang === 'zh' ? 'zh-CN' : undefined
+  const monthName = new Date().toLocaleDateString(locale, { month: 'long', year: 'numeric' })
+  const weekDone = days.reduce((s, d) => s + d.tasks.filter((x) => x.state === 'done').length, 0)
   const weekTotal = days.reduce((s, d) => s + d.tasks.length, 0)
-  const fmt = (s?: string) => (s ? new Date(s + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '')
+  const fmt = (s?: string) => (s ? new Date(s + 'T00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' }) : '')
   const weekRange = days.length ? `${fmt(days[0].date)} – ${fmt(days[6].date)}` : ''
 
   return (
     <div>
       <div className="greet">
-        <h1>Plan</h1>
-        <div className="sub">{monthName} — month goals and your week, day by day.</div>
+        <h1>{t('plan.title')}</h1>
+        <div className="sub">{t('plan.sub', { month: monthName })}</div>
       </div>
 
       <div className="week-nav">
         <button className="wk-arrow" onClick={() => setWeekOffset((o) => o - 1)} aria-label="Previous week">‹</button>
         <div className="wk-mid">
-          <div className="wk-rel">{relativeWeek(weekOffset)}</div>
-          <div className="wk-range num">{weekRange}{weekTotal > 0 ? ` · ${weekDone}/${weekTotal} done` : ''}</div>
+          <div className="wk-rel">{relativeWeek(weekOffset, t)}</div>
+          <div className="wk-range num">{weekRange}{weekTotal > 0 ? ` · ${weekDone}/${weekTotal} ${t('plan.done')}` : ''}</div>
         </div>
         <button className="wk-arrow" onClick={() => setWeekOffset((o) => o + 1)} aria-label="Next week">›</button>
       </div>
       {weekOffset !== 0 && (
-        <button className="wk-today" onClick={() => setWeekOffset(0)}>↩ Back to this week</button>
+        <button className="wk-today" onClick={() => setWeekOffset(0)}>{t('plan.backToWeek')}</button>
       )}
 
       {monthGoals.length > 0 && (
         <>
-          <div className="section-h">Month goals</div>
+          <div className="section-h">{t('plan.monthGoals')}</div>
           <div className="stack" style={{ marginTop: 0 }}>
             {monthGoals.map((g) => (
               <div key={g.id} className="card goal-card">
@@ -119,35 +122,35 @@ export default function Plan() {
           <div key={d.date} className="card day-card">
             <div className="day-h">
               <span className={`d ${d.date === today ? 'today-mark' : ''}`}>
-                {d.name}{d.date === today ? ' · today' : ''}
+                {d.name}{d.date === today ? ` · ${t('common.today')}` : ''}
               </span>
               <span className="n num">{d.date.slice(5)}</span>
             </div>
-            {d.tasks.map((t) => (
-              <div key={t.id} className="task-row">
+            {d.tasks.map((task) => (
+              <div key={task.id} className="task-row">
                 <button
-                  className={`check ${t.state === 'done' ? 'on' : ''}`}
-                  onClick={() => toggle(t)}
-                  aria-label={t.state === 'done' ? `Mark ${t.title} not done` : `Complete ${t.title}`}
+                  className={`check ${task.state === 'done' ? 'on' : ''}`}
+                  onClick={() => toggle(task)}
+                  aria-label={task.title}
                 >
                   ✓
                 </button>
-                <button className={`title title-btn ${t.state === 'done' ? 'done' : ''}`} onClick={() => setEditing(t)} title="Tap to edit">
-                  {t.title}
+                <button className={`title title-btn ${task.state === 'done' ? 'done' : ''}`} onClick={() => setEditing(task)} title={task.title}>
+                  {task.title}
                 </button>
-                <span className={`when num ${t.timeBlockStart ? '' : 'faint'}`}>
-                  {t.timeBlockStart ? t.timeBlockStart.slice(11, 16) : 'anytime'}
+                <span className={`when num ${task.timeBlockStart ? '' : 'faint'}`}>
+                  {task.timeBlockStart ? task.timeBlockStart.slice(11, 16) : t('today.anytime')}
                 </span>
               </div>
             ))}
             <input
               className="add-inline"
               type="text"
-              placeholder="+ add task"
+              placeholder={t('plan.addTask')}
               value={drafts[d.date] ?? ''}
               onChange={(e) => setDrafts((dr) => ({ ...dr, [d.date]: e.target.value }))}
               onKeyDown={(e) => e.key === 'Enter' && addFor(d.date)}
-              aria-label={`Add task for ${d.name}`}
+              aria-label={t('plan.addTask')}
             />
           </div>
         ))}
