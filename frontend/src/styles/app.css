@@ -290,6 +290,21 @@
 .goal-card .meta { font-size: 0.72rem; color: var(--text-3); }
 .pbar { height: 6px; border-radius: 3px; background: var(--glass-strong); overflow: hidden; }
 .pbar i { display: block; height: 100%; background: var(--grad); border-radius: 3px; transition: width 300ms var(--ease); }
+/* ---- Plan week navigation ---- */
+.week-nav { display: flex; align-items: center; gap: 0.6rem; margin: 1.1rem 0 0;
+  background: var(--glass); border: 1px solid var(--hairline); border-radius: 14px; padding: 0.5rem 0.6rem; }
+.wk-arrow { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; border: none;
+  background: var(--glass-strong); color: var(--text-1); font-size: 1.5rem; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background 150ms var(--ease); }
+.wk-arrow:hover { background: var(--accent-wash); color: var(--accent-bright); }
+.wk-mid { flex: 1; text-align: center; min-width: 0; }
+.wk-rel { font-weight: 800; font-size: 0.95rem; }
+.wk-range { font-size: 0.74rem; color: var(--text-3); margin-top: 0.05rem; }
+.wk-today { display: block; margin: 0.6rem auto 0; background: none; border: 1px solid var(--hairline);
+  color: var(--accent-bright); border-radius: 999px; padding: 0.35rem 0.9rem; font-size: 0.8rem;
+  font-weight: 700; cursor: pointer; font-family: inherit; }
+.wk-today:hover { background: var(--accent-wash); }
+
 .day-card { padding: 0.8rem 1rem; }
 .day-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
 .day-h .d { font-weight: 700; font-size: 0.85rem; }

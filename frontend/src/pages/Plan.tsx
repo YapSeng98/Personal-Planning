@@ -9,18 +9,26 @@ interface DayView {
   tasks: Task[]
 }
 
+function relativeWeek(offset: number): string {
+  if (offset === 0) return 'This week'
+  if (offset === -1) return 'Last week'
+  if (offset === 1) return 'Next week'
+  return offset < 0 ? `${-offset} weeks ago` : `In ${offset} weeks`
+}
+
 export default function Plan() {
   const [days, setDays] = useState<DayView[]>([])
   const [monthGoals, setMonthGoals] = useState<Goal[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [editing, setEditing] = useState<Task | null>(null)
+  const [weekOffset, setWeekOffset] = useState(0)
   const today = todayStr()
 
   const load = useCallback(async () => {
-    // Current week, Monday first.
+    // Monday of the week being viewed (weekOffset weeks from this week).
     const now = new Date()
     const monday = new Date(now)
-    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7)
     const views: DayView[] = []
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday)
@@ -32,7 +40,7 @@ export default function Plan() {
     }
     setDays(views)
     setMonthGoals(await db.goals.filter((g) => g.type === 'month' && !g.deleted).toArray())
-  }, [])
+  }, [weekOffset])
 
   useEffect(() => {
     load()
@@ -65,13 +73,29 @@ export default function Plan() {
   }
 
   const monthName = new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  const weekDone = days.reduce((s, d) => s + d.tasks.filter((t) => t.state === 'done').length, 0)
+  const weekTotal = days.reduce((s, d) => s + d.tasks.length, 0)
+  const fmt = (s?: string) => (s ? new Date(s + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '')
+  const weekRange = days.length ? `${fmt(days[0].date)} – ${fmt(days[6].date)}` : ''
 
   return (
     <div>
       <div className="greet">
         <h1>Plan</h1>
-        <div className="sub">{monthName} — month goals and this week, day by day.</div>
+        <div className="sub">{monthName} — month goals and your week, day by day.</div>
       </div>
+
+      <div className="week-nav">
+        <button className="wk-arrow" onClick={() => setWeekOffset((o) => o - 1)} aria-label="Previous week">‹</button>
+        <div className="wk-mid">
+          <div className="wk-rel">{relativeWeek(weekOffset)}</div>
+          <div className="wk-range num">{weekRange}{weekTotal > 0 ? ` · ${weekDone}/${weekTotal} done` : ''}</div>
+        </div>
+        <button className="wk-arrow" onClick={() => setWeekOffset((o) => o + 1)} aria-label="Next week">›</button>
+      </div>
+      {weekOffset !== 0 && (
+        <button className="wk-today" onClick={() => setWeekOffset(0)}>↩ Back to this week</button>
+      )}
 
       {monthGoals.length > 0 && (
         <>
@@ -90,8 +114,7 @@ export default function Plan() {
         </>
       )}
 
-      <div className="section-h">This week</div>
-      <div className="stack" style={{ marginTop: 0 }}>
+      <div className="stack" style={{ marginTop: '0.6rem' }}>
         {days.map((d) => (
           <div key={d.date} className="card day-card">
             <div className="day-h">
