@@ -99,6 +99,9 @@ const en: Dict = {
   'an.reviews': 'Reviews', 'an.reflections': 'reflections logged',
   'an.taskCompletion': 'Task completion · last 14 days', 'an.completed': 'Completed', 'an.planned': 'Planned',
   'an.habitConsistency': 'Habit consistency · last 30 days', 'an.moodEnergy': 'Mood & energy · recent reviews',
+  // insights rail
+  'ins.yearGoal': 'Year goal', 'ins.weekMomentum': 'Week momentum', 'ins.bestStreak': 'Best streak',
+  'ins.keepChain': 'Keep the chain going', 'ins.day': 'day', 'ins.days': 'days',
   // settings
   'set.title': 'Settings', 'set.sub': 'Appearance, language, account, and sync.',
   'set.appearance': 'Appearance', 'set.themeSystem': 'System', 'set.themeSystemHint': 'follow device',
@@ -190,6 +193,8 @@ const zh: Dict = {
   'an.reviews': '回顾', 'an.reflections': '条反思记录',
   'an.taskCompletion': '任务完成 · 近 14 天', 'an.completed': '已完成', 'an.planned': '已规划',
   'an.habitConsistency': '习惯坚持度 · 近 30 天', 'an.moodEnergy': '心情与精力 · 最近的回顾',
+  'ins.yearGoal': '年度目标', 'ins.weekMomentum': '本周势头', 'ins.bestStreak': '最长连续',
+  'ins.keepChain': '保持连续记录', 'ins.day': '天', 'ins.days': '天',
   'set.title': '设置', 'set.sub': '外观、语言、账户与同步。',
   'set.appearance': '外观', 'set.themeSystem': '跟随系统', 'set.themeSystemHint': '跟随设备',
   'set.themeLight': '浅色', 'set.themeLightHint': '暖纸', 'set.themeDark': '深色', 'set.themeDarkHint': '深夜',

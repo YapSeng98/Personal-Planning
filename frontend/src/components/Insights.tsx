@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { db, todayStr, habitStreak, CHANGED, type Goal } from '../db/db'
+import { useLang } from '../lib/i18n'
 
 interface WeekDay {
   label: string
@@ -11,6 +12,7 @@ export default function Insights() {
   const [goal, setGoal] = useState<Goal | null>(null)
   const [week, setWeek] = useState<WeekDay[]>([])
   const [streak, setStreak] = useState(0)
+  const { t } = useLang()
 
   const load = useCallback(() => {
     ;(async () => {
@@ -48,7 +50,7 @@ export default function Insights() {
     <aside className="insights" aria-label="Insights">
       {goal && (
         <div className="card ins-card">
-          <div className="ins-h">Year goal</div>
+          <div className="ins-h">{t('ins.yearGoal')}</div>
           <div className="ring-big" style={{ ['--p' as string]: goal.progress }}>
             <span className="v num">{goal.progress}%</span>
           </div>
@@ -56,7 +58,7 @@ export default function Insights() {
         </div>
       )}
       <div className="card ins-card">
-        <div className="ins-h">Week momentum</div>
+        <div className="ins-h">{t('ins.weekMomentum')}</div>
         <div className="bars" role="img" aria-label={`Tasks completed each day this week, peak ${max}`}>
           {week.map((w, i) => (
             <div key={i} className="bar-col">
@@ -70,11 +72,11 @@ export default function Insights() {
         </div>
       </div>
       <div className="card ins-card">
-        <div className="ins-h">Best streak</div>
+        <div className="ins-h">{t('ins.bestStreak')}</div>
         <div className="streak-big">
-          🔥 <span className="num">{streak}</span> {streak === 1 ? 'day' : 'days'}
+          🔥 <span className="num">{streak}</span> {t(streak === 1 ? 'ins.day' : 'ins.days')}
         </div>
-        <div className="ins-sub">Keep the chain going</div>
+        <div className="ins-sub">{t('ins.keepChain')}</div>
       </div>
     </aside>
   )
