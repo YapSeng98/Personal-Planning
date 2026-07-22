@@ -1,41 +1,15 @@
 import { useEffect, useState, useCallback } from 'react'
-import { db, todayStr, habitStreak, CHANGED, type Goal } from '../db/db'
+import { db, CHANGED, type Goal } from '../db/db'
 import { useLang } from '../lib/i18n'
 
-interface WeekDay {
-  label: string
-  done: number
-}
-
-/** Right-hand rail on laptop: year-goal ring, week momentum, best streak. */
+/** Right-hand rail on laptop: the year-goal ring. Week momentum + streak now
+    live inline on the Today screen, so the rail complements rather than repeats. */
 export default function Insights() {
   const [goal, setGoal] = useState<Goal | null>(null)
-  const [week, setWeek] = useState<WeekDay[]>([])
-  const [streak, setStreak] = useState(0)
   const { t } = useLang()
 
   const load = useCallback(() => {
-    ;(async () => {
-      const g = await db.goals.filter((x) => x.type === 'year' && !x.deleted).first()
-      setGoal(g ?? null)
-
-      const days: WeekDay[] = []
-      for (let d = 6; d >= 0; d--) {
-        const date = new Date(Date.now() - d * 86400_000)
-        const done = await db.tasks
-          .where('due')
-          .equals(todayStr(date))
-          .and((t) => t.state === 'done' && !t.deleted)
-          .count()
-        days.push({ label: 'SMTWTFS'[date.getDay()], done })
-      }
-      setWeek(days)
-
-      const habits = await db.habits.filter((h) => h.active === 1 && !h.deleted).toArray()
-      let best = 0
-      for (const h of habits) best = Math.max(best, await habitStreak(h.id))
-      setStreak(best)
-    })()
+    db.goals.filter((x) => x.type === 'year' && !x.deleted).first().then((g) => setGoal(g ?? null))
   }, [])
 
   useEffect(() => {
@@ -44,39 +18,16 @@ export default function Insights() {
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
-  const max = Math.max(1, ...week.map((w) => w.done))
+  if (!goal) return <aside className="insights" aria-label="Insights" />
 
   return (
     <aside className="insights" aria-label="Insights">
-      {goal && (
-        <div className="card ins-card">
-          <div className="ins-h">{t('ins.yearGoal')}</div>
-          <div className="ring-big" style={{ ['--p' as string]: goal.progress }}>
-            <span className="v num">{goal.progress}%</span>
-          </div>
-          <div className="ins-sub">{goal.title}</div>
-        </div>
-      )}
       <div className="card ins-card">
-        <div className="ins-h">{t('ins.weekMomentum')}</div>
-        <div className="bars" role="img" aria-label={`Tasks completed each day this week, peak ${max}`}>
-          {week.map((w, i) => (
-            <div key={i} className="bar-col">
-              <i
-                style={{ height: `${(w.done / max) * 100}%` }}
-                className={`${i === 6 ? 'hot' : ''} ${w.done === 0 ? 'zero' : ''}`}
-              />
-              <span>{w.label}</span>
-            </div>
-          ))}
+        <div className="ins-h">{t('ins.yearGoal')}</div>
+        <div className="ring-big" style={{ ['--p' as string]: goal.progress }}>
+          <span className="v num">{goal.progress}%</span>
         </div>
-      </div>
-      <div className="card ins-card">
-        <div className="ins-h">{t('ins.bestStreak')}</div>
-        <div className="streak-big">
-          🔥 <span className="num">{streak}</span> {t(streak === 1 ? 'ins.day' : 'ins.days')}
-        </div>
-        <div className="ins-sub">{t('ins.keepChain')}</div>
+        <div className="ins-sub">{goal.title}</div>
       </div>
     </aside>
   )

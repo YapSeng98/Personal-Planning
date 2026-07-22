@@ -443,3 +443,102 @@ button.goal-card:hover { background: var(--glass-strong); }
 .login-card .logo { width: 68px; height: 68px; border-radius: 20px; box-shadow: 0 12px 32px var(--accent-wash); margin-bottom: 0.4rem; }
 .login-card h1 { font-size: 2rem; }
 .login-card .tagline { font-size: 1.02rem; color: var(--text-1); font-weight: 600; margin: -0.3rem 0 0; }
+
+/* ======================================================================
+   Elevated Today — sunrise hero, momentum, richer task cards.
+   The hero stays a bright warm panel in both themes (a warm focal point);
+   everything else runs on the theme tokens.
+   ====================================================================== */
+.hero-card {
+  position: relative; overflow: hidden; border-radius: 24px;
+  padding: 1.25rem 1.3rem 1.35rem;
+  background: linear-gradient(150deg, #FF7A59 2%, #FF9147 46%, #FFB03A 100%);
+  box-shadow: 0 18px 40px -18px rgba(255, 120, 80, 0.55);
+  margin-bottom: 1.1rem;
+}
+.hero-card::before { /* sun glow */
+  content: ''; position: absolute; width: 240px; height: 240px; border-radius: 50%;
+  right: -80px; top: -100px; background: radial-gradient(circle, rgba(255,255,255,0.5), transparent 62%);
+}
+.hero-card::after { content: ''; position: absolute; inset: 0; border-radius: 24px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4); pointer-events: none; }
+.hero-card > * { position: relative; }
+.hero-wm { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: #7a2c10; opacity: 0.85; }
+.hero-hi { font-size: 1.7rem; font-weight: 850; letter-spacing: -0.02em; color: #2c1004; margin-top: 0.5rem; line-height: 1.12; }
+.hero-dt { font-size: 0.8rem; font-weight: 600; color: #78300f; margin-top: 0.15rem; }
+.hero-brief { margin-top: 0.9rem; background: rgba(255,255,255,0.28); border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 14px; padding: 0.7rem 0.85rem; backdrop-filter: blur(6px); max-width: 30rem; }
+.hero-card.has-ring .hero-brief { margin-right: 4.7rem; }
+.hero-brief .bl { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #7a2c10; }
+.hero-brief .bt { font-size: 0.84rem; line-height: 1.5; color: #361405; margin-top: 0.25rem; }
+.hero-brief .bt b { font-weight: 750; }
+.hero-ring { position: absolute; right: 1.2rem; bottom: 1.25rem; width: 58px; height: 58px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: conic-gradient(#2c1004 calc(var(--p, 0) * 1%), rgba(44,16,4,0.18) 0); }
+.hero-ring i { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(150deg, #FF9147, #FFB03A);
+  display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 850; color: #2c1004; font-style: normal; font-variant-numeric: tabular-nums; }
+
+/* momentum: weekly chart + streak */
+.momentum { display: grid; grid-template-columns: 1.55fr 1fr; gap: 0.7rem; margin-top: 0.4rem; }
+.m-card { background: var(--glass); border: 1px solid var(--hairline); border-radius: 18px; padding: 0.85rem 0.9rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+.m-card .ct { font-size: 0.62rem; color: var(--text-3); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.m-card .cv { font-size: 1.35rem; font-weight: 850; letter-spacing: -0.02em; margin-top: 0.05rem; }
+.m-card .cv small { font-size: 0.72rem; color: var(--text-3); font-weight: 600; }
+.m-chart svg { display: block; width: 100%; height: 46px; margin-top: 0.35rem; overflow: visible; }
+.m-streak { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 0.15rem; }
+.m-streak .big { font-size: 1.7rem; font-weight: 850; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1; }
+.m-streak .sl { font-size: 0.6rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+
+/* elevated task cards */
+.tstack { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.6rem; }
+.tcard { position: relative; overflow: hidden; display: flex; align-items: center; gap: 0.75rem;
+  background: var(--glass); border: 1px solid var(--hairline); border-radius: 15px; padding: 0.7rem 0.85rem 0.7rem 0.8rem; }
+.tcard .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.tcard .tbody { flex: 1; min-width: 0; text-align: left; background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.tcard .tbody:hover .ttitle { color: var(--accent-bright); }
+.tcard .ttitle { font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcard .ttitle.done { color: var(--text-3); text-decoration: line-through; }
+.tcard .tmeta { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.28rem; }
+.tchip { font-size: 0.62rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
+.tchip .cd { width: 6px; height: 6px; border-radius: 50%; }
+.tcard .tstar { color: var(--amber); font-size: 0.72rem; }
+.tcard .ttime { font-size: 0.72rem; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tcard .ttime.faint { opacity: 0.6; font-style: italic; }
+
+/* ======================================================================
+   Cross-screen polish — carries the elevated look to Plan / Goals /
+   Board / Reviews / Analytics for one consistent, premium system.
+   ====================================================================== */
+
+/* refined page headers: bigger title + a small sunrise eyebrow tick */
+.greet h1 { font-size: 2rem; letter-spacing: -0.025em; }
+.page-head h1, .greet h1 { position: relative; }
+.section-h { display: flex; align-items: center; gap: 0.5rem; }
+.section-h::before { content: ''; width: 14px; height: 3px; border-radius: 2px; background: var(--grad); flex-shrink: 0; }
+
+/* lift the stat tiles (Analytics) */
+.stat-tile { box-shadow: 0 1px 1px rgba(0,0,0,0.03), 0 12px 28px -22px rgba(0,0,0,0.5); transition: transform 160ms var(--ease); }
+.stat-tile:hover { transform: translateY(-2px); }
+.stat-v { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* Board: status-tinted columns, badge counts, card depth */
+.board-col-h .n { display: inline-flex; align-items: center; gap: 0.4rem; }
+.board-col-h .n::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.board-col.st-open .board-col-h .n::before { background: var(--accent); }
+.board-col.st-inprogress .board-col-h .n::before { background: var(--amber); }
+.board-col.st-done .board-col-h .n::before { background: var(--ok); }
+.board-col-h .c { background: var(--glass-strong); border: 1px solid var(--hairline); border-radius: 999px;
+  min-width: 1.4rem; text-align: center; padding: 0.05rem 0.45rem; font-weight: 700; color: var(--text-2); }
+.board-card { box-shadow: 0 1px 1px rgba(0,0,0,0.03), 0 10px 24px -20px rgba(0,0,0,0.45);
+  transition: transform 140ms var(--ease), box-shadow 140ms var(--ease); }
+.board-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -18px rgba(0,0,0,0.5); }
+.board-drop { background: color-mix(in srgb, var(--surface-2) 55%, transparent); border: 1px solid transparent; }
+
+/* Goals & Plan: progress bars glow, cards lift on hover */
+.goal-card { transition: transform 150ms var(--ease); }
+button.goal-card:hover { transform: translateY(-2px); }
+.pbar i { box-shadow: 0 0 12px -2px var(--accent-wash); }
+.ring-big::before { filter: drop-shadow(0 0 10px var(--accent-wash)); }
+
+/* Reviews: past-review chips get the card lift too */
+.review-past .rp { box-shadow: 0 1px 1px rgba(0,0,0,0.03), 0 10px 24px -20px rgba(0,0,0,0.45); }

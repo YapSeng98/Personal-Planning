@@ -56,7 +56,7 @@ function BoardColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
   return (
-    <div className="board-col">
+    <div className={`board-col st-${status.replace('_', '')}`}>
       <div className="board-col-h">
         <span className="n">{label}</span>
         <span className="c num">{tasks.length}</span>

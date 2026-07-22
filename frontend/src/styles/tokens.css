@@ -110,6 +110,7 @@ h1, h2, h3 { letter-spacing: -0.02em; margin: 0; }
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   padding: 0.9rem 1rem;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03), 0 12px 28px -22px rgba(0, 0, 0, 0.5);
 }
 .card-ai {
   background: linear-gradient(var(--surface), var(--surface)) padding-box,
@@ -138,6 +139,7 @@ h1, h2, h3 { letter-spacing: -0.02em; margin: 0; }
   padding: 0.6rem 1.1rem;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: background 150ms var(--ease);
 }
 .btn:hover { background: var(--glass-strong); }

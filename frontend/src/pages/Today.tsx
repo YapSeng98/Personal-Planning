@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
-import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji, CHANGED, type Task, type Habit } from '../db/db'
+import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji, CHANGED, type Task, type Habit, type Project } from '../db/db'
 import { syncNow } from '../sync/engine'
+import { currentUser } from '../sync/api'
+import { projectColorVar } from '../lib/projectColors'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
 import HabitEdit from '../components/HabitEdit'
@@ -36,9 +38,29 @@ function briefingText(tasks: Task[], t: TFn): string {
   return parts.join(' ')
 }
 
+/** Priority → accent colour on a task card (1–2 urgent, 3 mid, 4–5 easy). */
+function accentFor(p: number): string {
+  if (p <= 2) return 'var(--accent)'
+  if (p === 3) return 'var(--amber)'
+  return 'var(--ok)'
+}
+
+/** Build the weekly momentum sparkline paths from 7 daily done-counts. */
+function areaPath(series: number[]) {
+  const max = Math.max(1, ...series)
+  const w = 160, h = 40
+  const pts = series.map((v, i) => [(i / (series.length - 1)) * w, h - (v / max) * h] as const)
+  const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  return { line, area: `${line} L${w},${h} L0,${h} Z`, last: pts[pts.length - 1] }
+}
+
+interface Momentum { series: number[]; weekDone: number; streak: number }
+
 export default function Today() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [habits, setHabits] = useState<HabitView[]>([])
+  const [projects, setProjects] = useState<Record<string, Project>>({})
+  const [mom, setMom] = useState<Momentum>({ series: [0, 0, 0, 0, 0, 0, 0], weekDone: 0, streak: 0 })
   const [editing, setEditing] = useState<Task | null>(null)
   const [editingHabit, setEditingHabit] = useState<Habit | 'new' | null>(null)
   const { t, lang } = useLang()
@@ -49,6 +71,9 @@ export default function Today() {
     rows.sort((a, b) => (a.timeBlockStart ?? 'z').localeCompare(b.timeBlockStart ?? 'z'))
     setTasks(rows)
 
+    const projRows = await db.projects.filter((p) => !p.deleted).toArray()
+    setProjects(Object.fromEntries(projRows.map((p) => [p.id, p])))
+
     const hs = await db.habits.where('active').equals(1).and((x) => !x.deleted).toArray()
     const views: HabitView[] = []
     for (const h of hs) {
@@ -56,6 +81,18 @@ export default function Today() {
       views.push({ ...h, doneToday: log?.count ?? 0, streak: await habitStreak(h.id) })
     }
     setHabits(views)
+
+    // momentum: last 7 days of completed tasks + best active streak
+    const series: number[] = []
+    for (let d = 6; d >= 0; d--) {
+      const date = todayStr(new Date(Date.now() - d * 86400_000))
+      series.push(
+        await db.tasks.where('due').equals(date).and((x) => x.state === 'done' && !x.deleted).count(),
+      )
+    }
+    let best = 0
+    for (const h of hs) best = Math.max(best, await habitStreak(h.id))
+    setMom({ series, weekDone: series.reduce((s, n) => s + n, 0), streak: best })
   }, [today])
 
   useEffect(() => {
@@ -87,36 +124,63 @@ export default function Today() {
     day: 'numeric',
   })
 
-  const blocks = tasks.filter((x) => x.timeBlockStart).length
   const [hello, emoji] = greeting(t)
+  const name = currentUser()
+  const doneCount = tasks.filter((x) => x.state === 'done').length
+  const pct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0
+  const spark = areaPath(mom.series)
 
   return (
     <div className="today-grid">
     <div>
-      <div className="greet">
-        <h1>{hello} {emoji}</h1>
-        <div className="sub">
-          {dateLabel}
-          {blocks > 0 ? ` · ${t(blocks === 1 ? 'today.block' : 'today.blocks', { n: blocks })}` : ''}
+      {/* ---- sunrise hero ---- */}
+      <div className={`hero-card ${tasks.length > 0 ? 'has-ring' : ''}`}>
+        <div className="hero-wm">{t('brand')}</div>
+        <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
+        <div className="hero-dt">{dateLabel}</div>
+        <div className="hero-brief">
+          <div className="bl">✦ {t('today.briefing')}</div>
+          <div className="bt">{briefingText(tasks, t)}</div>
         </div>
+        {tasks.length > 0 && (
+          <div className="hero-ring" style={{ ['--p' as string]: pct }} aria-label={`${pct}% of today done`}>
+            <i>{pct}%</i>
+          </div>
+        )}
       </div>
 
-      <div className="stack">
-        <div className="card card-ai briefing">
-          <div className="lbl grad-text">✦ {t('today.briefing')}</div>
-          <div className="txt">{briefingText(tasks, t)}</div>
+      {/* ---- momentum ---- */}
+      <div className="momentum">
+        <div className="m-card m-chart">
+          <div className="ct">{t('ins.weekMomentum')}</div>
+          <div className="cv num">{mom.weekDone} <small>{t('an.tasks')}</small></div>
+          <svg viewBox="0 0 160 40" preserveAspectRatio="none" role="img" aria-label={`${mom.weekDone} tasks done this week`}>
+            <defs>
+              <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="var(--accent)" stopOpacity="0.4" />
+                <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d={spark.area} fill="url(#spark)" />
+            <path d={spark.line} fill="none" stroke="var(--accent-bright)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx={spark.last[0]} cy={spark.last[1]} r="3.4" fill="var(--amber)" stroke="var(--surface)" strokeWidth="2" />
+          </svg>
+        </div>
+        <div className="m-card m-streak">
+          <div className="big num">{mom.streak}</div>
+          <div className="sl">{t(mom.streak === 1 ? 'ins.day' : 'ins.days')} 🔥</div>
         </div>
       </div>
 
       <div className="section-h">{t('today.habits')}</div>
       <div className="habit-row">
         {habits.map((h) => {
-          const pct = Math.min(100, (h.doneToday / h.targetPerDay) * 100)
+          const hp = Math.min(100, (h.doneToday / h.targetPerDay) * 100)
           return (
             <div key={h.id} className="habit-cell">
               <button
                 className="ring-btn"
-                style={{ ['--p' as string]: pct }}
+                style={{ ['--p' as string]: hp }}
                 onClick={() => tickHabit(h)}
                 aria-label={`${h.name}: ${h.doneToday} of ${h.targetPerDay} today. Tap to log.`}
               >
@@ -142,36 +206,52 @@ export default function Today() {
       </div>
 
       <div className="section-h">{t('today.tasks')}</div>
-      <div className="stack" style={{ marginTop: 0 }}>
-        {tasks.length === 0 && (
-          <div className="card empty-cta">
-            <p>{t('today.emptyTasks')}</p>
-            <button className="btn btn-primary" onClick={() => window.dispatchEvent(new CustomEvent('planner:quickadd'))}>
-              {t('today.addFirstTask')}
-            </button>
-          </div>
-        )}
-        {tasks.map((task) => (
-          <div key={task.id} className="card task-row">
-            <button
-              className={`check ${task.state === 'done' ? 'on' : ''}`}
-              onClick={() => toggleTask(task)}
-              aria-label={task.title}
-            >
-              ✓
-            </button>
-            <button className={`title title-btn ${task.state === 'done' ? 'done' : ''}`} onClick={() => setEditing(task)} title={task.title}>
-              {task.title}
-            </button>
-            {Boolean(task.isMit) && <span className="chip">⭐ {t('today.mit')}</span>}
-            <span className={`when num ${task.timeBlockStart ? '' : 'faint'}`}>
-              {task.timeBlockStart
-                ? `${task.timeBlockStart.slice(11, 16)}${task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}`
-                : t('today.anytime')}
-            </span>
-          </div>
-        ))}
-      </div>
+      {tasks.length === 0 ? (
+        <div className="card empty-cta">
+          <p>{t('today.emptyTasks')}</p>
+          <button className="btn btn-primary" onClick={() => window.dispatchEvent(new CustomEvent('planner:quickadd'))}>
+            {t('today.addFirstTask')}
+          </button>
+        </div>
+      ) : (
+        <div className="tstack">
+          {tasks.map((task) => {
+            const proj = task.projectId ? projects[task.projectId] : undefined
+            const done = task.state === 'done'
+            return (
+              <div key={task.id} className="tcard">
+                <span className="acc" style={{ background: done ? 'var(--ok)' : accentFor(task.priority) }} />
+                <button
+                  className={`check ${done ? 'on' : ''}`}
+                  onClick={() => toggleTask(task)}
+                  aria-label={task.title}
+                >
+                  ✓
+                </button>
+                <button className="tbody" onClick={() => setEditing(task)} title={task.title}>
+                  <div className={`ttitle ${done ? 'done' : ''}`}>{task.title}</div>
+                  {(Boolean(task.isMit) || proj) && (
+                    <div className="tmeta">
+                      {Boolean(task.isMit) && <span className="tstar">⭐</span>}
+                      {proj && (
+                        <span className="tchip" style={{ background: 'var(--accent-wash)', color: 'var(--text-2)' }}>
+                          <span className="cd" style={{ background: projectColorVar(proj.color) }} />
+                          {proj.title}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </button>
+                <span className={`ttime ${task.timeBlockStart ? '' : 'faint'}`}>
+                  {task.timeBlockStart
+                    ? `${task.timeBlockStart.slice(11, 16)}${task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}`
+                    : t('today.anytime')}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
     <Insights />
     {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
