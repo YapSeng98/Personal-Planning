@@ -22,7 +22,7 @@
     var profile = helper.validateToken(request.getHeader('X-Planner-Token') || '');
     if (!profile) { helper.errorResponse(response, 401, 'Invalid or expired session. Please log in again.'); return; }
 
-    var TABLES = { task: T + 'task', habit: T + 'habit', habit_log: T + 'habit_log', goal: T + 'goal', review: T + 'review' };
+    var TABLES = { task: T + 'task', habit: T + 'habit', habit_log: T + 'habit_log', goal: T + 'goal', review: T + 'review', project: T + 'project' };
 
     // frontend camelCase -> SN column. 'ref:' resolves a client_uuid to a
     // sys_id on the named planner table (task/goal/habit key).
@@ -31,7 +31,7 @@
             title: 'title', notes: 'notes', state: 'state', priority: 'priority',
             due: 'due', timeBlockStart: 'time_block_start', timeBlockEnd: 'time_block_end',
             estimatedHours: 'estimated_hours', actualHours: 'actual_hours',
-            goalId: 'ref:goal:goal', isMit: 'is_mit', deleted: 'deleted'
+            goalId: 'ref:goal:goal', projectId: 'ref:project:project', isMit: 'is_mit', deleted: 'deleted'
         },
         habit: {
             name: 'name', emoji: 'emoji', frequency: 'frequency',
@@ -47,7 +47,8 @@
             type: 'type', periodStart: 'period_start', periodEnd: 'period_end',
             wins: 'wins', failures: 'failures', lesson: 'lesson', mood: 'mood',
             energy: 'energy', nextPriorities: 'next_priorities', deleted: 'deleted'
-        }
+        },
+        project: { title: 'title', color: 'color', archived: 'archived', deleted: 'deleted' }
     };
 
     function resolveRef(tableKey, clientUuid) {
@@ -67,7 +68,7 @@
 
     // True/False columns must be written as real booleans so they read back
     // as 'true'/'false' — the app may send them as 1/0, true/false, or "1"/"0".
-    var BOOL_COLS = { deleted: 1, active: 1, is_mit: 1 };
+    var BOOL_COLS = { deleted: 1, active: 1, is_mit: 1, archived: 1 };
     function truthy(v) { return v === true || v === 1 || v === '1' || v === 'true'; }
 
     var body = request.body ? request.body.data : {};

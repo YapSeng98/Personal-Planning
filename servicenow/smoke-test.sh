@@ -78,6 +78,23 @@ else
   FAILED=1
 fi
 
+echo "7. Board feature — project CRUD + task->project link + in_progress round-trip"
+echo "   (needs the new x_pps_project table + task.project field + re-pasted scripts)"
+PROJUUID="smokeproj-$(date +%s)"
+curl -s -X POST "$PLANNER/sync/push" -H 'Content-Type: application/json' \
+  -H "X-Planner-Token: $TOKEN" -H "X-HTTP-Method: POST" \
+  -d "{\"items\":[
+   {\"table\":\"project\",\"client_uuid\":\"$PROJUUID\",\"edited_at\":$(date +%s)000,
+    \"payload\":{\"title\":\"smoke project\",\"color\":\"blue\",\"archived\":false,\"deleted\":false}},
+   {\"table\":\"task\",\"client_uuid\":\"projtask-$UUID\",\"edited_at\":$(date +%s)000,
+    \"payload\":{\"title\":\"in-progress smoke task\",\"state\":\"in_progress\",\"priority\":3,
+     \"due\":\"$TODAY\",\"projectId\":\"$PROJUUID\",\"deleted\":false}}]}" >/dev/null
+R=$(curl -s "$PLANNER/sync/pull?since=1970-01-01%2000:00:00" -H "X-Planner-Token: $TOKEN" -H "X-HTTP-Method: GET")
+check "project title round-trips" 'smoke project' "$R"
+check "project color round-trips" '"color":"blue"' "$R"
+check "task state in_progress round-trips" '"in_progress"' "$R"
+check "task links to project" "\"projectId\":\"$PROJUUID\"" "$R"
+
 echo "6. Auth guard — planner API without token is rejected"
 R=$(curl -s "$PLANNER/sync/pull?since=1970-01-01%2000:00:00" -H "X-HTTP-Method: GET")
 check "401 error without token" 'error' "$R"

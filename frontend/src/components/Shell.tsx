@@ -7,6 +7,7 @@ import TaskForm from './TaskForm'
 const links = [
   { to: '/', key: 'nav.today', ico: '☀️' },
   { to: '/plan', key: 'nav.plan', ico: '🗓️' },
+  { to: '/board', key: 'nav.board', ico: '🗂️' },
   { to: '/goals', key: 'nav.goals', ico: '🎯' },
   { to: '/reviews', key: 'nav.reviews', ico: '✍️' },
   { to: '/analytics', key: 'nav.stats', ico: '📊' },

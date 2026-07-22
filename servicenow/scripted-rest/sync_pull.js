@@ -20,14 +20,14 @@
     var profile = helper.validateToken(request.getHeader('X-Planner-Token') || '');
     if (!profile) { helper.errorResponse(response, 401, 'Invalid or expired session. Please log in again.'); return; }
 
-    var TABLES = { task: T + 'task', habit: T + 'habit', habit_log: T + 'habit_log', goal: T + 'goal', review: T + 'review' };
+    var TABLES = { task: T + 'task', habit: T + 'habit', habit_log: T + 'habit_log', goal: T + 'goal', review: T + 'review', project: T + 'project' };
 
     var FIELD_MAPS = {
         task: {
             title: 'title', notes: 'notes', state: 'state', priority: 'priority',
             due: 'due', time_block_start: 'timeBlockStart', time_block_end: 'timeBlockEnd',
             estimated_hours: 'estimatedHours', actual_hours: 'actualHours',
-            goal: 'ref:goalId', is_mit: 'isMit'
+            goal: 'ref:goalId', project: 'ref:projectId', is_mit: 'isMit'
         },
         habit: {
             name: 'name', emoji: 'emoji', frequency: 'frequency',
@@ -43,11 +43,12 @@
             type: 'type', period_start: 'periodStart', period_end: 'periodEnd',
             wins: 'wins', failures: 'failures', lesson: 'lesson', mood: 'mood',
             energy: 'energy', next_priorities: 'nextPriorities'
-        }
+        },
+        project: { title: 'title', color: 'color', archived: 'archived' }
     };
 
     var INT_FIELDS = { priority: 1, progress: 1, energy: 1, count: 1, target_per_day: 1 };
-    var BOOL_FIELDS = { is_mit: 1, active: 1 };
+    var BOOL_FIELDS = { is_mit: 1, active: 1, archived: 1 };
 
     var since = request.queryParams.since || '1970-01-01 00:00:00';
     // Cursor captured BEFORE querying: concurrent writes land in the next

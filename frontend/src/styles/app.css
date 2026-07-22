@@ -410,6 +410,34 @@ button.goal-card:hover { background: var(--glass-strong); }
 .progress-edit input { width: 76px; background: var(--glass); border: 1px solid var(--hairline);
   border-radius: 10px; padding: 0.45rem 0.6rem; color: var(--text-1); }
 
+/* ---- Board ---- */
+.board-head { display: flex; align-items: center; gap: 0.6rem; margin: 1.1rem 0 0; flex-wrap: wrap; }
+.board-head .sel { flex: 1; min-width: 160px; }
+.project-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.board-cols { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-top: 1.1rem; }
+@media (min-width: 720px) { .board-cols { grid-template-columns: repeat(3, 1fr); align-items: start; } }
+.board-col { display: flex; flex-direction: column; gap: 0.55rem; }
+.board-col-h { display: flex; align-items: baseline; justify-content: space-between; padding: 0 0.15rem; }
+.board-col-h .n { font-weight: 800; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); }
+.board-col-h .c { font-size: 0.76rem; color: var(--text-3); }
+.board-drop {
+  display: flex; flex-direction: column; gap: 0.5rem; min-height: 64px;
+  border-radius: var(--radius-card); padding: 0.3rem; transition: background 150ms var(--ease);
+}
+.board-drop.over { background: var(--accent-wash); }
+.board-card {
+  display: block; width: 100%; text-align: left; padding: 0.75rem 0.85rem;
+  cursor: grab; font: inherit; color: inherit; touch-action: none;
+}
+.board-card:active { cursor: grabbing; }
+.board-card .t { font-size: 0.9rem; font-weight: 600; }
+.board-card .meta { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.35rem; font-size: 0.72rem; color: var(--text-3); }
+.board-empty-col { font-size: 0.78rem; color: var(--text-3); text-align: center; padding: 0.9rem 0; }
+
+.swatch-row { display: flex; gap: 0.55rem; flex-wrap: wrap; }
+.swatch { width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; padding: 0; }
+.swatch.on { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--text-1); }
+
 /* ---- Login hero ---- */
 .login-card { position: relative; }
 .login-card .logo { width: 68px; height: 68px; border-radius: 20px; box-shadow: 0 12px 32px var(--accent-wash); margin-bottom: 0.4rem; }

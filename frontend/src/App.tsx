@@ -4,6 +4,7 @@ import Shell from './components/Shell'
 import Today from './pages/Today'
 import Login from './pages/Login'
 import Plan from './pages/Plan'
+import Board from './pages/Board'
 import Goals from './pages/Goals'
 import Reviews from './pages/Reviews'
 import Analytics from './pages/Analytics'
@@ -40,6 +41,7 @@ export default function App() {
         >
           <Route path="/" element={<Today />} />
           <Route path="/plan" element={<Plan />} />
+          <Route path="/board" element={<Board />} />
           <Route path="/goals" element={<Goals />} />
           <Route path="/reviews" element={<Reviews />} />
           <Route path="/analytics" element={<Analytics />} />

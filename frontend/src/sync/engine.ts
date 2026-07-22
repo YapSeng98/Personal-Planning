@@ -30,6 +30,7 @@ const tableMap = {
   habit_log: db.habitLogs,
   goal: db.goals,
   review: db.reviews,
+  project: db.projects,
 } as const
 
 export async function syncNow(): Promise<void> {

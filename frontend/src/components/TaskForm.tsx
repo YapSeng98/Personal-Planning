@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { db, uuid, todayStr, writeAndQueue, rollUpGoal, type Task, type Goal } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, rollUpGoal, type Task, type Goal, type Project, type TaskState } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
 import { useLang } from '../lib/i18n'
@@ -28,6 +28,8 @@ function parseExtras(input: string) {
   return { title, time, hours }
 }
 
+const STATES: TaskState[] = ['open', 'in_progress', 'done', 'cancelled']
+
 export default function TaskForm({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const editing = task !== null
   const [title, setTitle] = useState(task?.title ?? '')
@@ -35,9 +37,12 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [start, setStart] = useState(task?.timeBlockStart?.slice(11, 16) ?? '')
   const [end, setEnd] = useState(task?.timeBlockEnd?.slice(11, 16) ?? '')
   const [goalId, setGoalId] = useState(task?.goalId ?? '')
+  const [projectId, setProjectId] = useState(task?.projectId ?? '')
+  const [state, setState] = useState<TaskState>(task?.state ?? 'open')
   const [isMit, setIsMit] = useState(Boolean(task?.isMit))
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [goals, setGoals] = useState<Goal[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const { t } = useLang()
 
   useEffect(() => {
@@ -45,6 +50,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       .filter((g) => !g.deleted && g.status !== 'completed' && (g.type === 'week' || g.type === 'month'))
       .toArray()
       .then(setGoals)
+    db.projects.filter((p) => !p.deleted && !p.archived).toArray().then(setProjects)
   }, [])
 
   // While creating, typing natural language fills the structured fields live.
@@ -74,7 +80,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       sysId: task?.sysId,
       title: title.trim(),
       notes: task?.notes,
-      state: task?.state ?? 'open',
+      state,
       priority: task?.priority ?? 3,
       due,
       timeBlockStart: start ? `${due}T${start}` : undefined,
@@ -82,6 +88,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       estimatedHours: hours,
       actualHours: task?.actualHours,
       goalId: goalId || undefined,
+      projectId: projectId || undefined,
       isMit,
       deleted: 0,
       updatedAt: Date.now(),
@@ -148,6 +155,28 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                   value={goalId}
                   onChange={setGoalId}
                   options={[{ value: '', label: t('task.noGoal') }, ...goals.map((g) => ({ value: g.id, label: `🎯 ${g.title}` }))]}
+                />
+              </div>
+            )}
+            {projects.length > 0 && (
+              <div className="f">
+                <label className="fl">{t('task.project')}</label>
+                <Select
+                  ariaLabel={t('task.project')}
+                  value={projectId}
+                  onChange={setProjectId}
+                  options={[{ value: '', label: t('task.noProject') }, ...projects.map((p) => ({ value: p.id, label: `🗂️ ${p.title}` }))]}
+                />
+              </div>
+            )}
+            {editing && (
+              <div className="f">
+                <label className="fl">{t('task.status')}</label>
+                <Select
+                  ariaLabel={t('task.status')}
+                  value={state}
+                  onChange={(v) => setState(v as TaskState)}
+                  options={STATES.map((s) => ({ value: s, label: t('taskstate.' + s) }))}
                 />
               </div>
             )}

@@ -38,3 +38,12 @@ sh servicenow/smoke-test.sh
 No credentials needed — it logs in as a dedicated `planner_e2e` account through
 the live PFMT auth endpoint and exercises every Planner endpoint: push a task,
 pull it back, dashboard aggregate, and the no-token 401 guard.
+
+## Manual setup — Board / Project feature
+
+The Board screen needs one new table (`x_pps_project`) and one new reference
+field (`project` on `x_pps_task`). `sync_pull.js`/`sync_push.js` are already
+updated in this repo; the smoke test has a Board round-trip check (step 7).
+
+**The complete, exact spec — every column, type, and length — is in
+[`BOARD-SETUP.md`](BOARD-SETUP.md).** Follow that; it's the single source of truth.

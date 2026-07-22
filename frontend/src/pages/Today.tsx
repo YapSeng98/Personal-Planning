@@ -20,7 +20,7 @@ function greeting(t: TFn): [string, string] {
 
 /** Rule-based briefing (parameterized so it translates). */
 function briefingText(tasks: Task[], t: TFn): string {
-  const open = tasks.filter((x) => x.state === 'open')
+  const open = tasks.filter((x) => x.state !== 'done' && x.state !== 'cancelled')
   const done = tasks.filter((x) => x.state === 'done')
   if (tasks.length === 0) return t('brief.cleanSlate')
   if (open.length === 0) return t('brief.allDone', { n: done.length })

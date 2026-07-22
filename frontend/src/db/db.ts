@@ -4,7 +4,7 @@ import Dexie, { type Table } from 'dexie'
 // `id` is the client_uuid used for idempotent sync; `sysId` arrives after
 // the record first reaches ServiceNow. `deleted` is the soft-delete tombstone.
 
-export type TaskState = 'open' | 'done' | 'cancelled'
+export type TaskState = 'open' | 'in_progress' | 'done' | 'cancelled'
 
 export interface Task {
   id: string
@@ -21,6 +21,7 @@ export interface Task {
   estimatedHours?: number
   actualHours?: number
   goalId?: string
+  projectId?: string
   isMit?: boolean
   deleted: 0 | 1
   updatedAt: number
@@ -66,6 +67,18 @@ export interface Goal {
   updatedAt: number
 }
 
+export type ProjectColor = 'coral' | 'green' | 'blue' | 'purple' | 'teal' | 'gray'
+
+export interface Project {
+  id: string
+  sysId?: string
+  title: string
+  color: ProjectColor
+  archived: 0 | 1
+  deleted: 0 | 1
+  updatedAt: number
+}
+
 export interface Review {
   id: string
   sysId?: string
@@ -84,7 +97,7 @@ export interface Review {
 
 export interface OutboxEntry {
   seq?: number
-  table: 'task' | 'habit' | 'habit_log' | 'goal' | 'review'
+  table: 'task' | 'habit' | 'habit_log' | 'goal' | 'review' | 'project'
   recordId: string
   editedAt: number
 }
@@ -100,6 +113,7 @@ class PlannerDB extends Dexie {
   habitLogs!: Table<HabitLog, string>
   goals!: Table<Goal, string>
   reviews!: Table<Review, string>
+  projects!: Table<Project, string>
   outbox!: Table<OutboxEntry, number>
   meta!: Table<Meta, string>
 
@@ -113,6 +127,13 @@ class PlannerDB extends Dexie {
       reviews: 'id, type, periodStart, updatedAt',
       outbox: '++seq, table, recordId',
       meta: 'key',
+    })
+    // v2: adds Project entity + task->project link (Board feature). Existing
+    // stores not restated here carry forward unchanged; no .upgrade() needed
+    // since `projects` starts empty and `Task.projectId` is optional.
+    this.version(2).stores({
+      tasks: 'id, due, state, projectId, goalId, updatedAt',
+      projects: 'id, archived, updatedAt',
     })
   }
 }

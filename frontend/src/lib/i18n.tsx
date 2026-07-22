@@ -20,7 +20,7 @@ export function getLang(): Lang {
 type Dict = Record<string, string>
 const en: Dict = {
   // nav / shell
-  'nav.today': 'Today', 'nav.plan': 'Plan', 'nav.goals': 'Goals', 'nav.reviews': 'Review',
+  'nav.today': 'Today', 'nav.plan': 'Plan', 'nav.board': 'Board', 'nav.goals': 'Goals', 'nav.reviews': 'Review',
   'nav.stats': 'Stats', 'nav.settings': 'Settings', 'brand': 'Planner',
   'sync.idle': 'Synced', 'sync.syncing': 'Syncing…', 'sync.offline': 'Offline — changes queued',
   'sync.local': 'Local only', 'sync.error': 'Sync error — retrying',
@@ -53,6 +53,9 @@ const en: Dict = {
   'task.goal': 'Counts toward goal (optional)', 'task.noGoal': 'No goal link', 'task.mitFull': 'Most Important Task',
   'task.on': '· on', 'task.save': 'Save task', 'task.addTask': 'Add task',
   'task.deleteConfirm': 'Delete "{title}"? It disappears everywhere after sync.',
+  'task.project': 'Project (optional)', 'task.noProject': 'No project link', 'task.status': 'Status',
+  'taskstate.open': 'To do', 'taskstate.in_progress': 'In progress',
+  'taskstate.done': 'Done', 'taskstate.cancelled': 'Cancelled',
   // habit
   'habit.namePh': 'Habit name… e.g. “Drink water”', 'habit.icon': 'Icon',
   'habit.perDay': 'Times per day (water = 8, most habits = 1)',
@@ -78,6 +81,18 @@ const en: Dict = {
   'plan.monthGoals': 'Month goals', 'plan.addTask': '+ add task', 'plan.backToWeek': '↩ Back to this week',
   'plan.thisWeek': 'This week', 'plan.lastWeek': 'Last week', 'plan.nextWeek': 'Next week',
   'plan.weeksAgo': '{n} weeks ago', 'plan.inWeeks': 'In {n} weeks', 'plan.done': 'done',
+  // board
+  'board.title': 'Board', 'board.sub': 'One project at a time — drag a task to change its status.',
+  'board.selectProject': 'Project', 'board.newProject': '+ New', 'board.editProject': '✎ Edit',
+  'board.noProjects': 'No projects yet — create one to start a board.',
+  'board.createFirst': '+ Create a project',
+  'board.colTodo': 'To do', 'board.colInProgress': 'In progress', 'board.colDone': 'Done',
+  'board.emptyColumn': 'No tasks here',
+  // project form
+  'project.titlePh': 'Project name… e.g. “Website redesign”', 'project.color': 'Color',
+  'project.save': 'Save project', 'project.addProject': 'Add project',
+  'project.archive': 'Archive', 'project.unarchive': 'Unarchive',
+  'project.deleteConfirm': 'Delete "{title}"? Linked tasks keep their history but lose the project link.',
   // reviews
   'rev.title': 'Reviews', 'rev.sub': 'Reflect on facts, not memory — the numbers are pre-filled.',
   'rev.daily': 'Daily', 'rev.weekly': 'Weekly', 'rev.monthly': 'Monthly', 'rev.yearly': 'Yearly',
@@ -123,7 +138,7 @@ const en: Dict = {
 }
 
 const zh: Dict = {
-  'nav.today': '今天', 'nav.plan': '规划', 'nav.goals': '目标', 'nav.reviews': '回顾',
+  'nav.today': '今天', 'nav.plan': '规划', 'nav.board': '看板', 'nav.goals': '目标', 'nav.reviews': '回顾',
   'nav.stats': '统计', 'nav.settings': '设置', 'brand': '规划器',
   'sync.idle': '已同步', 'sync.syncing': '同步中…', 'sync.offline': '离线 — 更改已排队',
   'sync.local': '仅本地', 'sync.error': '同步错误 — 重试中',
@@ -153,6 +168,9 @@ const zh: Dict = {
   'task.goal': '计入目标（可选）', 'task.noGoal': '不关联目标', 'task.mitFull': '首要任务',
   'task.on': '· 开', 'task.save': '保存任务', 'task.addTask': '添加任务',
   'task.deleteConfirm': '删除“{title}”？同步后会在所有设备上消失。',
+  'task.project': '项目（可选）', 'task.noProject': '不关联项目', 'task.status': '状态',
+  'taskstate.open': '待办', 'taskstate.in_progress': '进行中',
+  'taskstate.done': '已完成', 'taskstate.cancelled': '已取消',
   'habit.namePh': '习惯名称… 例如“喝水”', 'habit.icon': '图标',
   'habit.perDay': '每天次数（喝水 = 8，多数习惯 = 1）',
   'habit.save': '保存习惯', 'habit.add': '添加习惯',
@@ -174,6 +192,16 @@ const zh: Dict = {
   'plan.monthGoals': '月度目标', 'plan.addTask': '+ 添加任务', 'plan.backToWeek': '↩ 回到本周',
   'plan.thisWeek': '本周', 'plan.lastWeek': '上周', 'plan.nextWeek': '下周',
   'plan.weeksAgo': '{n} 周前', 'plan.inWeeks': '{n} 周后', 'plan.done': '完成',
+  'board.title': '看板', 'board.sub': '一次专注一个项目 — 拖动任务即可更改状态。',
+  'board.selectProject': '项目', 'board.newProject': '+ 新建', 'board.editProject': '✎ 编辑',
+  'board.noProjects': '还没有项目 — 创建一个以开始使用看板。',
+  'board.createFirst': '+ 创建项目',
+  'board.colTodo': '待办', 'board.colInProgress': '进行中', 'board.colDone': '已完成',
+  'board.emptyColumn': '这里还没有任务',
+  'project.titlePh': '项目名称… 例如“网站改版”', 'project.color': '颜色',
+  'project.save': '保存项目', 'project.addProject': '添加项目',
+  'project.archive': '归档', 'project.unarchive': '取消归档',
+  'project.deleteConfirm': '删除“{title}”？关联任务会保留历史记录，但会失去项目关联。',
   'rev.title': '回顾', 'rev.sub': '基于事实回顾，而非记忆 — 数据已预填。',
   'rev.daily': '每日', 'rev.weekly': '每周', 'rev.monthly': '每月', 'rev.yearly': '每年',
   'rev.inNumbers': '{period} 数据', 'rev.wins': '哪些做得好？', 'rev.winsPh': '大大小小的收获…',
