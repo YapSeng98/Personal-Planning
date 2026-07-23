@@ -251,19 +251,10 @@
 @keyframes pop { 50% { transform: scale(1.3); } }
 .check.on { animation: pop 0.25s var(--ease); }
 
-/* ---- Today grid + insights rail (laptop) ---- */
-.today-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+/* ---- Today: single column on phone, dashboard grid on laptop ----
+   (the laptop grid-areas live in the Responsive layout section below) */
+.today-grid { display: flex; flex-direction: column; }
 .insights { display: none; flex-direction: column; gap: 0.8rem; }
-/* Tablet portrait: too narrow for a side rail, so show the insights as a
-   3-across row below the day instead of hiding them (phone-only behavior). */
-@media (min-width: 640px) and (max-width: 1023px) {
-  .insights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem; align-items: start; }
-  .insights .ins-card { padding: 0.9rem 0.8rem; }
-}
-@media (min-width: 1024px) {
-  .today-grid { grid-template-columns: minmax(0, 1fr) 264px; }
-  .insights { display: flex; }
-}
 .ins-card { display: flex; flex-direction: column; gap: 0.55rem; align-items: center; text-align: center; padding: 1.15rem 1rem; }
 .ins-h { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-3); font-weight: 800; align-self: flex-start; }
 .ring-big { position: relative; width: 112px; height: 112px; display: flex; align-items: center; justify-content: center; }
@@ -542,3 +533,66 @@ button.goal-card:hover { transform: translateY(-2px); }
 
 /* Reviews: past-review chips get the card lift too */
 .review-past .rp { box-shadow: 0 1px 1px rgba(0,0,0,0.03), 0 10px 24px -20px rgba(0,0,0,0.45); }
+
+/* ---- Background picker (Settings) ---- */
+.bg-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+@media (min-width: 460px) { .bg-row { grid-template-columns: repeat(6, 1fr); } }
+.bg-swatch { position: relative; height: 60px; border-radius: 12px; border: 1px solid var(--hairline);
+  cursor: pointer; overflow: hidden; display: flex; align-items: flex-end; padding: 0.35rem 0.45rem;
+  color: #fff; font-size: 0.64rem; font-weight: 800; text-shadow: 0 1px 3px rgba(0,0,0,0.55); }
+.bg-swatch.on { border-color: var(--accent-bright); box-shadow: 0 0 0 2px var(--accent-bright); }
+.bg-swatch.bg-none { background: linear-gradient(150deg, var(--surface-2), var(--glass-strong)); color: var(--text-2); text-shadow: none; }
+.bg-swatch.bg-sunrise { background: linear-gradient(150deg, #FF7A59, #FFB03A); }
+.bg-swatch.bg-aurora { background: linear-gradient(150deg, #FF7A59, #A57EDB 58%, #FFB03A); }
+.bg-swatch.bg-dusk { background: linear-gradient(150deg, #FF6E5A, #D65AA0 52%, #5A46B4); }
+.bg-swatch.bg-ember { background: linear-gradient(150deg, #FF5A32, #B43228 58%, #78281E); }
+.bg-swatch.bg-bloom { background: linear-gradient(150deg, #FF8C78, #FF78AA 52%, #FFBE5A); }
+
+/* ======================================================================
+   Responsive layout — mobile keeps the single column; laptop fills the
+   width with a real dashboard grid instead of a narrow centred strip.
+   ====================================================================== */
+@media (min-width: 1000px) {
+  .shell-main { max-width: 1180px; }
+}
+@media (min-width: 1400px) {
+  .shell-main { max-width: 1320px; }
+}
+
+/* Today: hero spans full width; tasks fill the left, widgets stack right */
+@media (min-width: 1000px) {
+  .today-grid { display: grid; align-items: start; gap: 1.1rem 1.5rem;
+    grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr);
+    grid-template-areas: "hero hero" "tasks side" "tasks side"; }
+  .today-grid > .ga-hero { grid-area: hero; }
+  .today-grid > .ga-hero .hero-card { margin-bottom: 0; }
+  .today-grid > .ga-tasks { grid-area: tasks; }
+  .today-grid > .ga-side { grid-area: side; display: flex; flex-direction: column; gap: 1rem; }
+  .today-grid > .ga-side .momentum { margin-top: 0; }
+  /* the year-goal ring shows inside the side column on desktop */
+  .today-grid .insights { display: flex; }
+}
+
+/* Plan: the week becomes a real multi-column board on wider screens */
+@media (min-width: 820px) {
+  .week-days { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8rem; align-items: start; }
+}
+@media (min-width: 1200px) {
+  .week-days { grid-template-columns: repeat(4, 1fr); }
+}
+.plan-month-goals { display: grid; gap: 0.7rem; }
+@media (min-width: 820px) { .plan-month-goals { grid-template-columns: repeat(2, 1fr); } }
+
+/* Goals: cards flow into columns on wider screens */
+@media (min-width: 820px) {
+  .goals-group { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.7rem; }
+  .goals-group .goal-card { margin: 0; }
+}
+@media (min-width: 1300px) {
+  .goals-group { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Board: let the three columns breathe on wide screens (already grid) */
+@media (min-width: 1000px) {
+  .board-cols { gap: 1.4rem; }
+}

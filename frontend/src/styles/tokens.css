@@ -89,10 +89,8 @@ html { color-scheme: light dark; }
 body {
   margin: 0;
   background: var(--surface);
-  /* sunrise ambience — a warm glow bleeding in from the top corner */
-  background-image:
-    radial-gradient(640px 420px at 85% -8%, var(--accent-wash), transparent 70%),
-    radial-gradient(520px 380px at -10% 30%, rgba(255, 176, 58, 0.07), transparent 70%);
+  /* default ambience; --app-bg is swapped by the chosen background (bg.ts) */
+  background-image: var(--app-bg);
   background-attachment: fixed;
   color: var(--text-1);
   font-family: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -152,4 +150,63 @@ h1, h2, h3 { letter-spacing: -0.02em; margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* ======================================================================
+   Curated backgrounds (bg.ts). Each --app-bg is soft colour glows layered
+   over the theme surface, so one value works in light and dark. When a
+   background other than 'none' is active, key surfaces become frosted glass.
+   ====================================================================== */
+:root {
+  --app-bg:
+    radial-gradient(640px 420px at 85% -8%, var(--accent-wash), transparent 70%),
+    radial-gradient(520px 380px at -10% 30%, rgba(255, 176, 58, 0.07), transparent 70%);
+}
+:root[data-bg='sunrise'] {
+  --app-bg:
+    radial-gradient(960px 700px at 82% -12%, rgba(255,122,89,0.48), transparent 66%),
+    radial-gradient(760px 600px at 6% 4%, rgba(255,176,58,0.34), transparent 64%),
+    radial-gradient(760px 680px at 52% 118%, rgba(214,71,46,0.30), transparent 64%);
+}
+:root[data-bg='aurora'] {
+  --app-bg:
+    radial-gradient(820px 600px at 90% -8%, rgba(255,122,89,0.44), transparent 64%),
+    radial-gradient(760px 600px at 2% 16%, rgba(165,126,219,0.40), transparent 66%),
+    radial-gradient(780px 680px at 60% 116%, rgba(255,176,58,0.32), transparent 64%);
+}
+:root[data-bg='dusk'] {
+  --app-bg:
+    radial-gradient(880px 640px at 82% -10%, rgba(255,110,90,0.44), transparent 64%),
+    radial-gradient(780px 640px at 8% 26%, rgba(224,96,168,0.42), transparent 66%),
+    radial-gradient(820px 700px at 54% 120%, rgba(110,86,214,0.42), transparent 64%);
+}
+:root[data-bg='ember'] {
+  --app-bg:
+    radial-gradient(820px 640px at 84% -12%, rgba(255,96,54,0.50), transparent 62%),
+    radial-gradient(740px 600px at 4% 12%, rgba(200,60,46,0.42), transparent 64%),
+    radial-gradient(760px 680px at 50% 122%, rgba(140,48,34,0.46), transparent 64%);
+}
+:root[data-bg='bloom'] {
+  --app-bg:
+    radial-gradient(780px 600px at 88% -8%, rgba(255,140,120,0.44), transparent 64%),
+    radial-gradient(700px 600px at 6% 14%, rgba(255,120,170,0.40), transparent 66%),
+    radial-gradient(760px 680px at 58% 116%, rgba(255,190,90,0.34), transparent 64%);
+}
+
+/* frosted glass: only when a real background is active */
+:root[data-bg]:not([data-bg='none']) .card,
+:root[data-bg]:not([data-bg='none']) .tcard,
+:root[data-bg]:not([data-bg='none']) .m-card,
+:root[data-bg]:not([data-bg='none']) .board-card,
+:root[data-bg]:not([data-bg='none']) .stat-tile {
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+}
+/* keep the nav bars readable over a vivid background */
+:root[data-bg]:not([data-bg='none']) .nav-bottom,
+:root[data-bg]:not([data-bg='none']) .nav-rail {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }

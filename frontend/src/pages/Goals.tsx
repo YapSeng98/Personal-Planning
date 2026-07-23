@@ -106,7 +106,7 @@ export default function Goals() {
         return (
           <div key={lvl}>
             <div className="section-h">{t('level.' + lvl)}</div>
-            <div className="stack" style={{ marginTop: 0 }}>
+            <div className="stack goals-group" style={{ marginTop: 0 }}>
               {group.map((g) => (
                 <button key={g.id} className="card goal-card" onClick={() => startEdit(g)}>
                   <div className="top">

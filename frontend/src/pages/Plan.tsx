@@ -103,7 +103,7 @@ export default function Plan() {
       {monthGoals.length > 0 && (
         <>
           <div className="section-h">{t('plan.monthGoals')}</div>
-          <div className="stack" style={{ marginTop: 0 }}>
+          <div className="stack plan-month-goals" style={{ marginTop: 0 }}>
             {monthGoals.map((g) => (
               <div key={g.id} className="card goal-card">
                 <div className="top">
@@ -117,7 +117,7 @@ export default function Plan() {
         </>
       )}
 
-      <div className="stack" style={{ marginTop: '0.6rem' }}>
+      <div className="stack week-days" style={{ marginTop: '0.6rem' }}>
         {days.map((d) => (
           <div key={d.date} className="card day-card">
             <div className="day-h">

@@ -132,7 +132,7 @@ export default function Today() {
 
   return (
     <div className="today-grid">
-    <div>
+    <div className="ga-hero">
       {/* ---- sunrise hero ---- */}
       <div className={`hero-card ${tasks.length > 0 ? 'has-ring' : ''}`}>
         <div className="hero-wm">{t('brand')}</div>
@@ -148,7 +148,9 @@ export default function Today() {
           </div>
         )}
       </div>
+    </div>
 
+    <div className="ga-side">
       {/* ---- momentum ---- */}
       <div className="momentum">
         <div className="m-card m-chart">
@@ -204,7 +206,10 @@ export default function Today() {
           </span>
         </div>
       </div>
+      <Insights />
+    </div>
 
+    <div className="ga-tasks">
       <div className="section-h">{t('today.tasks')}</div>
       {tasks.length === 0 ? (
         <div className="card empty-cta">
@@ -253,7 +258,6 @@ export default function Today() {
         </div>
       )}
     </div>
-    <Insights />
     {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
     {editingHabit && (
       <HabitEdit habit={editingHabit === 'new' ? null : editingHabit} onClose={() => setEditingHabit(null)} />

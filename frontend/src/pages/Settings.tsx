@@ -3,10 +3,12 @@ import { db } from '../db/db'
 import { isAuthed, currentUser, clearTokens, serverLogout } from '../sync/api'
 import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
+import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { useLang, LANGS, type Lang } from '../lib/i18n'
 
 export default function Settings() {
   const [theme, setThemeState] = useState<Theme>(getTheme())
+  const [bg, setBgState] = useState<Bg>(getBg())
   const [sync, setSync] = useState<SyncState>('idle')
   const [pending, setPending] = useState(0)
   const { t, lang, setLang } = useLang()
@@ -31,6 +33,11 @@ export default function Settings() {
   function pick(th: Theme) {
     setTheme(th)
     setThemeState(th)
+  }
+
+  function pickBg(b: Bg) {
+    setBg(b)
+    setBgState(b)
   }
 
   async function logout() {
@@ -68,6 +75,23 @@ export default function Settings() {
             >
               <b>{th.label}</b>
               <span>{th.hint}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="section-h">{t('set.background')}</div>
+      <div className="card">
+        <div className="bg-row" role="radiogroup" aria-label={t('set.background')}>
+          {BGS.map((b) => (
+            <button
+              key={b}
+              role="radio"
+              aria-checked={bg === b}
+              className={`bg-swatch bg-${b} ${bg === b ? 'on' : ''}`}
+              onClick={() => pickBg(b)}
+            >
+              <span>{t('bg.' + b)}</span>
             </button>
           ))}
         </div>
