@@ -54,6 +54,19 @@ Open **`x_887486_persona_0_x_pps_task`** and add one column:
 This mirrors the existing `goal` reference field already on the task table —
 set it up the same way, just pointing at the new project table.
 
+### (Optional) `sort_order` for drag-to-reorder sync
+
+Drag-to-reorder on the Plan and Board screens stores a per-task order in a
+`sort_order` field. Reordering works locally without this; add the column so
+the order **syncs across devices**:
+
+| Column label | Internal name | Type    |
+|--------------|---------------|---------|
+| Sort Order   | `sort_order`  | Integer |
+
+The updated `sync_pull.js`/`sync_push.js` already map it. If you skip this,
+reordering still works on each device but the order won't travel between them.
+
 ---
 
 ## 3. Check the task `state` field

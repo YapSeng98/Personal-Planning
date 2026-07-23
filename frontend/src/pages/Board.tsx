@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
-  DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, KeyboardSensor,
-  useSensor, useSensors, type DragEndEvent,
+  DndContext, useDroppable, PointerSensor, TouchSensor, KeyboardSensor,
+  useSensor, useSensors, closestCorners, type DragEndEvent,
 } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, uuid, writeAndQueue, rollUpGoal, CHANGED, type Task, type Project, type TaskState } from '../db/db'
+import { db, uuid, writeAndQueue, rollUpGoal, byOrder, CHANGED, type Task, type Project, type TaskState } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
 import TaskForm from '../components/TaskForm'
@@ -20,11 +21,11 @@ const COLUMNS: { status: TaskState; labelKey: string }[] = [
 ]
 
 function BoardCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   return (
     <button
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1 }}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       className="card board-card"
       onClick={onEdit}
       {...listeners}
@@ -62,13 +63,13 @@ function BoardColumn({
         <span className="c num">{tasks.length}</span>
       </div>
       <div ref={setNodeRef} className={`board-drop ${isOver ? 'over' : ''}`}>
-        {tasks.map((task) => (
-          <BoardCard key={task.id} task={task} onEdit={() => onEdit(task)} />
-        ))}
+        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          {tasks.map((task) => (
+            <BoardCard key={task.id} task={task} onEdit={() => onEdit(task)} />
+          ))}
+        </SortableContext>
         {tasks.length === 0 && <div className="board-empty-col">{emptyLabel}</div>}
       </div>
-      {/* single add point (To Do only) — new tasks always start here, then
-          move via drag or the task's own status picker */}
       {status === 'open' && (
         <input
           className="add-inline"
@@ -137,15 +138,19 @@ export default function Board() {
     return () => window.removeEventListener(CHANGED, reload)
   }, [selected, loadTasks])
 
+  const colTasks = (status: TaskState) => tasks.filter((x) => x.state === status).sort(byOrder)
+
   async function addTask() {
     const title = draft.trim()
     if (!title || !selected) return
+    const openCount = tasks.filter((x) => x.state === 'open').length
     await writeAndQueue(db.tasks, 'task', {
       id: uuid(),
       title,
       state: 'open',
       priority: 3,
       projectId: selected,
+      sortOrder: openCount,
       deleted: 0,
       updatedAt: Date.now(),
     })
@@ -156,13 +161,37 @@ export default function Board() {
   async function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e
     if (!over) return
-    const task = tasks.find((x) => x.id === active.id)
-    const newState = over.id as TaskState
-    if (!task || task.state === newState) return
-    const updated: Task = { ...task, state: newState, updatedAt: Date.now() }
-    await writeAndQueue(db.tasks, 'task', updated)
-    if (updated.goalId) await rollUpGoal(updated.goalId)
-    syncNow()
+    const activeId = String(active.id)
+    const overId = String(over.id)
+    const moved = tasks.find((x) => x.id === activeId)
+    if (!moved) return
+
+    const isStatusId = COLUMNS.some((c) => c.status === overId)
+    const overTask = tasks.find((x) => x.id === overId)
+    const targetState: TaskState = isStatusId ? (overId as TaskState) : overTask?.state ?? moved.state
+
+    // rebuild the target column's order with the moved task inserted at the drop point
+    const colIds = tasks.filter((x) => x.state === targetState && x.id !== activeId).sort(byOrder).map((x) => x.id)
+    let idx = colIds.length
+    if (!isStatusId) {
+      const oi = colIds.indexOf(overId)
+      idx = oi >= 0 ? oi : colIds.length
+    }
+    const newIds = [...colIds.slice(0, idx), activeId, ...colIds.slice(idx)]
+
+    const now = Date.now()
+    let wrote = false
+    for (let i = 0; i < newIds.length; i++) {
+      const task = tasks.find((x) => x.id === newIds[i])!
+      const stateChanged = task.id === activeId && task.state !== targetState
+      if (task.sortOrder === i && !stateChanged) continue
+      const patch: Task = { ...task, sortOrder: i, updatedAt: now }
+      if (task.id === activeId) patch.state = targetState
+      await writeAndQueue(db.tasks, 'task', patch)
+      wrote = true
+    }
+    if (moved.state !== targetState && moved.goalId) await rollUpGoal(moved.goalId)
+    if (wrote) syncNow()
   }
 
   const project = projects.find((p) => p.id === selected)
@@ -201,14 +230,14 @@ export default function Board() {
             </button>
           </div>
 
-          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
             <div className="board-cols">
               {COLUMNS.map((col) => (
                 <BoardColumn
                   key={col.status}
                   status={col.status}
                   label={t(col.labelKey)}
-                  tasks={tasks.filter((x) => x.state === col.status)}
+                  tasks={colTasks(col.status)}
                   draft={draft}
                   onDraftChange={setDraft}
                   onAdd={addTask}

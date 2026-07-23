@@ -23,8 +23,21 @@ export interface Task {
   goalId?: string
   projectId?: string
   isMit?: boolean
+  /** Manual drag order within a day / board column. Lower = higher up. */
+  sortOrder?: number
   deleted: 0 | 1
   updatedAt: number
+}
+
+/** Order tasks by manual sortOrder, then time block, then id (stable). */
+export function byOrder(a: Task, b: Task): number {
+  const ao = a.sortOrder ?? 0
+  const bo = b.sortOrder ?? 0
+  if (ao !== bo) return ao - bo
+  const at = a.timeBlockStart ?? 'z'
+  const bt = b.timeBlockStart ?? 'z'
+  if (at !== bt) return at.localeCompare(bt)
+  return a.id.localeCompare(b.id)
 }
 
 export interface Habit {

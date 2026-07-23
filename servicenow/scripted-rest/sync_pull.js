@@ -27,7 +27,7 @@
             title: 'title', notes: 'notes', state: 'state', priority: 'priority',
             due: 'due', time_block_start: 'timeBlockStart', time_block_end: 'timeBlockEnd',
             estimated_hours: 'estimatedHours', actual_hours: 'actualHours',
-            goal: 'ref:goalId', project: 'ref:projectId', is_mit: 'isMit'
+            goal: 'ref:goalId', project: 'ref:projectId', is_mit: 'isMit', sort_order: 'sortOrder'
         },
         habit: {
             name: 'name', emoji: 'emoji', frequency: 'frequency',
@@ -47,7 +47,7 @@
         project: { title: 'title', color: 'color', archived: 'archived' }
     };
 
-    var INT_FIELDS = { priority: 1, progress: 1, energy: 1, count: 1, target_per_day: 1 };
+    var INT_FIELDS = { priority: 1, progress: 1, energy: 1, count: 1, target_per_day: 1, sort_order: 1 };
     var BOOL_FIELDS = { is_mit: 1, active: 1, archived: 1 };
 
     var since = request.queryParams.since || '1970-01-01 00:00:00';
