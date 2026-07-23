@@ -119,7 +119,7 @@ export default function Plan() {
 
       <div className="stack week-days" style={{ marginTop: '0.6rem' }}>
         {days.map((d) => (
-          <div key={d.date} className="card day-card">
+          <div key={d.date} className={`card day-card ${d.date === today ? 'is-today' : ''}`}>
             <div className="day-h">
               <span className={`d ${d.date === today ? 'today-mark' : ''}`}>
                 {d.name}{d.date === today ? ` · ${t('common.today')}` : ''}

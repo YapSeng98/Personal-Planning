@@ -573,15 +573,29 @@ button.goal-card:hover { transform: translateY(-2px); }
   .today-grid .insights { display: flex; }
 }
 
-/* Plan: the week becomes a real multi-column board on wider screens */
-@media (min-width: 820px) {
-  .week-days { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8rem; align-items: start; }
+/* Plan: a real weekly board. Mid widths = 2 columns; wide = the full
+   7-day week in one row (like a calendar week), so the days stay even
+   and left-to-right instead of a ragged 4+3 split with a hole in it. */
+@media (min-width: 760px) {
+  .week-days { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; align-items: start; }
+  .week-days .day-card { min-height: 132px; }
 }
-@media (min-width: 1200px) {
-  .week-days { grid-template-columns: repeat(4, 1fr); }
+@media (min-width: 1080px) {
+  .week-days { grid-template-columns: repeat(7, 1fr); gap: 0.55rem; }
+  .week-days .day-card { min-height: 190px; padding: 0.7rem 0.75rem; }
+  .week-days .day-h .d { font-size: 0.78rem; }
+  .week-days .day-h .n { font-size: 0.62rem; }
+  .week-days .day-card .task-row { gap: 0.5rem; }
+  .week-days .day-card .task-row .title { font-size: 0.8rem; }
+  .week-days .day-card .when { display: none; } /* times hidden in the tight week columns */
 }
+/* today's column stands out */
+.day-card.is-today { border-color: color-mix(in srgb, var(--accent) 45%, var(--hairline));
+  background: color-mix(in srgb, var(--accent) 7%, var(--glass)); }
+.day-card.is-today .day-h { border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); padding-bottom: 0.4rem; }
+
 .plan-month-goals { display: grid; gap: 0.7rem; }
-@media (min-width: 820px) { .plan-month-goals { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 760px) { .plan-month-goals { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); } }
 
 /* Goals: cards flow into columns on wider screens */
 @media (min-width: 820px) {
