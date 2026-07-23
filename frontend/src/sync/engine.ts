@@ -33,6 +33,27 @@ const tableMap = {
   project: db.projects,
 } as const
 
+// Every syncable field per table (matches the ServiceNow FIELD_MAPS). We push
+// ALL of these every time, sending '' for anything the local record doesn't
+// have — that's what makes CLEARING a field (time block, notes, hours, a goal
+// link…) actually propagate. If we only sent the keys that were present, a
+// cleared value would simply be omitted and the server would keep the old one.
+const SYNC_FIELDS: Record<keyof typeof tableMap, string[]> = {
+  task: ['title', 'notes', 'state', 'priority', 'due', 'timeBlockStart', 'timeBlockEnd',
+    'estimatedHours', 'actualHours', 'goalId', 'projectId', 'isMit', 'sortOrder', 'deleted'],
+  habit: ['name', 'emoji', 'frequency', 'targetPerDay', 'active', 'deleted'],
+  habit_log: ['habitId', 'date', 'count', 'deleted'],
+  goal: ['title', 'type', 'parentId', 'lifeArea', 'whyItMatters', 'progress', 'status', 'targetDate', 'deleted'],
+  review: ['type', 'periodStart', 'periodEnd', 'wins', 'failures', 'lesson', 'mood', 'energy', 'nextPriorities', 'deleted'],
+  project: ['title', 'color', 'archived', 'deleted'],
+}
+
+function buildPayload(table: keyof typeof tableMap, rec: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const f of SYNC_FIELDS[table]) out[f] = rec[f] == null ? '' : rec[f]
+  return out
+}
+
 export async function syncNow(): Promise<void> {
   if (!isAuthed()) {
     setState('local-only')
@@ -54,7 +75,7 @@ export async function syncNow(): Promise<void> {
           items.push({
             table: e.table,
             client_uuid: e.recordId,
-            payload: rec as unknown as Record<string, unknown>,
+            payload: buildPayload(e.table, rec as unknown as Record<string, unknown>),
             edited_at: e.editedAt,
           })
         }
@@ -84,6 +105,13 @@ export async function syncNow(): Promise<void> {
       const data = r.data as Record<string, unknown>
       const serverAt = Number(data.updatedAt ?? 0)
       if (local?.updatedAt && local.updatedAt > serverAt) continue
+      if (r.table === 'task') {
+        // hours come back as strings from ServiceNow; normalise to number|undefined
+        for (const k of ['estimatedHours', 'actualHours'] as const) {
+          const v = data[k]
+          data[k] = v === '' || v == null ? undefined : Number(v)
+        }
+      }
       if (r.deleted) {
         await table.delete(r.client_uuid)
       } else {
