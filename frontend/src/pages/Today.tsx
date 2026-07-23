@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
-import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji, CHANGED, type Task, type Habit, type Project } from '../db/db'
+import {
+  DndContext, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors,
+  closestCenter, type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, CHANGED, type Task, type Habit, type Project } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
 import { projectColorVar } from '../lib/projectColors'
@@ -56,6 +62,43 @@ function areaPath(series: number[]) {
 
 interface Momentum { series: number[]; weekDone: number; streak: number }
 
+function TodayCard({ task, proj, onToggle, onEdit, t }: {
+  task: Task; proj?: Project; onToggle: () => void; onEdit: () => void; t: TFn
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
+  const done = task.state === 'done'
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      className="tcard"
+    >
+      <span className="acc" style={{ background: done ? 'var(--ok)' : accentFor(task.priority) }} />
+      <button className="drag-grip" aria-label="Drag to reorder" {...listeners} {...attributes}>⠿</button>
+      <button className={`check ${done ? 'on' : ''}`} onClick={onToggle} aria-label={task.title}>✓</button>
+      <button className="tbody" onClick={onEdit} title={task.title}>
+        <div className={`ttitle ${done ? 'done' : ''}`}>{task.title}</div>
+        {(Boolean(task.isMit) || proj) && (
+          <div className="tmeta">
+            {Boolean(task.isMit) && <span className="tstar">⭐</span>}
+            {proj && (
+              <span className="tchip" style={{ background: 'var(--accent-wash)', color: 'var(--text-2)' }}>
+                <span className="cd" style={{ background: projectColorVar(proj.color) }} />
+                {proj.title}
+              </span>
+            )}
+          </div>
+        )}
+      </button>
+      <span className={`ttime ${task.timeBlockStart ? '' : 'faint'}`}>
+        {task.timeBlockStart
+          ? `${task.timeBlockStart.slice(11, 16)}${task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}`
+          : t('today.anytime')}
+      </span>
+    </div>
+  )
+}
+
 export default function Today() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [habits, setHabits] = useState<HabitView[]>([])
@@ -66,9 +109,14 @@ export default function Today() {
   const { t, lang } = useLang()
   const today = todayStr()
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 160, tolerance: 8 } }),
+    useSensor(KeyboardSensor),
+  )
+
   const load = useCallback(async () => {
-    const rows = await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()
-    rows.sort((a, b) => (a.timeBlockStart ?? 'z').localeCompare(b.timeBlockStart ?? 'z'))
+    const rows = (await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()).sort(byOrder)
     setTasks(rows)
 
     const projRows = await db.projects.filter((p) => !p.deleted).toArray()
@@ -105,6 +153,23 @@ export default function Today() {
     const updated: Task = { ...t, state: t.state === 'done' ? 'open' : 'done', updatedAt: Date.now() }
     await writeAndQueue(db.tasks, 'task', updated)
     if (updated.goalId) await rollUpGoal(updated.goalId)
+    syncNow()
+  }
+
+  async function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const ids = tasks.map((x) => x.id)
+    const oldI = ids.indexOf(String(active.id))
+    const newI = ids.indexOf(String(over.id))
+    if (oldI < 0 || newI < 0) return
+    const ordered = arrayMove(ids, oldI, newI)
+    const now = Date.now()
+    for (let i = 0; i < ordered.length; i++) {
+      const task = tasks.find((x) => x.id === ordered[i])!
+      if (task.sortOrder === i) continue
+      await writeAndQueue(db.tasks, 'task', { ...task, sortOrder: i, updatedAt: now })
+    }
     syncNow()
   }
 
@@ -219,43 +284,22 @@ export default function Today() {
           </button>
         </div>
       ) : (
-        <div className="tstack">
-          {tasks.map((task) => {
-            const proj = task.projectId ? projects[task.projectId] : undefined
-            const done = task.state === 'done'
-            return (
-              <div key={task.id} className="tcard">
-                <span className="acc" style={{ background: done ? 'var(--ok)' : accentFor(task.priority) }} />
-                <button
-                  className={`check ${done ? 'on' : ''}`}
-                  onClick={() => toggleTask(task)}
-                  aria-label={task.title}
-                >
-                  ✓
-                </button>
-                <button className="tbody" onClick={() => setEditing(task)} title={task.title}>
-                  <div className={`ttitle ${done ? 'done' : ''}`}>{task.title}</div>
-                  {(Boolean(task.isMit) || proj) && (
-                    <div className="tmeta">
-                      {Boolean(task.isMit) && <span className="tstar">⭐</span>}
-                      {proj && (
-                        <span className="tchip" style={{ background: 'var(--accent-wash)', color: 'var(--text-2)' }}>
-                          <span className="cd" style={{ background: projectColorVar(proj.color) }} />
-                          {proj.title}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </button>
-                <span className={`ttime ${task.timeBlockStart ? '' : 'faint'}`}>
-                  {task.timeBlockStart
-                    ? `${task.timeBlockStart.slice(11, 16)}${task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}`
-                    : t('today.anytime')}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={tasks.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+            <div className="tstack">
+              {tasks.map((task) => (
+                <TodayCard
+                  key={task.id}
+                  task={task}
+                  proj={task.projectId ? projects[task.projectId] : undefined}
+                  onToggle={() => toggleTask(task)}
+                  onEdit={() => setEditing(task)}
+                  t={t}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
     {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
