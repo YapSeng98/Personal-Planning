@@ -22,7 +22,10 @@ The app calls it as: `POST { prompt, system } → { text }`.
 
 ### Step 2 — Create the Cloudflare Worker
 1. Sign up free at **https://dash.cloudflare.com**.
-2. Left sidebar → **Workers & Pages** → **Create** → **Create Worker**.
+2. Sidebar → under **Build** click **Compute** → **Workers & Pages**.
+   (Cloudflare moved this — it used to be a top-level item. Direct link:
+   `https://dash.cloudflare.com/?to=/:account/workers-and-pages`)
+   Then **Create** → **Create Worker**.
 3. Name it (e.g. `planner-ai`) → **Deploy** (deploys the placeholder).
 4. Click **Edit code** (or **</> Edit code**).
 5. Select all the placeholder code, delete it, and paste the entire contents of
