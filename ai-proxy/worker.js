@@ -5,12 +5,16 @@
 //
 // The app POSTs { prompt, system } and gets back { text }.
 //
-// Deploy: see ai-proxy/README.md. You set two things:
-//   - GEMINI_KEY   (secret)  = your Google AI Studio key
-//   - ALLOW_ORIGIN (var)     = https://yapseng98.github.io   (your app origin)
+// Deploy: see ai-proxy/README.md. You set:
+//   - GEMINI_KEY   (secret)   = your Google AI Studio key  (required)
+//   - ALLOW_ORIGIN (variable) = https://yapseng98.github.io (your app origin)
+//   - MODEL        (variable) = optional; overrides DEFAULT_MODEL below
 // ============================================================
 
-const MODEL = 'gemini-2.0-flash' // free tier; swap to gemini-1.5-flash if needed
+// Current stable Gemini model. Override without editing code by setting a
+// plain-text Worker variable named MODEL (e.g. gemini-3.5-flash-lite).
+// NOTE: gemini-2.0-flash and older are shut down — don't use them.
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite'
 
 export default {
   async fetch(request, env) {
@@ -30,12 +34,15 @@ export default {
     const system = body.system ? String(body.system).slice(0, 2000) : undefined
     if (!prompt) return json({ error: 'no prompt' }, 400, cors)
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_KEY}`
+    const model = env.MODEL || DEFAULT_MODEL
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
     let g
     try {
       g = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // Key goes in the header (works for both the new AQ.* auth keys and
+        // legacy AIza* keys); never in the URL, so it can't leak via logs.
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
         body: JSON.stringify({
           ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -46,8 +53,17 @@ export default {
       return json({ error: 'upstream fetch failed: ' + e }, 502, cors)
     }
     const data = await g.json().catch(() => ({}))
-    if (!g.ok) return json({ error: data?.error?.message || ('gemini ' + g.status) }, g.status, cors)
+    if (!g.ok) {
+      // Surface Google's own message so the app's Test button is actionable
+      // (bad key, model not found, quota exceeded…).
+      const msg = data?.error?.message || `gemini ${g.status}`
+      return json({ error: `${msg} (model: ${model})` }, g.status, cors)
+    }
     const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || ''
+    if (!text) {
+      const why = data?.promptFeedback?.blockReason || data?.candidates?.[0]?.finishReason || 'no content returned'
+      return json({ error: `Empty response from ${model} (${why})` }, 502, cors)
+    }
     return json({ text: text.trim() }, 200, cors)
   },
 }
