@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   DndContext, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors,
   closestCenter, type DragEndEvent,
@@ -8,6 +8,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, CHANGED, type Task, type Habit, type Project } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
+import { aiEnabled, askAI } from '../lib/ai'
 import { projectColorVar } from '../lib/projectColors'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
@@ -106,6 +107,9 @@ export default function Today() {
   const [mom, setMom] = useState<Momentum>({ series: [0, 0, 0, 0, 0, 0, 0], weekDone: 0, streak: 0 })
   const [editing, setEditing] = useState<Task | null>(null)
   const [editingHabit, setEditingHabit] = useState<Habit | 'new' | null>(null)
+  const [aiBrief, setAiBrief] = useState<string | null>(null)
+  const [briefState, setBriefState] = useState<'idle' | 'loading' | 'err'>('idle')
+  const briefAuto = useRef(false)
   const { t, lang } = useLang()
   const today = todayStr()
 
@@ -148,6 +152,48 @@ export default function Today() {
     window.addEventListener(CHANGED, load)
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
+
+  // AI daily briefing — cached per day; reads its own fresh data so it doesn't
+  // re-run on every task toggle. Silently falls back to the rule-based text.
+  const generateBrief = useCallback(async (force = false) => {
+    if (!aiEnabled()) return
+    const cacheKey = `planner_brief_${today}`
+    if (!force) {
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) { setAiBrief(cached); return }
+    }
+    setBriefState('loading')
+    try {
+      const rows = await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()
+      const open = rows.filter((x) => x.state !== 'done' && x.state !== 'cancelled')
+      const done = rows.filter((x) => x.state === 'done')
+      const mit = open.find((x) => x.isMit)
+      const list = rows
+        .map((x) => `- ${x.title}${x.timeBlockStart ? ` @ ${x.timeBlockStart.slice(11, 16)}` : ''}${x.isMit ? ' [most important]' : ''} (${x.state})`)
+        .join('\n')
+      const hs = await db.habits.where('active').equals(1).and((x) => !x.deleted).toArray()
+      const dateLabel = new Date().toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+      const prompt = `Today is ${dateLabel}.\nMy tasks:\n${list || '(nothing planned yet)'}\nProgress: ${done.length} done, ${open.length} to go.${mit ? `\nMy most important task: "${mit.title}".` : ''}\nHabits I track: ${hs.map((h) => h.name).join(', ') || '(none)'}.\nWrite my briefing for today.`
+      const system = lang === 'zh'
+        ? '你是用户简洁、温暖的每日规划教练。用2-3个短句：肯定进展，指出当下最重要的事，并给一个可执行的小建议。不要列表、不要标题、最多一个表情。直接用“你”称呼。用中文回复。'
+        : "You are the user's concise, warm daily planning coach. In 2-3 short sentences: acknowledge progress, point at what matters most right now, and give one practical nudge. No lists, no headings, at most one emoji. Speak directly to 'you'."
+      const text = await askAI(prompt, system)
+      setAiBrief(text)
+      localStorage.setItem(cacheKey, text)
+      setBriefState('idle')
+    } catch {
+      setBriefState('err')
+    }
+  }, [today, lang])
+
+  useEffect(() => {
+    if (!aiEnabled()) return
+    const cached = localStorage.getItem(`planner_brief_${today}`)
+    if (cached) { setAiBrief(cached); return }
+    if (briefAuto.current) return
+    briefAuto.current = true
+    generateBrief()
+  }, [today, generateBrief])
 
   async function toggleTask(t: Task) {
     const updated: Task = { ...t, state: t.state === 'done' ? 'open' : 'done', updatedAt: Date.now() }
@@ -204,8 +250,21 @@ export default function Today() {
         <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
         <div className="hero-dt">{dateLabel}</div>
         <div className="hero-brief">
-          <div className="bl">✦ {t('today.briefing')}</div>
-          <div className="bt">{briefingText(tasks, t)}</div>
+          <div className="bl">
+            ✦ {aiBrief ? t('today.aiBriefing') : t('today.briefing')}
+            {aiEnabled() && (
+              <button
+                className="brief-refresh"
+                onClick={() => generateBrief(true)}
+                disabled={briefState === 'loading'}
+                aria-label={t('today.refresh')}
+                title={t('today.refresh')}
+              >
+                {briefState === 'loading' ? '…' : '↻'}
+              </button>
+            )}
+          </div>
+          <div className="bt">{aiBrief ?? briefingText(tasks, t)}</div>
         </div>
         {tasks.length > 0 && (
           <div className="hero-ring" style={{ ['--p' as string]: pct }} aria-label={`${pct}% of today done`}>

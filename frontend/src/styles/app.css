@@ -459,7 +459,10 @@ button.goal-card:hover { background: var(--glass-strong); }
 .hero-brief { margin-top: 0.9rem; background: rgba(255,255,255,0.28); border: 1px solid rgba(255,255,255,0.45);
   border-radius: 14px; padding: 0.7rem 0.85rem; backdrop-filter: blur(6px); max-width: 30rem; }
 .hero-card.has-ring .hero-brief { margin-right: 4.7rem; }
-.hero-brief .bl { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #7a2c10; }
+.hero-brief .bl { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #7a2c10; display: flex; align-items: center; gap: 6px; }
+.brief-refresh { background: none; border: none; cursor: pointer; color: #7a2c10; opacity: 0.55; font-size: 0.82rem; padding: 0 2px; line-height: 1; }
+.brief-refresh:hover { opacity: 1; }
+.brief-refresh:disabled { opacity: 0.4; cursor: default; }
 .hero-brief .bt { font-size: 0.84rem; line-height: 1.5; color: #361405; margin-top: 0.25rem; }
 .hero-brief .bt b { font-weight: 750; }
 .hero-ring { position: absolute; right: 1.2rem; bottom: 1.25rem; width: 58px; height: 58px; border-radius: 50%;
@@ -533,6 +536,15 @@ button.goal-card:hover { transform: translateY(-2px); }
 
 /* Reviews: past-review chips get the card lift too */
 .review-past .rp { box-shadow: 0 1px 1px rgba(0,0,0,0.03), 0 10px 24px -20px rgba(0,0,0,0.45); }
+
+/* ---- AI settings ---- */
+.ai-row { display: flex; gap: 0.6rem; align-items: center; }
+.ai-row input { flex: 1; min-width: 0; background: var(--glass); border: 1px solid var(--hairline);
+  border-radius: 12px; padding: 0.6rem 0.8rem; color: var(--text-1); font-size: 0.9rem; }
+.ai-status { font-size: 0.8rem; margin-top: 0.6rem; font-weight: 600; }
+.ai-status.ok { color: var(--ok); }
+.ai-status.err { color: var(--danger); }
+.ai-draft-btn { margin-top: 0.7rem; align-self: flex-start; font-size: 0.82rem; padding: 0.45rem 0.9rem; }
 
 /* ---- Background picker (Settings) ---- */
 .bg-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }

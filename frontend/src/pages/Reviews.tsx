@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { db, uuid, todayStr, writeAndQueue, CHANGED, type Review } from '../db/db'
 import { syncNow } from '../sync/engine'
+import { aiEnabled, askAI } from '../lib/ai'
 import { useLang } from '../lib/i18n'
 
 type RType = Review['type']
@@ -43,7 +44,9 @@ export default function Reviews() {
   const [stats, setStats] = useState('')
   const [past, setPast] = useState<Review[]>([])
   const [flash, setFlash] = useState('')
-  const { t } = useLang()
+  const [drafting, setDrafting] = useState(false)
+  const [draftErr, setDraftErr] = useState('')
+  const { t, lang } = useLang()
 
   const load = useCallback(async () => {
     const { start, end } = periodFor(type)
@@ -90,6 +93,41 @@ export default function Reviews() {
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
+  async function draftWithAI() {
+    setDrafting(true)
+    setDraftErr('')
+    try {
+      const { start, end } = periodFor(type)
+      const tasks = await db.tasks.filter((x) => !x.deleted && !!x.due && x.due! >= start && x.due! <= end).toArray()
+      const done = tasks.filter((x) => x.state === 'done')
+      const notDone = tasks.filter((x) => x.state !== 'done' && x.state !== 'cancelled')
+      const checkins = await db.habitLogs.filter((l) => !l.deleted && l.count > 0 && l.date >= start && l.date <= end).count()
+      const moodStr = form.mood ? `Mood: ${form.mood}.` : ''
+      const energyStr = form.energy ? `Energy: ${form.energy}/5.` : ''
+      const prompt = `Reflection period: ${type} (${start}${end !== start ? ` to ${end}` : ''}).\n`
+        + `Tasks: ${done.length} of ${tasks.length} done. Habit check-ins: ${checkins}.\n${moodStr} ${energyStr}\n`
+        + `Completed: ${done.slice(0, 8).map((x) => x.title).join('; ') || '(none)'}\n`
+        + `Not finished: ${notDone.slice(0, 8).map((x) => x.title).join('; ') || '(none)'}\n`
+        + `Draft my reflection.`
+      const system = lang === 'zh'
+        ? '你帮助用户回顾一个时期。只返回一个 JSON 对象，键为 wins、failures、lesson、next。每项用第一人称（“我……”）写1-2句，贴合数据，诚实但鼓励。不要 markdown，不要多余文字。用中文。'
+        : "You help the user reflect on a period. Return ONLY a JSON object with keys wins, failures, lesson, next. Each 1-2 sentences in first person ('I ...'), specific to the data, honest but encouraging. No markdown, no extra text."
+      const text = await askAI(prompt, system)
+      const j = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
+      setForm((f) => ({
+        ...f,
+        wins: j.wins || f.wins,
+        failures: j.failures || f.failures,
+        lesson: j.lesson || f.lesson,
+        next: j.next || f.next,
+      }))
+    } catch (e) {
+      setDraftErr(e instanceof Error ? e.message : t('rev.draftErr'))
+    } finally {
+      setDrafting(false)
+    }
+  }
+
   async function save() {
     const { start, end } = periodFor(type)
     await writeAndQueue(db.reviews, 'review', {
@@ -133,6 +171,12 @@ export default function Reviews() {
         <div className="card card-ai briefing">
           <div className="lbl grad-text">✦ {t('rev.inNumbers', { period: periodLabel })}</div>
           <div className="txt">{stats}</div>
+          {aiEnabled() && (
+            <button className="btn ai-draft-btn" onClick={draftWithAI} disabled={drafting}>
+              {drafting ? t('rev.drafting') : t('rev.aiDraft')}
+            </button>
+          )}
+          {draftErr && <div className="ai-status err">{draftErr}</div>}
         </div>
 
         <div>

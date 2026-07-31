@@ -4,11 +4,14 @@ import { isAuthed, currentUser, clearTokens, serverLogout } from '../sync/api'
 import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
+import { getAiUrl, setAiUrl, askAI } from '../lib/ai'
 import { useLang, LANGS, type Lang } from '../lib/i18n'
 
 export default function Settings() {
   const [theme, setThemeState] = useState<Theme>(getTheme())
   const [bg, setBgState] = useState<Bg>(getBg())
+  const [aiUrl, setAiUrlState] = useState(getAiUrl())
+  const [aiTest, setAiTest] = useState<{ state: 'idle' | 'testing' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const [sync, setSync] = useState<SyncState>('idle')
   const [pending, setPending] = useState(0)
   const { t, lang, setLang } = useLang()
@@ -38,6 +41,21 @@ export default function Settings() {
   function pickBg(b: Bg) {
     setBg(b)
     setBgState(b)
+  }
+
+  function saveAiUrl(url: string) {
+    setAiUrlState(url)
+    setAiUrl(url)
+    setAiTest({ state: 'idle', msg: '' })
+  }
+  async function testAi() {
+    setAiTest({ state: 'testing', msg: '' })
+    try {
+      const reply = await askAI('Reply with exactly: OK', 'You are a connection test. Reply briefly.')
+      setAiTest({ state: 'ok', msg: reply.slice(0, 40) || 'connected' })
+    } catch (e) {
+      setAiTest({ state: 'err', msg: e instanceof Error ? e.message : 'failed' })
+    }
   }
 
   async function logout() {
@@ -95,6 +113,26 @@ export default function Settings() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="section-h">{t('set.ai')}</div>
+      <div className="card">
+        <div className="row-sub" style={{ marginBottom: '0.6rem' }}>{t('set.aiHint')}</div>
+        <div className="ai-row">
+          <input
+            type="url"
+            inputMode="url"
+            placeholder="https://planner-ai.you.workers.dev"
+            value={aiUrl}
+            onChange={(e) => saveAiUrl(e.target.value)}
+            aria-label={t('set.ai')}
+          />
+          <button className="btn" onClick={testAi} disabled={!aiUrl || aiTest.state === 'testing'}>
+            {aiTest.state === 'testing' ? t('set.aiTesting') : t('set.aiTest')}
+          </button>
+        </div>
+        {aiTest.state === 'ok' && <div className="ai-status ok">✓ {t('set.aiOk')}</div>}
+        {aiTest.state === 'err' && <div className="ai-status err">✕ {aiTest.msg}</div>}
       </div>
 
       <div className="section-h">{t('set.language')}</div>
