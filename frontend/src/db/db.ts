@@ -243,8 +243,15 @@ export async function rollUpGoal(goalId: string) {
 
 /** Streaks derived from logs, never stored as a trusted counter (doc §06). */
 export async function habitStreak(habitId: string): Promise<number> {
+  const habit = await db.habits.get(habitId)
+  const target = habit?.targetPerDay ?? 1
   const logs = await db.habitLogs.where('habitId').equals(habitId).toArray()
-  const done = new Set(logs.filter((l) => !l.deleted && l.count > 0).map((l) => l.date))
+  const byDate = new Map<string, number>()
+  for (const l of logs) { if (!l.deleted) byDate.set(l.date, (byDate.get(l.date) ?? 0) + l.count) }
+  // A day only counts toward the streak once its full daily target is met —
+  // matters for multi-tick habits (e.g. water, target 8/day), where partial
+  // logging is common but shouldn't read as a completed day.
+  const done = new Set([...byDate.entries()].filter(([, c]) => c >= target).map(([d]) => d))
   let streak = 0
   const cursor = new Date()
   // Today counts if logged; otherwise the streak is measured up to yesterday.
@@ -292,6 +299,10 @@ export async function habitStats(habitId: string, weeks = 16): Promise<HabitStat
   const byDate = new Map<string, number>()
   for (const l of logs) byDate.set(l.date, (byDate.get(l.date) ?? 0) + l.count)
   const hitDates = [...byDate.entries()].filter(([, c]) => c >= target).map(([d]) => d).sort()
+  // Any day with real activity, not just days that reached the full target —
+  // a multi-tick habit (e.g. water, target 8/day) is logged far more often
+  // than it's fully hit, and "total days" should count all of that activity.
+  const loggedDates = [...byDate.entries()].filter(([, c]) => c > 0).map(([d]) => d).sort()
 
   const current = await habitStreak(habitId)
 
@@ -312,7 +323,7 @@ export async function habitStats(habitId: string, weeks = 16): Promise<HabitStat
   }
   longest = Math.max(longest, current)
 
-  const totalDays = hitDates.length
+  const totalDays = loggedDates.length
 
   const weekday = [0, 0, 0, 0, 0, 0, 0]
   for (const d of hitDates) weekday[new Date(d + 'T00:00').getDay()]++
@@ -346,5 +357,5 @@ export async function habitStats(habitId: string, weeks = 16): Promise<HabitStat
     heatmap.push({ date, count, hit: !future && count >= target, future, isToday: date === todayKey })
   }
 
-  return { current, longest, totalDays, last30Rate, weekday, heatmap, firstLogDate: hitDates[0] ?? null }
+  return { current, longest, totalDays, last30Rate, weekday, heatmap, firstLogDate: loggedDates[0] ?? null }
 }

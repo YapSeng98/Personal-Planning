@@ -579,7 +579,7 @@ button.goal-card:hover { transform: translateY(-2px); }
 .heatmap { display: flex; gap: 3px; }
 .hm-week { display: flex; flex-direction: column; gap: 3px; }
 .hm-cell { width: 12px; height: 12px; border-radius: 3px; background: var(--glass-strong); flex-shrink: 0; }
-.hm-cell.hit { background: var(--ok); }
+.hm-cell.hit, .hm-cell.logged { background: var(--ok); }
 .hm-cell.future { background: transparent; }
 .hm-cell.today { box-shadow: 0 0 0 1.5px var(--accent-bright); }
 .hm-legend { display: flex; align-items: center; gap: 4px; margin: 0.7rem 0 0 26px; font-size: 0.66rem; color: var(--text-3); flex-wrap: wrap; }

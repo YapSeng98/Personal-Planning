@@ -199,8 +199,8 @@ export default function HabitDetail() {
                         return (
                           <div
                             key={d.date}
-                            className={`hm-cell ${d.hit ? 'hit' : ''} ${d.future ? 'future' : ''} ${d.isToday ? 'today' : ''}`}
-                            style={d.hit ? { opacity: 0.35 + intensity * 0.65 } : undefined}
+                            className={`hm-cell ${d.hit ? 'hit' : ''} ${d.count > 0 ? 'logged' : ''} ${d.future ? 'future' : ''} ${d.isToday ? 'today' : ''}`}
+                            style={d.count > 0 ? { opacity: 0.35 + intensity * 0.65 } : undefined}
                             title={d.future ? '' : `${d.date}: ${d.count}/${habit.targetPerDay}`}
                           />
                         )
