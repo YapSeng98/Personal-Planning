@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   DndContext, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors,
   closestCenter, type DragEndEvent,
@@ -61,7 +62,13 @@ function areaPath(series: number[]) {
   return { line, area: `${line} L${w},${h} L0,${h} Z`, last: pts[pts.length - 1] }
 }
 
-interface Momentum { series: number[]; weekDone: number; streak: number }
+interface Momentum {
+  series: number[]
+  weekDone: number
+  streak: number
+  /** Which habit the best-streak number belongs to — shown so the tile is never ambiguous. */
+  streakHabit?: { id: string; name: string; emoji: string }
+}
 
 function TodayCard({ task, proj, onToggle, onEdit, t }: {
   task: Task; proj?: Project; onToggle: () => void; onEdit: () => void; t: TFn
@@ -111,6 +118,7 @@ export default function Today() {
   const [briefState, setBriefState] = useState<'idle' | 'loading' | 'err'>('idle')
   const briefAuto = useRef(false)
   const { t, lang } = useLang()
+  const navigate = useNavigate()
   const today = todayStr()
 
   const sensors = useSensors(
@@ -142,9 +150,19 @@ export default function Today() {
         await db.tasks.where('due').equals(date).and((x) => x.state === 'done' && !x.deleted).count(),
       )
     }
+    // Reuse the per-habit streaks already computed into `views` above instead
+    // of recomputing habitStreak() a second time per habit.
     let best = 0
-    for (const h of hs) best = Math.max(best, await habitStreak(h.id))
-    setMom({ series, weekDone: series.reduce((s, n) => s + n, 0), streak: best })
+    let bestHabit: HabitView | null = null
+    for (const v of views) {
+      if (v.streak > best) { best = v.streak; bestHabit = v }
+    }
+    setMom({
+      series,
+      weekDone: series.reduce((s, n) => s + n, 0),
+      streak: best,
+      streakHabit: bestHabit ? { id: bestHabit.id, name: bestHabit.name, emoji: bestHabit.emoji } : undefined,
+    })
   }, [today])
 
   useEffect(() => {
@@ -292,10 +310,18 @@ export default function Today() {
             <circle cx={spark.last[0]} cy={spark.last[1]} r="3.4" fill="var(--amber)" stroke="var(--surface)" strokeWidth="2" />
           </svg>
         </div>
-        <div className="m-card m-streak">
-          <div className="big num">{mom.streak}</div>
-          <div className="sl">{t(mom.streak === 1 ? 'ins.day' : 'ins.days')} 🔥</div>
-        </div>
+        {mom.streakHabit ? (
+          <button className="m-card m-streak m-streak-btn" onClick={() => navigate(`/habits/${mom.streakHabit!.id}`)}>
+            <div className="m-streak-who">{cleanEmoji(mom.streakHabit.emoji, mom.streakHabit.name)} {mom.streakHabit.name}</div>
+            <div className="big num">{mom.streak}</div>
+            <div className="sl">{t(mom.streak === 1 ? 'ins.day' : 'ins.days')} 🔥</div>
+          </button>
+        ) : (
+          <div className="m-card m-streak">
+            <div className="big num">{mom.streak}</div>
+            <div className="sl">{t(mom.streak === 1 ? 'ins.day' : 'ins.days')} 🔥</div>
+          </div>
+        )}
       </div>
 
       <div className="section-h">{t('today.habits')}</div>
@@ -312,7 +338,7 @@ export default function Today() {
               >
                 <span className="ring">{cleanEmoji(h.emoji, h.name)}</span>
               </button>
-              <button className="habit-name-btn" onClick={() => setEditingHabit(h)} title="Tap to edit">
+              <button className="habit-name-btn" onClick={() => navigate(`/habits/${h.id}`)} title={t('habit.viewDetail')}>
                 {h.name}
               </button>
               <span className="streak num">

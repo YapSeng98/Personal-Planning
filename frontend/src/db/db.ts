@@ -255,3 +255,79 @@ export async function habitStreak(habitId: string): Promise<number> {
   }
   return streak
 }
+
+/** One day's cell in a habit's calendar view. */
+export interface HabitDay {
+  date: string
+  count: number
+  hit: boolean // count >= targetPerDay
+}
+
+export interface HabitStats {
+  current: number
+  /** Best streak ever recorded, not just the one still running. */
+  longest: number
+  /** Total distinct days this habit has ever been logged (count > 0). */
+  totalDays: number
+  /** % of the last 30 calendar days that hit target. */
+  last30Rate: number
+  /** Completions per weekday, index 0=Sun..6=Sat — reveals which day breaks the chain. */
+  weekday: number[]
+  /** Daily cells for the last `weeks` weeks, oldest first — for a calendar/heatmap. */
+  heatmap: HabitDay[]
+  firstLogDate: string | null
+}
+
+/** Full accumulated history for one habit: current + longest streak (walking
+    the whole sorted date set, not just backwards from today), a weekday
+    pattern, and calendar cells — the numbers a single "current streak" can't
+    show. Read-heavy (habit detail page only), not called on Today's hot path. */
+export async function habitStats(habitId: string, weeks = 16): Promise<HabitStats> {
+  const habit = await db.habits.get(habitId)
+  const target = habit?.targetPerDay ?? 1
+  const logs = await db.habitLogs.where('habitId').equals(habitId).and((l) => !l.deleted).toArray()
+  const byDate = new Map<string, number>()
+  for (const l of logs) byDate.set(l.date, (byDate.get(l.date) ?? 0) + l.count)
+  const hitDates = [...byDate.entries()].filter(([, c]) => c >= target).map(([d]) => d).sort()
+
+  const current = await habitStreak(habitId)
+
+  // Longest-ever: walk the sorted hit dates once, counting consecutive-day runs.
+  let longest = 0
+  let run = 0
+  let prev: Date | null = null
+  for (const d of hitDates) {
+    const cur = new Date(d + 'T00:00')
+    if (prev) {
+      const gapDays = Math.round((cur.getTime() - prev.getTime()) / 86400_000)
+      run = gapDays === 1 ? run + 1 : 1
+    } else {
+      run = 1
+    }
+    longest = Math.max(longest, run)
+    prev = cur
+  }
+  longest = Math.max(longest, current)
+
+  const totalDays = hitDates.length
+
+  const weekday = [0, 0, 0, 0, 0, 0, 0]
+  for (const d of hitDates) weekday[new Date(d + 'T00:00').getDay()]++
+
+  let last30Hit = 0
+  for (let i = 0; i < 30; i++) {
+    const date = todayStr(new Date(Date.now() - i * 86400_000))
+    if ((byDate.get(date) ?? 0) >= target) last30Hit++
+  }
+  const last30Rate = Math.round((last30Hit / 30) * 100)
+
+  const days = weeks * 7
+  const heatmap: HabitDay[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const date = todayStr(new Date(Date.now() - i * 86400_000))
+    const count = byDate.get(date) ?? 0
+    heatmap.push({ date, count, hit: count >= target })
+  }
+
+  return { current, longest, totalDays, last30Rate, weekday, heatmap, firstLogDate: hitDates[0] ?? null }
+}

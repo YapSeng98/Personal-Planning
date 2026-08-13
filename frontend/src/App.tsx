@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Plan from './pages/Plan'
 import Board from './pages/Board'
 import Goals from './pages/Goals'
+import HabitDetail from './pages/HabitDetail'
 import Reviews from './pages/Reviews'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/plan" element={<Plan />} />
           <Route path="/board" element={<Board />} />
           <Route path="/goals" element={<Goals />} />
+          <Route path="/habits/:id" element={<HabitDetail />} />
           <Route path="/reviews" element={<Reviews />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />

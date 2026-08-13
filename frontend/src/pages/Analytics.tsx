@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CHANGED, cleanEmoji } from '../db/db'
 import { computeAnalytics, type Analytics as Data } from '../lib/analytics'
 import { useLang } from '../lib/i18n'
@@ -6,6 +7,7 @@ import { useLang } from '../lib/i18n'
 export default function Analytics() {
   const [d, setD] = useState<Data | null>(null)
   const { t } = useLang()
+  const navigate = useNavigate()
   const load = useCallback(() => {
     computeAnalytics().then(setD)
   }, [])
@@ -88,14 +90,19 @@ export default function Analytics() {
           <div className="section-h">{t('an.habitConsistency')}</div>
           <div className="card">
             {d.habits.map((h) => (
-              <div className="hbar-row" key={h.id} title={`${h.name}: logged ${h.days} of 30 days`}>
+              <button
+                className="hbar-row hbar-link"
+                key={h.id}
+                title={`${h.name}: logged ${h.days} of 30 days`}
+                onClick={() => navigate(`/habits/${h.id}`)}
+              >
                 <span className="hbar-emoji">{cleanEmoji(h.emoji, h.name)}</span>
                 <span className="hbar-name">{h.name}</span>
                 <div className="hbar-track">
                   <div className="hbar-fill" style={{ width: `${h.pct}%` }} />
                 </div>
                 <span className="hbar-pct num">{h.pct}%</span>
-              </div>
+              </button>
             ))}
           </div>
         </>
