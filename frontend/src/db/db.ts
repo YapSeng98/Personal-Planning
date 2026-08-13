@@ -261,6 +261,9 @@ export interface HabitDay {
   date: string
   count: number
   hit: boolean // count >= targetPerDay
+  /** This week's dates after today — grid stays calendar-aligned but these haven't happened yet. */
+  future: boolean
+  isToday: boolean
 }
 
 export interface HabitStats {
@@ -321,12 +324,26 @@ export async function habitStats(habitId: string, weeks = 16): Promise<HabitStat
   }
   const last30Rate = Math.round((last30Hit / 30) * 100)
 
-  const days = weeks * 7
+  // Calendar-aligned grid: always starts on a Sunday and ends on a Saturday,
+  // so row 0 is always Sunday regardless of what weekday "today" falls on
+  // (otherwise the weekday labels would silently drift day to day). Cells
+  // after today (this week's remaining days) are marked `future`, not `miss`.
+  const now = new Date()
+  const todayKey = todayStr(now)
+  const endOfWeek = new Date(now)
+  endOfWeek.setDate(now.getDate() + (6 - now.getDay()))
+  const totalCells = weeks * 7
+  const start = new Date(endOfWeek)
+  start.setDate(endOfWeek.getDate() - totalCells + 1)
+
   const heatmap: HabitDay[] = []
-  for (let i = days - 1; i >= 0; i--) {
-    const date = todayStr(new Date(Date.now() - i * 86400_000))
-    const count = byDate.get(date) ?? 0
-    heatmap.push({ date, count, hit: count >= target })
+  for (let i = 0; i < totalCells; i++) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    const date = todayStr(d)
+    const future = d.getTime() > now.getTime() && date !== todayKey
+    const count = future ? 0 : (byDate.get(date) ?? 0)
+    heatmap.push({ date, count, hit: !future && count >= target, future, isToday: date === todayKey })
   }
 
   return { current, longest, totalDays, last30Rate, weekday, heatmap, firstLogDate: hitDates[0] ?? null }

@@ -570,10 +570,21 @@ button.goal-card:hover { transform: translateY(-2px); }
   text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
 .heatmap-card { overflow-x: auto; padding: 1rem; }
-.heatmap { display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column;
-  grid-auto-columns: 12px; gap: 3px; width: max-content; }
-.hm-cell { width: 12px; height: 12px; border-radius: 3px; background: var(--glass-strong); }
+.heatmap-scroll { width: max-content; min-width: 100%; }
+.heatmap-months { display: flex; gap: 3px; margin-left: 26px; margin-bottom: 3px; }
+.hm-month { width: 12px; flex-shrink: 0; font-size: 0.6rem; color: var(--text-3); white-space: nowrap; overflow: visible; }
+.heatmap-row { display: flex; gap: 6px; }
+.hm-daylabels { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; width: 20px; }
+.hm-daylabel { height: 12px; font-size: 0.58rem; line-height: 12px; color: var(--text-3); text-align: right; }
+.heatmap { display: flex; gap: 3px; }
+.hm-week { display: flex; flex-direction: column; gap: 3px; }
+.hm-cell { width: 12px; height: 12px; border-radius: 3px; background: var(--glass-strong); flex-shrink: 0; }
 .hm-cell.hit { background: var(--ok); }
+.hm-cell.future { background: transparent; }
+.hm-cell.today { box-shadow: 0 0 0 1.5px var(--accent-bright); }
+.hm-legend { display: flex; align-items: center; gap: 4px; margin: 0.7rem 0 0 26px; font-size: 0.66rem; color: var(--text-3); flex-wrap: wrap; }
+.hm-legend .hm-cell { display: inline-block; }
+.hm-legend-today { display: inline-flex; align-items: center; gap: 4px; margin-left: 0.8rem; }
 
 /* ---- Background picker (Settings) ---- */
 .bg-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }

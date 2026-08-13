@@ -71,6 +71,8 @@ const en: Dict = {
   'habit.totalDays': 'Total days', 'habit.since': 'since {date}',
   'habit.last30': 'Last 30 days', 'habit.last30Sub': 'of days hit target',
   'habit.aiInsight': 'AI Insight', 'habit.byWeekday': 'By day of week', 'habit.calendar': 'Calendar',
+  'habit.calendarHint': 'Each square is one day, aligned to the calendar week — darker green means you hit your target more that day.',
+  'habit.less': 'Less', 'habit.more': 'More', 'habit.todayLbl': 'Today',
   // common
   'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.today': 'today',
   // goals
@@ -201,6 +203,8 @@ const zh: Dict = {
   'habit.totalDays': '累计天数', 'habit.since': '始于 {date}',
   'habit.last30': '近30天', 'habit.last30Sub': '达标天数占比',
   'habit.aiInsight': 'AI 洞察', 'habit.byWeekday': '按星期分布', 'habit.calendar': '打卡日历',
+  'habit.calendarHint': '每个方块代表一天，按日历周对齐 — 绿色越深，代表当天完成度越高。',
+  'habit.less': '较少', 'habit.more': '较多', 'habit.todayLbl': '今天',
   'common.cancel': '取消', 'common.delete': '删除', 'common.today': '今天',
   'goals.title': '目标', 'goals.sub': '愿景 → 年 → 季 → 月 → 周 — 进度自动汇总。点击目标可编辑。',
   'goals.add': '+ 目标', 'goals.empty': '还没有目标 — 添加一个年度目标作为基石。',

@@ -1,9 +1,21 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { db, todayStr, cleanEmoji, habitStats, CHANGED, type Habit, type HabitStats } from '../db/db'
+import { db, todayStr, cleanEmoji, habitStats, CHANGED, type Habit, type HabitStats, type HabitDay } from '../db/db'
 import { aiEnabled, askAI } from '../lib/ai'
 import HabitEdit from '../components/HabitEdit'
 import { useLang } from '../lib/i18n'
+
+const DAY_ROW_LABELS = [1, 3, 5] // show Mon/Wed/Fri only, GitHub-style — reduces clutter
+
+function groupWeeks(heatmap: HabitDay[]) {
+  const weeks: { days: HabitDay[]; monthOf: string | null }[] = []
+  for (let i = 0; i < heatmap.length; i += 7) {
+    const days = heatmap.slice(i, i + 7)
+    const firstOfMonth = days.find((d) => Number(d.date.slice(8, 10)) === 1)
+    weeks.push({ days, monthOf: firstOfMonth ? firstOfMonth.date : null })
+  }
+  return weeks
+}
 
 export default function HabitDetail() {
   const { id } = useParams<{ id: string }>()
@@ -84,6 +96,7 @@ export default function HabitDetail() {
   const s = stats!
   const maxWeekday = Math.max(1, ...s.weekday)
   const weekdayLbl = 'SMTWTFS'
+  const weeks = groupWeeks(s.heatmap)
 
   return (
     <div>
@@ -162,19 +175,49 @@ export default function HabitDetail() {
           </div>
 
           <div className="section-h">{t('habit.calendar')}</div>
+          <div className="row-sub" style={{ marginBottom: '0.5rem' }}>{t('habit.calendarHint')}</div>
           <div className="card heatmap-card">
-            <div className="heatmap">
-              {s.heatmap.map((d) => {
-                const intensity = habit.targetPerDay > 0 ? Math.min(1, d.count / habit.targetPerDay) : d.hit ? 1 : 0
-                return (
-                  <div
-                    key={d.date}
-                    className={`hm-cell ${d.hit ? 'hit' : ''}`}
-                    style={d.hit ? { opacity: 0.35 + intensity * 0.65 } : undefined}
-                    title={`${d.date}: ${d.count}/${habit.targetPerDay}`}
-                  />
-                )
-              })}
+            <div className="heatmap-scroll">
+              <div className="heatmap-months">
+                {weeks.map((w, i) => (
+                  <span key={i} className="hm-month">
+                    {w.monthOf ? new Date(w.monthOf + 'T00:00').toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { month: 'short' }) : ''}
+                  </span>
+                ))}
+              </div>
+              <div className="heatmap-row">
+                <div className="hm-daylabels">
+                  {weekdayLbl.split('').map((l, i) => (
+                    <span key={i} className="hm-daylabel">{DAY_ROW_LABELS.includes(i) ? l : ''}</span>
+                  ))}
+                </div>
+                <div className="heatmap">
+                  {weeks.map((w, wi) => (
+                    <div className="hm-week" key={wi}>
+                      {w.days.map((d) => {
+                        const intensity = habit.targetPerDay > 0 ? Math.min(1, d.count / habit.targetPerDay) : d.hit ? 1 : 0
+                        return (
+                          <div
+                            key={d.date}
+                            className={`hm-cell ${d.hit ? 'hit' : ''} ${d.future ? 'future' : ''} ${d.isToday ? 'today' : ''}`}
+                            style={d.hit ? { opacity: 0.35 + intensity * 0.65 } : undefined}
+                            title={d.future ? '' : `${d.date}: ${d.count}/${habit.targetPerDay}`}
+                          />
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="hm-legend">
+                <span>{t('habit.less')}</span>
+                <span className="hm-cell" />
+                <span className="hm-cell hit" style={{ opacity: 0.45 }} />
+                <span className="hm-cell hit" style={{ opacity: 0.75 }} />
+                <span className="hm-cell hit" />
+                <span>{t('habit.more')}</span>
+                <span className="hm-legend-today"><span className="hm-cell today" /> {t('habit.todayLbl')}</span>
+              </div>
             </div>
           </div>
         </>
