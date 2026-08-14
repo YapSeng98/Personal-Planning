@@ -55,7 +55,7 @@ export default function HabitDetail() {
     try {
       const dayNames = lang === 'zh' ? ['日', '一', '二', '三', '四', '五', '六'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
       const weekdayLine = stats.weekday.map((c, i) => `${dayNames[i]}: ${c}`).join(', ')
-      const prompt = `Habit: "${habit.name}" (target ${habit.targetPerDay}/day).\nCurrent streak: ${stats.current} days. Longest ever: ${stats.longest} days. Total days logged: ${stats.totalDays}. Last 30 days: ${stats.last30Rate}% hit rate.\nCompletions by weekday: ${weekdayLine}.\nGive me a short, specific insight and one practical suggestion to help me keep this habit going.`
+      const prompt = `Habit: "${habit.name}" (target ${habit.targetPerDay}/day).\nCurrent streak: ${stats.current} days. Longest ever: ${stats.longest} days. Total days logged: ${stats.totalDays}. Last 30 days: ${stats.last30Rate}% hit rate.\nDays logged by weekday: ${weekdayLine}.\nGive me a short, specific insight and one practical suggestion to help me keep this habit going.`
       const system = lang === 'zh'
         ? '你是一位简洁、真诚的习惯教练。用2-3个短句：指出数据中一个真实的规律（比如哪天最容易中断），并给一个具体、可执行的建议。不要泛泛而谈，不要列表，最多一个表情。用中文回复。'
         : "You are a concise, honest habit coach. In 2-3 short sentences: point out one real pattern in the data (e.g. which day breaks the chain), and give one specific, actionable suggestion. No generic advice, no lists, at most one emoji."

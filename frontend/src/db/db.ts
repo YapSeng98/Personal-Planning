@@ -325,8 +325,11 @@ export async function habitStats(habitId: string, weeks = 16): Promise<HabitStat
 
   const totalDays = loggedDates.length
 
+  // Logged activity, not strictly-hit days — same reasoning as totalDays
+  // above. A weekday pattern built only from fully-hit days is empty (and
+  // looks broken) for any habit that's rarely or never fully maxed out.
   const weekday = [0, 0, 0, 0, 0, 0, 0]
-  for (const d of hitDates) weekday[new Date(d + 'T00:00').getDay()]++
+  for (const d of loggedDates) weekday[new Date(d + 'T00:00').getDay()]++
 
   let last30Hit = 0
   for (let i = 0; i < 30; i++) {
