@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { db, uuid, todayStr, writeAndQueue, CHANGED, type Review } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { aiEnabled, askAI } from '../lib/ai'
@@ -39,6 +39,9 @@ const blank = { wins: '', failures: '', lesson: '', next: '', mood: undefined as
 
 export default function Reviews() {
   const [type, setType] = useState<RType>('daily')
+  // Set when a card in "Past reviews" is clicked — overrides which period is
+  // being edited so old entries are actually reachable, not just today's.
+  const [pastPeriod, setPastPeriod] = useState<{ start: string; end: string } | null>(null)
   const [form, setForm] = useState({ ...blank })
   const [existingId, setExistingId] = useState<string | null>(null)
   const [stats, setStats] = useState('')
@@ -48,8 +51,10 @@ export default function Reviews() {
   const [draftErr, setDraftErr] = useState('')
   const { t, lang } = useLang()
 
+  const period = useMemo(() => pastPeriod ?? periodFor(type), [pastPeriod, type])
+
   const load = useCallback(async () => {
-    const { start, end } = periodFor(type)
+    const { start, end } = period
 
     // Pre-fill the numbers so reflection starts from facts, not recall.
     const tasks = await db.tasks
@@ -85,7 +90,7 @@ export default function Reviews() {
     const all = await db.reviews.filter((r) => !r.deleted).toArray()
     all.sort((a, b) => b.periodStart.localeCompare(a.periodStart))
     setPast(all.slice(0, 6))
-  }, [type, t])
+  }, [type, period, t])
 
   useEffect(() => {
     load()
@@ -93,11 +98,16 @@ export default function Reviews() {
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
+  function openPast(r: Review) {
+    setType(r.type)
+    setPastPeriod({ start: r.periodStart, end: r.periodEnd })
+  }
+
   async function draftWithAI() {
     setDrafting(true)
     setDraftErr('')
     try {
-      const { start, end } = periodFor(type)
+      const { start, end } = period
       const tasks = await db.tasks.filter((x) => !x.deleted && !!x.due && x.due! >= start && x.due! <= end).toArray()
       const done = tasks.filter((x) => x.state === 'done')
       const notDone = tasks.filter((x) => x.state !== 'done' && x.state !== 'cancelled')
@@ -129,7 +139,7 @@ export default function Reviews() {
   }
 
   async function save() {
-    const { start, end } = periodFor(type)
+    const { start, end } = period
     await writeAndQueue(db.reviews, 'review', {
       id: existingId ?? uuid(),
       type,
@@ -149,7 +159,7 @@ export default function Reviews() {
     setTimeout(() => setFlash(''), 2000)
   }
 
-  const { start, end } = periodFor(type)
+  const { start, end } = period
   const periodLabel = type === 'daily' ? start : `${start} → ${end}`
 
   return (
@@ -161,11 +171,18 @@ export default function Reviews() {
 
       <div className="tabs" role="tablist">
         {TYPES.map((rt) => (
-          <button key={rt} role="tab" aria-selected={rt === type} className={`tab ${rt === type ? 'on' : ''}`} onClick={() => setType(rt)}>
+          <button key={rt} role="tab" aria-selected={rt === type} className={`tab ${rt === type ? 'on' : ''}`} onClick={() => { setType(rt); setPastPeriod(null) }}>
             {t('rev.' + rt)}
           </button>
         ))}
       </div>
+
+      {pastPeriod && (
+        <div className="past-banner">
+          <span>{t('rev.viewingPast', { period: periodLabel })}</span>
+          <button className="btn" onClick={() => setPastPeriod(null)}>{t('rev.backToToday')}</button>
+        </div>
+      )}
 
       <div className="stack">
         <div className="card card-ai briefing">
@@ -223,11 +240,16 @@ export default function Reviews() {
             <div className="section-h">{t('rev.past')}</div>
             <div className="review-past">
               {past.map((r) => (
-                <div key={r.id} className="card rp">
+                <button
+                  key={r.id}
+                  type="button"
+                  className={`card rp ${pastPeriod?.start === r.periodStart && type === r.type ? 'on' : ''}`}
+                  onClick={() => openPast(r)}
+                >
                   <b>{t('rev.' + r.type)}</b> · {r.periodStart}
                   {r.mood ? ` · ${MOODS.find(([m]) => m === r.mood)?.[1]}` : ''}
                   {r.wins ? ` — ${r.wins.slice(0, 60)}${r.wins.length > 60 ? '…' : ''}` : ''}
-                </div>
+                </button>
               ))}
             </div>
           </div>

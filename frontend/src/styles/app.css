@@ -393,7 +393,17 @@ textarea.field { background: var(--glass); border: 1px solid var(--hairline); bo
 .dot.on { background: var(--ok); border-color: var(--ok); }
 .flash { color: var(--ok); font-weight: 700; font-size: 0.85rem; }
 .review-past { display: flex; flex-direction: column; gap: 0.5rem; }
-.review-past .rp { font-size: 0.8rem; color: var(--text-2); padding: 0.65rem 0.9rem; }
+.review-past .rp {
+  font-size: 0.8rem; color: var(--text-2); padding: 0.65rem 0.9rem;
+  text-align: left; width: 100%; cursor: pointer; transition: transform 140ms var(--ease), border-color 140ms var(--ease);
+}
+.review-past .rp:hover { transform: translateY(-1px); }
+.review-past .rp.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.past-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+  background: var(--accent-wash); border: 1px solid var(--hairline); border-radius: var(--radius-card);
+  padding: 0.55rem 0.8rem; margin-top: 0.7rem; font-size: 0.8rem; font-weight: 600; color: var(--text-2);
+}
 button.goal-card { text-align: left; cursor: pointer; font: inherit; color: inherit; width: 100%; }
 button.goal-card:hover { background: var(--glass-strong); }
 .btn-danger { color: var(--danger); border-color: var(--danger); }
