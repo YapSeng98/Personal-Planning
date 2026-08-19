@@ -95,6 +95,8 @@ const en: Dict = {
   'plan.weeksAgo': '{n} weeks ago', 'plan.inWeeks': 'In {n} weeks', 'plan.done': 'done',
   // board
   'board.title': 'Board', 'board.sub': 'One project at a time — drag a task to change its status.',
+  'board.allProjects': 'All projects',
+  'board.allProjectsSub': 'Every project combined, sorted by due date — drag a task to change its status.',
   'board.selectProject': 'Project', 'board.newProject': '+ New', 'board.editProject': '✎ Edit',
   'board.noProjects': 'No projects yet — create one to start a board.',
   'board.createFirst': '+ Create a project',
@@ -223,6 +225,8 @@ const zh: Dict = {
   'plan.thisWeek': '本周', 'plan.lastWeek': '上周', 'plan.nextWeek': '下周',
   'plan.weeksAgo': '{n} 周前', 'plan.inWeeks': '{n} 周后', 'plan.done': '完成',
   'board.title': '看板', 'board.sub': '一次专注一个项目 — 拖动任务即可更改状态。',
+  'board.allProjects': '所有项目',
+  'board.allProjectsSub': '汇总所有项目，按截止日期排序 — 拖动任务即可更改状态。',
   'board.selectProject': '项目', 'board.newProject': '+ 新建', 'board.editProject': '✎ 编辑',
   'board.noProjects': '还没有项目 — 创建一个以开始使用看板。',
   'board.createFirst': '+ 创建项目',

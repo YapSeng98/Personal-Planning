@@ -14,13 +14,24 @@ import { projectColorVar } from '../lib/projectColors'
 import { useLang } from '../lib/i18n'
 
 const STORE_KEY = 'planner_board_project'
+const ALL_PROJECTS = '__all__'
 const COLUMNS: { status: TaskState; labelKey: string }[] = [
   { status: 'open', labelKey: 'board.colTodo' },
   { status: 'in_progress', labelKey: 'board.colInProgress' },
   { status: 'done', labelKey: 'board.colDone' },
 ]
 
-function BoardCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
+// Cross-project view sorts by due date instead of the per-project sortOrder
+// field (which only has meaning within one project's own column) — earliest
+// due date first, undated tasks sink to the bottom.
+function byDue(a: Task, b: Task): number {
+  const ad = a.due || '9999-99-99'
+  const bd = b.due || '9999-99-99'
+  if (ad !== bd) return ad.localeCompare(bd)
+  return a.id.localeCompare(b.id)
+}
+
+function BoardCard({ task, proj, onEdit }: { task: Task; proj?: Project; onEdit: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   return (
     <button
@@ -31,11 +42,18 @@ function BoardCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
       {...listeners}
       {...attributes}
     >
+      {proj && <span className="b-acc" style={{ background: projectColorVar(proj.color) }} />}
       <div className="t">{task.title}</div>
-      {(task.due || Boolean(task.isMit)) && (
+      {(task.due || Boolean(task.isMit) || proj) && (
         <div className="meta">
           {Boolean(task.isMit) && <span>⭐</span>}
           {task.due && <span className="num">{task.due.slice(5)}</span>}
+          {proj && (
+            <span className="tchip" style={{ background: 'var(--accent-wash)', color: 'var(--text-2)' }}>
+              <span className="cd" style={{ background: projectColorVar(proj.color) }} />
+              {proj.title}
+            </span>
+          )}
         </div>
       )}
     </button>
@@ -43,17 +61,19 @@ function BoardCard({ task, onEdit }: { task: Task; onEdit: () => void }) {
 }
 
 function BoardColumn({
-  status, label, tasks, draft, onDraftChange, onAdd, onEdit, emptyLabel, addPh,
+  status, label, tasks, projectsById, draft, onDraftChange, onAdd, onEdit, emptyLabel, addPh, canAdd,
 }: {
   status: TaskState
   label: string
   tasks: Task[]
+  projectsById?: Record<string, Project>
   draft: string
   onDraftChange: (v: string) => void
   onAdd: () => void
   onEdit: (t: Task) => void
   emptyLabel: string
   addPh: string
+  canAdd: boolean
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
   return (
@@ -65,12 +85,12 @@ function BoardColumn({
       <div ref={setNodeRef} className={`board-drop ${isOver ? 'over' : ''}`}>
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <BoardCard key={task.id} task={task} onEdit={() => onEdit(task)} />
+            <BoardCard key={task.id} task={task} proj={task.projectId ? projectsById?.[task.projectId] : undefined} onEdit={() => onEdit(task)} />
           ))}
         </SortableContext>
         {tasks.length === 0 && <div className="board-empty-col">{emptyLabel}</div>}
       </div>
-      {status === 'open' && (
+      {status === 'open' && canAdd && (
         <input
           className="add-inline"
           type="text"
@@ -104,9 +124,9 @@ export default function Board() {
     const rows = await db.projects.filter((p) => !p.deleted && !p.archived).toArray()
     setProjects(rows)
     setSelected((cur) => {
-      if (cur && rows.some((p) => p.id === cur)) return cur
+      if (cur === ALL_PROJECTS || (cur && rows.some((p) => p.id === cur))) return cur
       const stored = localStorage.getItem(STORE_KEY)
-      if (stored && rows.some((p) => p.id === stored)) return stored
+      if (stored === ALL_PROJECTS || (stored && rows.some((p) => p.id === stored))) return stored!
       return rows[0]?.id ?? ''
     })
   }, [])
@@ -116,11 +136,9 @@ export default function Board() {
       setTasks([])
       return
     }
-    const rows = await db.tasks
-      .where('projectId')
-      .equals(projectId)
-      .and((x) => !x.deleted && x.state !== 'cancelled')
-      .toArray()
+    const rows = projectId === ALL_PROJECTS
+      ? await db.tasks.filter((x) => !x.deleted && x.state !== 'cancelled').toArray()
+      : await db.tasks.where('projectId').equals(projectId).and((x) => !x.deleted && x.state !== 'cancelled').toArray()
     setTasks(rows)
   }, [])
 
@@ -138,11 +156,14 @@ export default function Board() {
     return () => window.removeEventListener(CHANGED, reload)
   }, [selected, loadTasks])
 
-  const colTasks = (status: TaskState) => tasks.filter((x) => x.state === status).sort(byOrder)
+  const isAll = selected === ALL_PROJECTS
+  const projectsById = Object.fromEntries(projects.map((p) => [p.id, p]))
+  const colTasks = (status: TaskState) =>
+    tasks.filter((x) => x.state === status).sort(isAll ? byDue : byOrder)
 
   async function addTask() {
     const title = draft.trim()
-    if (!title || !selected) return
+    if (!title || !selected || isAll) return
     const openCount = tasks.filter((x) => x.state === 'open').length
     await writeAndQueue(db.tasks, 'task', {
       id: uuid(),
@@ -169,6 +190,19 @@ export default function Board() {
     const isStatusId = COLUMNS.some((c) => c.status === overId)
     const overTask = tasks.find((x) => x.id === overId)
     const targetState: TaskState = isStatusId ? (overId as TaskState) : overTask?.state ?? moved.state
+
+    // All-projects view is sorted by due date, not the per-project sortOrder
+    // field — dragging here can only change status (which column a task is
+    // in), never persisted position. Rewriting sortOrder across tasks that
+    // belong to different projects would scramble each project's own board
+    // the next time it's opened individually.
+    if (isAll) {
+      if (moved.state === targetState) return
+      await writeAndQueue(db.tasks, 'task', { ...moved, state: targetState, updatedAt: Date.now() })
+      if (moved.goalId) await rollUpGoal(moved.goalId)
+      syncNow()
+      return
+    }
 
     // rebuild the target column's order with the moved task inserted at the drop point
     const colIds = tasks.filter((x) => x.state === targetState && x.id !== activeId).sort(byOrder).map((x) => x.id)
@@ -201,7 +235,7 @@ export default function Board() {
       <div className="greet page-head">
         <div>
           <h1>{t('board.title')}</h1>
-          <div className="sub">{t('board.sub')}</div>
+          <div className="sub">{isAll ? t('board.allProjectsSub') : t('board.sub')}</div>
         </div>
       </div>
 
@@ -219,12 +253,17 @@ export default function Board() {
               ariaLabel={t('board.selectProject')}
               value={selected}
               onChange={setSelected}
-              options={projects.map((p) => ({ value: p.id, label: p.title }))}
+              options={[
+                { value: ALL_PROJECTS, label: t('board.allProjects') },
+                ...projects.map((p) => ({ value: p.id, label: p.title })),
+              ]}
             />
             {project && <span className="project-dot" style={{ background: projectColorVar(project.color) }} />}
-            <button className="btn" onClick={() => project && setProjectSheet(project)}>
-              {t('board.editProject')}
-            </button>
+            {project && (
+              <button className="btn" onClick={() => setProjectSheet(project)}>
+                {t('board.editProject')}
+              </button>
+            )}
             <button className="btn" onClick={() => setProjectSheet('new')}>
               {t('board.newProject')}
             </button>
@@ -238,12 +277,14 @@ export default function Board() {
                   status={col.status}
                   label={t(col.labelKey)}
                   tasks={colTasks(col.status)}
+                  projectsById={isAll ? projectsById : undefined}
                   draft={draft}
                   onDraftChange={setDraft}
                   onAdd={addTask}
                   onEdit={setEditingTask}
                   emptyLabel={t('board.emptyColumn')}
                   addPh={t('plan.addTask')}
+                  canAdd={!isAll}
                 />
               ))}
             </div>
