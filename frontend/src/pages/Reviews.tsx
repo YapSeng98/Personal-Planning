@@ -13,35 +13,37 @@ const MOODS: [Review['mood'], string][] = [
   ['bad', '☹️'],
 ]
 
-function periodFor(type: RType): { start: string; end: string } {
-  const now = new Date()
+// `anchor` defaults to today but can be any date — lets a period be resolved
+// for an arbitrary day, e.g. picked from the date field or a past review.
+function periodFor(type: RType, anchor: Date = new Date()): { start: string; end: string } {
   if (type === 'daily') {
-    const d = todayStr()
+    const d = todayStr(anchor)
     return { start: d, end: d }
   }
   if (type === 'weekly') {
-    const mon = new Date(now)
-    mon.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+    const mon = new Date(anchor)
+    mon.setDate(anchor.getDate() - ((anchor.getDay() + 6) % 7))
     const sun = new Date(mon)
     sun.setDate(mon.getDate() + 6)
     return { start: todayStr(mon), end: todayStr(sun) }
   }
   if (type === 'monthly') {
     return {
-      start: todayStr(new Date(now.getFullYear(), now.getMonth(), 1)),
-      end: todayStr(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+      start: todayStr(new Date(anchor.getFullYear(), anchor.getMonth(), 1)),
+      end: todayStr(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0)),
     }
   }
-  return { start: `${now.getFullYear()}-01-01`, end: `${now.getFullYear()}-12-31` }
+  return { start: `${anchor.getFullYear()}-01-01`, end: `${anchor.getFullYear()}-12-31` }
 }
 
 const blank = { wins: '', failures: '', lesson: '', next: '', mood: undefined as Review['mood'], energy: 0 }
 
 export default function Reviews() {
   const [type, setType] = useState<RType>('daily')
-  // Set when a card in "Past reviews" is clicked — overrides which period is
-  // being edited so old entries are actually reachable, not just today's.
-  const [pastPeriod, setPastPeriod] = useState<{ start: string; end: string } | null>(null)
+  // Set when a specific date is picked (via the date field or a "Past
+  // reviews" card) — overrides which period is being edited, away from
+  // "today", so old entries are reachable and missed days can be backfilled.
+  const [anchorDate, setAnchorDate] = useState<string | null>(null)
   const [form, setForm] = useState({ ...blank })
   const [existingId, setExistingId] = useState<string | null>(null)
   const [stats, setStats] = useState('')
@@ -51,7 +53,10 @@ export default function Reviews() {
   const [draftErr, setDraftErr] = useState('')
   const { t, lang } = useLang()
 
-  const period = useMemo(() => pastPeriod ?? periodFor(type), [pastPeriod, type])
+  const period = useMemo(
+    () => periodFor(type, anchorDate ? new Date(anchorDate + 'T00:00') : new Date()),
+    [type, anchorDate],
+  )
 
   const load = useCallback(async () => {
     const { start, end } = period
@@ -100,7 +105,18 @@ export default function Reviews() {
 
   function openPast(r: Review) {
     setType(r.type)
-    setPastPeriod({ start: r.periodStart, end: r.periodEnd })
+    setAnchorDate(r.periodStart)
+  }
+
+  async function remove() {
+    if (!existingId) return
+    const r = await db.reviews.get(existingId)
+    if (!r) return
+    if (!window.confirm(t('rev.deleteConfirm', { period: periodLabel }))) return
+    const tombstone: Review = { ...r, deleted: 1, updatedAt: Date.now() }
+    await writeAndQueue(db.reviews, 'review', tombstone)
+    setAnchorDate(null)
+    syncNow()
   }
 
   async function draftWithAI() {
@@ -171,18 +187,31 @@ export default function Reviews() {
 
       <div className="tabs" role="tablist">
         {TYPES.map((rt) => (
-          <button key={rt} role="tab" aria-selected={rt === type} className={`tab ${rt === type ? 'on' : ''}`} onClick={() => { setType(rt); setPastPeriod(null) }}>
+          <button key={rt} role="tab" aria-selected={rt === type} className={`tab ${rt === type ? 'on' : ''}`} onClick={() => { setType(rt); setAnchorDate(null) }}>
             {t('rev.' + rt)}
           </button>
         ))}
       </div>
 
-      {pastPeriod && (
-        <div className="past-banner">
-          <span>{t('rev.viewingPast', { period: periodLabel })}</span>
-          <button className="btn" onClick={() => setPastPeriod(null)}>{t('rev.backToToday')}</button>
-        </div>
-      )}
+      <div className={`past-banner ${anchorDate ? 'active' : ''}`}>
+        <span className="rev-date-lbl">
+          {t('rev.date')}
+          <input
+            type="date"
+            className="rev-date-input"
+            value={period.start}
+            max={todayStr()}
+            onChange={(e) => e.target.value && setAnchorDate(e.target.value)}
+            aria-label={t('rev.date')}
+          />
+        </span>
+        {anchorDate && (
+          <>
+            <span className="rev-editing-tag">{t('rev.viewingPast', { period: periodLabel })}</span>
+            <button className="btn" onClick={() => setAnchorDate(null)}>{t('rev.backToToday')}</button>
+          </>
+        )}
+      </div>
 
       <div className="stack">
         <div className="card card-ai briefing">
@@ -232,6 +261,7 @@ export default function Reviews() {
 
         <div className="row" style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
           <button className="btn btn-primary" onClick={save}>{existingId ? t('rev.update') : t('rev.save')}</button>
+          {existingId && <button className="btn btn-danger" onClick={remove}>{t('common.delete')}</button>}
           {flash && <span className="flash" role="status">{flash}</span>}
         </div>
 
@@ -243,7 +273,7 @@ export default function Reviews() {
                 <button
                   key={r.id}
                   type="button"
-                  className={`card rp ${pastPeriod?.start === r.periodStart && type === r.type ? 'on' : ''}`}
+                  className={`card rp ${anchorDate === r.periodStart && type === r.type ? 'on' : ''}`}
                   onClick={() => openPast(r)}
                 >
                   <b>{t('rev.' + r.type)}</b> · {r.periodStart}

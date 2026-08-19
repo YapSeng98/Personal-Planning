@@ -400,10 +400,19 @@ textarea.field { background: var(--glass); border: 1px solid var(--hairline); bo
 .review-past .rp:hover { transform: translateY(-1px); }
 .review-past .rp.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .past-banner {
-  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
-  background: var(--accent-wash); border: 1px solid var(--hairline); border-radius: var(--radius-card);
+  display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+  background: var(--glass); border: 1px solid var(--hairline); border-radius: var(--radius-card);
   padding: 0.55rem 0.8rem; margin-top: 0.7rem; font-size: 0.8rem; font-weight: 600; color: var(--text-2);
 }
+.past-banner.active { background: var(--accent-wash); }
+.rev-date-lbl { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--text-3); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.rev-date-input {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: 10px;
+  padding: 0.3rem 0.5rem; font: inherit; color: var(--text-1); font-weight: 600; font-size: 0.8rem;
+  color-scheme: light dark;
+}
+.rev-editing-tag { color: var(--accent-bright); font-weight: 700; }
+.past-banner .btn { margin-left: auto; }
 button.goal-card { text-align: left; cursor: pointer; font: inherit; color: inherit; width: 100%; }
 button.goal-card:hover { background: var(--glass-strong); }
 .btn-danger { color: var(--danger); border-color: var(--danger); }
