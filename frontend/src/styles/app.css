@@ -656,6 +656,14 @@ button.goal-card:hover { transform: translateY(-2px); }
 .sketch-colors { display: flex; gap: 0.45rem; }
 .sketch-swatch { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--hairline); cursor: pointer; padding: 0; }
 .sketch-swatch.on { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--accent-bright); }
+.sketch-sizes { display: flex; gap: 0.4rem; align-items: center; }
+.sketch-size-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--hairline); background: var(--glass);
+  cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
+}
+.sketch-size-btn:hover { background: var(--glass-strong); }
+.sketch-size-btn.on { background: var(--accent-wash); border-color: var(--accent-bright); }
+.sketch-size-dot { border-radius: 50%; background: var(--text-1); }
 .sketch-tools { display: flex; gap: 0.5rem; align-items: center; }
 .sketch-tool-btn {
   border: 1px solid var(--hairline); background: var(--glass); border-radius: 10px; padding: 0.4rem 0.7rem;

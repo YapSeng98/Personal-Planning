@@ -5,9 +5,13 @@ import { useLang } from '../lib/i18n'
 
 const CANVAS_W = 900
 const CANVAS_H = 1200
-const PEN_WIDTH = 6
-const ERASER_WIDTH = 32
 const COLORS = ['#1B1B1F', '#D6472E', '#C07508', '#059669', '#2563EB']
+const SIZES = [
+  { key: 'sm', pen: 3, eraser: 18, dot: 8 },
+  { key: 'md', pen: 6, eraser: 32, dot: 13 },
+  { key: 'lg', pen: 12, eraser: 48, dot: 18 },
+] as const
+type SizeKey = (typeof SIZES)[number]['key']
 const HISTORY_CAP = 20
 // Once a real stylus (Apple Pencil, S-Pen, Surface Pen, ...) has touched the
 // canvas, the device clearly has one — remember that forever so a resting
@@ -25,6 +29,7 @@ export default function SketchDetail() {
   const [title, setTitle] = useState('')
   const [color, setColor] = useState(COLORS[0])
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen')
+  const [sizeKey, setSizeKey] = useState<SizeKey>('md')
   const [canUndo, setCanUndo] = useState(false)
   const [penMode, setPenMode] = useState(() => localStorage.getItem(HAS_PEN_KEY) === '1')
   const { t } = useLang()
@@ -95,8 +100,9 @@ export default function SketchDetail() {
     const canvas = canvasRef.current!
     const ctx = canvas.getContext('2d')!
     const p = getPos(e)
+    const size = SIZES.find((s) => s.key === sizeKey)!
     ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color
-    ctx.lineWidth = tool === 'eraser' ? ERASER_WIDTH : PEN_WIDTH
+    ctx.lineWidth = tool === 'eraser' ? size.eraser : size.pen
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.beginPath()
@@ -190,6 +196,19 @@ export default function SketchDetail() {
               onClick={() => { setTool('pen'); setColor(c) }}
               aria-label={`${t('sketch.color')}: ${c}`}
             />
+          ))}
+        </div>
+        <div className="sketch-sizes">
+          {SIZES.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              className={`sketch-size-btn ${sizeKey === s.key ? 'on' : ''}`}
+              onClick={() => setSizeKey(s.key)}
+              aria-label={`${t('sketch.size')}: ${s.key}`}
+            >
+              <span className="sketch-size-dot" style={{ width: s.dot, height: s.dot }} />
+            </button>
           ))}
         </div>
         <div className="sketch-tools">

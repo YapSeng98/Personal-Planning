@@ -81,7 +81,7 @@ const en: Dict = {
   'sketch.untitled': 'Untitled sketch',
   'sketch.deleteConfirm': 'Delete "{title}"? This can\'t be undone.',
   'sketch.clear': 'Clear', 'sketch.clearConfirm': 'Clear this drawing? This can\'t be undone.',
-  'sketch.undo': 'Undo', 'sketch.eraser': 'Eraser', 'sketch.color': 'Color',
+  'sketch.undo': 'Undo', 'sketch.eraser': 'Eraser', 'sketch.color': 'Color', 'sketch.size': 'Size',
   // common
   'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.today': 'today',
   // goals
@@ -226,7 +226,7 @@ const zh: Dict = {
   'sketch.untitled': '未命名手绘',
   'sketch.deleteConfirm': '删除"{title}"？此操作无法撤销。',
   'sketch.clear': '清空', 'sketch.clearConfirm': '清空这幅画？此操作无法撤销。',
-  'sketch.undo': '撤销', 'sketch.eraser': '橡皮擦', 'sketch.color': '颜色',
+  'sketch.undo': '撤销', 'sketch.eraser': '橡皮擦', 'sketch.color': '颜色', 'sketch.size': '粗细',
   'common.cancel': '取消', 'common.delete': '删除', 'common.today': '今天',
   'goals.title': '目标', 'goals.sub': '愿景 → 年 → 季 → 月 → 周 — 进度自动汇总。点击目标可编辑。',
   'goals.add': '+ 目标', 'goals.empty': '还没有目标 — 添加一个年度目标作为基石。',
