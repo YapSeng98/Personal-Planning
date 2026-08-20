@@ -73,7 +73,8 @@ export default function SketchDetail() {
       localStorage.setItem(HAS_PEN_KEY, '1')
     }
     // Once a real pen has been seen, treat touch as a resting palm, not
-    // drawing input — let the browser handle it normally (e.g. scroll).
+    // drawing input — just ignore it (touch-action:none on the canvas
+    // already blocks it from panning the page too).
     if (e.pointerType === 'touch' && penMode) return
     // A stroke already in progress from another contact (e.g. a palm
     // landing mid-draw) shouldn't hijack it.
@@ -204,7 +205,6 @@ export default function SketchDetail() {
           width={CANVAS_W}
           height={CANVAS_H}
           className="sketch-canvas"
-          style={{ touchAction: penMode ? 'auto' : 'none' }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

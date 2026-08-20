@@ -668,7 +668,7 @@ button.goal-card:hover { transform: translateY(-2px); }
 .sketch-canvas-wrap { display: flex; justify-content: center; }
 .sketch-canvas {
   width: 100%; max-width: 820px; height: auto; display: block; background: #fff;
-  border-radius: 16px; border: 1px solid var(--hairline);
+  border-radius: 16px; border: 1px solid var(--hairline); touch-action: none;
   box-shadow: 0 10px 30px rgba(0,0,0,0.12);
 }
 
