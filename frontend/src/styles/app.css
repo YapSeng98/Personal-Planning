@@ -603,10 +603,29 @@ button.goal-card:hover { transform: translateY(-2px); }
 .hm-cell.hit, .hm-cell.logged { background: var(--ok); }
 .hm-cell.future { background: transparent; }
 .hm-cell.today { box-shadow: 0 0 0 1.5px var(--accent-bright); }
-.hm-cell-btn { border: none; padding: 0; margin: 0; appearance: none; cursor: pointer; }
+.hm-cell-btn { border: none; padding: 0; margin: 0; appearance: none; cursor: pointer; position: relative; }
+.hm-cell-btn::before { content: ''; position: absolute; inset: -1.5px; } /* bigger tap target without touching the visual grid */
 .hm-cell-btn:hover:not(:disabled) { box-shadow: 0 0 0 1.5px var(--text-3); }
 .hm-cell-btn.today:hover:not(:disabled) { box-shadow: 0 0 0 1.5px var(--accent-bright); }
 .hm-cell-btn:disabled { cursor: default; }
+
+.hm-popover {
+  position: fixed; z-index: 60; width: 210px; padding: 0.9rem;
+  display: flex; flex-direction: column; gap: 0.7rem; align-items: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+.hm-popover-date { font-size: 0.78rem; font-weight: 700; color: var(--text-2); }
+.hm-popover-stepper { display: flex; align-items: center; gap: 0.9rem; }
+.hm-step-btn {
+  width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--hairline);
+  background: var(--glass); font-size: 1.1rem; font-weight: 700; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.hm-step-btn:hover:not(:disabled) { background: var(--glass-strong); }
+.hm-step-btn:disabled { opacity: 0.4; cursor: default; }
+.hm-popover-count { font-size: 1.1rem; min-width: 3.4ch; text-align: center; }
+.hm-popover-actions { display: flex; gap: 0.5rem; width: 100%; }
+.hm-popover-actions .btn { flex: 1; padding: 0.5rem 0.6rem; font-size: 0.82rem; }
 .hm-legend { display: flex; align-items: center; gap: 4px; margin: 0.7rem 0 0 26px; font-size: 0.66rem; color: var(--text-3); flex-wrap: wrap; }
 .hm-legend .hm-cell { display: inline-block; }
 .hm-legend-today { display: inline-flex; align-items: center; gap: 4px; margin-left: 0.8rem; }

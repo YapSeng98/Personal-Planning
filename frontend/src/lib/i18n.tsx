@@ -73,6 +73,7 @@ const en: Dict = {
   'habit.aiInsight': 'AI Insight', 'habit.byWeekday': 'By day of week', 'habit.calendar': 'Calendar',
   'habit.calendarHint': 'Each square is one day, aligned to the calendar week — darker green means you hit your target more that day.',
   'habit.less': 'Less', 'habit.more': 'More', 'habit.todayLbl': 'Today',
+  'habit.logSave': 'Save', 'habit.logMinus': 'Decrease', 'habit.logPlus': 'Increase',
   // common
   'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.today': 'today',
   // goals
@@ -209,6 +210,7 @@ const zh: Dict = {
   'habit.aiInsight': 'AI 洞察', 'habit.byWeekday': '按星期分布', 'habit.calendar': '打卡日历',
   'habit.calendarHint': '每个方块代表一天，按日历周对齐 — 绿色越深，代表当天完成度越高。',
   'habit.less': '较少', 'habit.more': '较多', 'habit.todayLbl': '今天',
+  'habit.logSave': '保存', 'habit.logMinus': '减少', 'habit.logPlus': '增加',
   'common.cancel': '取消', 'common.delete': '删除', 'common.today': '今天',
   'goals.title': '目标', 'goals.sub': '愿景 → 年 → 季 → 月 → 周 — 进度自动汇总。点击目标可编辑。',
   'goals.add': '+ 目标', 'goals.empty': '还没有目标 — 添加一个年度目标作为基石。',

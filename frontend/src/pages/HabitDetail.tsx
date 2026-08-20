@@ -28,6 +28,8 @@ export default function HabitDetail() {
   const [insight, setInsight] = useState<string | null>(null)
   const [insightState, setInsightState] = useState<'idle' | 'loading' | 'err'>('idle')
   const insightAuto = useRef(false)
+  const [popover, setPopover] = useState<{ date: string; count: number; top: number; left: number } | null>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
   const { t, lang } = useLang()
 
   const load = useCallback(async () => {
@@ -45,16 +47,55 @@ export default function HabitDetail() {
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
-  async function tickDay(d: HabitDay) {
-    if (!habit || d.future) return
-    const existing = await db.habitLogs.where('[habitId+date]').equals([habit.id, d.date]).first()
+  function openPopover(d: HabitDay, e: React.MouseEvent<HTMLButtonElement>) {
+    if (d.future) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const width = 210
+    const height = 150
+    let left = rect.left + rect.width / 2 - width / 2
+    left = Math.min(Math.max(left, 8), window.innerWidth - width - 8)
+    let top = rect.bottom + 8
+    if (top + height > window.innerHeight - 8) top = rect.top - height - 8
+    setPopover({ date: d.date, count: d.count, top, left })
+  }
+
+  function adjustPopover(delta: number) {
+    setPopover((p) => (p ? { ...p, count: Math.max(0, p.count + delta) } : p))
+  }
+
+  async function confirmPopover() {
+    if (!habit || !popover) return
+    const { date, count } = popover
+    const existing = await db.habitLogs.where('[habitId+date]').equals([habit.id, date]).first()
     const next = existing
-      ? { ...existing, count: existing.count >= habit.targetPerDay ? 0 : existing.count + 1, updatedAt: Date.now() }
-      : { id: uuid(), habitId: habit.id, date: d.date, count: 1, deleted: 0 as const, updatedAt: Date.now() }
+      ? { ...existing, count, updatedAt: Date.now() }
+      : { id: uuid(), habitId: habit.id, date, count, deleted: 0 as const, updatedAt: Date.now() }
     await writeAndQueue(db.habitLogs, 'habit_log', next)
+    setPopover(null)
     await load()
     syncNow()
   }
+
+  useEffect(() => {
+    if (!popover) return
+    function onDown(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) setPopover(null)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPopover(null)
+    }
+    function onScroll() {
+      setPopover(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onScroll, true)
+    }
+  }, [popover])
 
   const generateInsight = useCallback(async (force = false) => {
     if (!id || !habit || !stats || !aiEnabled()) return
@@ -216,8 +257,8 @@ export default function HabitDetail() {
                             style={d.count > 0 ? { opacity: 0.35 + intensity * 0.65 } : undefined}
                             title={d.future ? '' : `${d.date}: ${d.count}/${habit.targetPerDay}`}
                             disabled={d.future}
-                            onClick={() => tickDay(d)}
-                            aria-label={d.future ? d.date : `${d.date}: ${d.count} of ${habit.targetPerDay}. Tap to log.`}
+                            onClick={(e) => openPopover(d, e)}
+                            aria-label={d.future ? d.date : `${d.date}: ${d.count} of ${habit.targetPerDay}. Tap to edit.`}
                           />
                         )
                       })}
@@ -240,6 +281,23 @@ export default function HabitDetail() {
       )}
 
       {editing && <HabitEdit habit={habit} onClose={() => setEditing(false)} />}
+
+      {popover && (
+        <div className="card hm-popover" ref={popoverRef} style={{ top: popover.top, left: popover.left }}>
+          <div className="hm-popover-date">
+            {new Date(popover.date + 'T00:00').toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+          </div>
+          <div className="hm-popover-stepper">
+            <button type="button" className="hm-step-btn" onClick={() => adjustPopover(-1)} disabled={popover.count <= 0} aria-label={t('habit.logMinus')}>−</button>
+            <span className="hm-popover-count num">{popover.count}<span className="stat-u">/{habit.targetPerDay}</span></span>
+            <button type="button" className="hm-step-btn" onClick={() => adjustPopover(1)} aria-label={t('habit.logPlus')}>+</button>
+          </div>
+          <div className="hm-popover-actions">
+            <button type="button" className="btn" onClick={() => setPopover(null)}>{t('common.cancel')}</button>
+            <button type="button" className="btn btn-primary" onClick={confirmPopover}>{t('habit.logSave')}</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
