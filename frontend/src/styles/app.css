@@ -603,6 +603,10 @@ button.goal-card:hover { transform: translateY(-2px); }
 .hm-cell.hit, .hm-cell.logged { background: var(--ok); }
 .hm-cell.future { background: transparent; }
 .hm-cell.today { box-shadow: 0 0 0 1.5px var(--accent-bright); }
+.hm-cell-btn { border: none; padding: 0; margin: 0; appearance: none; cursor: pointer; }
+.hm-cell-btn:hover:not(:disabled) { box-shadow: 0 0 0 1.5px var(--text-3); }
+.hm-cell-btn.today:hover:not(:disabled) { box-shadow: 0 0 0 1.5px var(--accent-bright); }
+.hm-cell-btn:disabled { cursor: default; }
 .hm-legend { display: flex; align-items: center; gap: 4px; margin: 0.7rem 0 0 26px; font-size: 0.66rem; color: var(--text-3); flex-wrap: wrap; }
 .hm-legend .hm-cell { display: inline-block; }
 .hm-legend-today { display: inline-flex; align-items: center; gap: 4px; margin-left: 0.8rem; }

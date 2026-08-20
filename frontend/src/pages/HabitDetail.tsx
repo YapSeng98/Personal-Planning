@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { db, todayStr, cleanEmoji, habitStats, CHANGED, type Habit, type HabitStats, type HabitDay } from '../db/db'
+import { db, todayStr, uuid, writeAndQueue, cleanEmoji, habitStats, CHANGED, type Habit, type HabitStats, type HabitDay } from '../db/db'
+import { syncNow } from '../sync/engine'
 import { aiEnabled, askAI } from '../lib/ai'
 import HabitEdit from '../components/HabitEdit'
 import { useLang } from '../lib/i18n'
@@ -43,6 +44,17 @@ export default function HabitDetail() {
     window.addEventListener(CHANGED, load)
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
+
+  async function tickDay(d: HabitDay) {
+    if (!habit || d.future) return
+    const existing = await db.habitLogs.where('[habitId+date]').equals([habit.id, d.date]).first()
+    const next = existing
+      ? { ...existing, count: existing.count >= habit.targetPerDay ? 0 : existing.count + 1, updatedAt: Date.now() }
+      : { id: uuid(), habitId: habit.id, date: d.date, count: 1, deleted: 0 as const, updatedAt: Date.now() }
+    await writeAndQueue(db.habitLogs, 'habit_log', next)
+    await load()
+    syncNow()
+  }
 
   const generateInsight = useCallback(async (force = false) => {
     if (!id || !habit || !stats || !aiEnabled()) return
@@ -197,11 +209,15 @@ export default function HabitDetail() {
                       {w.days.map((d) => {
                         const intensity = habit.targetPerDay > 0 ? Math.min(1, d.count / habit.targetPerDay) : d.hit ? 1 : 0
                         return (
-                          <div
+                          <button
                             key={d.date}
-                            className={`hm-cell ${d.hit ? 'hit' : ''} ${d.count > 0 ? 'logged' : ''} ${d.future ? 'future' : ''} ${d.isToday ? 'today' : ''}`}
+                            type="button"
+                            className={`hm-cell hm-cell-btn ${d.hit ? 'hit' : ''} ${d.count > 0 ? 'logged' : ''} ${d.future ? 'future' : ''} ${d.isToday ? 'today' : ''}`}
                             style={d.count > 0 ? { opacity: 0.35 + intensity * 0.65 } : undefined}
                             title={d.future ? '' : `${d.date}: ${d.count}/${habit.targetPerDay}`}
+                            disabled={d.future}
+                            onClick={() => tickDay(d)}
+                            aria-label={d.future ? d.date : `${d.date}: ${d.count} of ${habit.targetPerDay}. Tap to log.`}
                           />
                         )
                       })}
