@@ -21,6 +21,7 @@ type Dict = Record<string, string>
 const en: Dict = {
   // nav / shell
   'nav.today': 'Today', 'nav.plan': 'Plan', 'nav.board': 'Board', 'nav.goals': 'Goals', 'nav.reviews': 'Review',
+  'nav.sketches': 'Sketches',
   'nav.stats': 'Stats', 'nav.settings': 'Settings', 'brand': 'Planner',
   'sync.idle': 'Synced', 'sync.syncing': 'Syncing…', 'sync.offline': 'Offline — changes queued',
   'sync.local': 'Local only', 'sync.error': 'Sync error — retrying',
@@ -74,6 +75,13 @@ const en: Dict = {
   'habit.calendarHint': 'Each square is one day, aligned to the calendar week — darker green means you hit your target more that day.',
   'habit.less': 'Less', 'habit.more': 'More', 'habit.todayLbl': 'Today',
   'habit.logSave': 'Save', 'habit.logMinus': 'Decrease', 'habit.logPlus': 'Increase',
+  // sketches
+  'sketch.title': 'Sketches', 'sketch.sub': 'Quick doodles and hand-drawn notes.',
+  'sketch.new': '+ New sketch', 'sketch.empty': 'No sketches yet — tap + to start drawing.',
+  'sketch.untitled': 'Untitled sketch',
+  'sketch.deleteConfirm': 'Delete "{title}"? This can\'t be undone.',
+  'sketch.clear': 'Clear', 'sketch.clearConfirm': 'Clear this drawing? This can\'t be undone.',
+  'sketch.undo': 'Undo', 'sketch.eraser': 'Eraser', 'sketch.color': 'Color',
   // common
   'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.today': 'today',
   // goals
@@ -163,6 +171,7 @@ const en: Dict = {
 
 const zh: Dict = {
   'nav.today': '今天', 'nav.plan': '规划', 'nav.board': '看板', 'nav.goals': '目标', 'nav.reviews': '回顾',
+  'nav.sketches': '手绘',
   'nav.stats': '统计', 'nav.settings': '设置', 'brand': '规划器',
   'sync.idle': '已同步', 'sync.syncing': '同步中…', 'sync.offline': '离线 — 更改已排队',
   'sync.local': '仅本地', 'sync.error': '同步错误 — 重试中',
@@ -211,6 +220,13 @@ const zh: Dict = {
   'habit.calendarHint': '每个方块代表一天，按日历周对齐 — 绿色越深，代表当天完成度越高。',
   'habit.less': '较少', 'habit.more': '较多', 'habit.todayLbl': '今天',
   'habit.logSave': '保存', 'habit.logMinus': '减少', 'habit.logPlus': '增加',
+  // sketches
+  'sketch.title': '手绘', 'sketch.sub': '随手涂鸦和手绘笔记。',
+  'sketch.new': '+ 新建手绘', 'sketch.empty': '还没有手绘 — 点击 + 开始画吧。',
+  'sketch.untitled': '未命名手绘',
+  'sketch.deleteConfirm': '删除"{title}"？此操作无法撤销。',
+  'sketch.clear': '清空', 'sketch.clearConfirm': '清空这幅画？此操作无法撤销。',
+  'sketch.undo': '撤销', 'sketch.eraser': '橡皮擦', 'sketch.color': '颜色',
   'common.cancel': '取消', 'common.delete': '删除', 'common.today': '今天',
   'goals.title': '目标', 'goals.sub': '愿景 → 年 → 季 → 月 → 周 — 进度自动汇总。点击目标可编辑。',
   'goals.add': '+ 目标', 'goals.empty': '还没有目标 — 添加一个年度目标作为基石。',

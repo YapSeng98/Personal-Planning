@@ -8,6 +8,8 @@ import Board from './pages/Board'
 import Goals from './pages/Goals'
 import HabitDetail from './pages/HabitDetail'
 import Reviews from './pages/Reviews'
+import Sketches from './pages/Sketches'
+import SketchDetail from './pages/SketchDetail'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import { isAuthed } from './sync/api'
@@ -46,6 +48,8 @@ export default function App() {
           <Route path="/goals" element={<Goals />} />
           <Route path="/habits/:id" element={<HabitDetail />} />
           <Route path="/reviews" element={<Reviews />} />
+          <Route path="/sketches" element={<Sketches />} />
+          <Route path="/sketches/:id" element={<SketchDetail />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

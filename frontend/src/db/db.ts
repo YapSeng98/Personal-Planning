@@ -108,6 +108,16 @@ export interface Review {
   updatedAt: number
 }
 
+/** Hand-drawn sketch note. Local-only — never synced (the push/pull pipeline
+    sends whole-record payloads with no chunking, and ServiceNow string
+    fields cap out around 4000 chars; a canvas PNG dataUrl runs far larger). */
+export interface DrawingNote {
+  id: string
+  title: string
+  dataUrl: string
+  updatedAt: number
+}
+
 export interface OutboxEntry {
   seq?: number
   table: 'task' | 'habit' | 'habit_log' | 'goal' | 'review' | 'project'
@@ -127,6 +137,7 @@ class PlannerDB extends Dexie {
   goals!: Table<Goal, string>
   reviews!: Table<Review, string>
   projects!: Table<Project, string>
+  drawings!: Table<DrawingNote, string>
   outbox!: Table<OutboxEntry, number>
   meta!: Table<Meta, string>
 
@@ -147,6 +158,11 @@ class PlannerDB extends Dexie {
     this.version(2).stores({
       tasks: 'id, due, state, projectId, goalId, updatedAt',
       projects: 'id, archived, updatedAt',
+    })
+    // v3: adds DrawingNote (Sketches feature). Local-only — deliberately not
+    // in the outbox table set, so it never enters the sync pipeline.
+    this.version(3).stores({
+      drawings: 'id, updatedAt',
     })
   }
 }

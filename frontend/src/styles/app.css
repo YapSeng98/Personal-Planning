@@ -630,6 +630,48 @@ button.goal-card:hover { transform: translateY(-2px); }
 .hm-legend .hm-cell { display: inline-block; }
 .hm-legend-today { display: inline-flex; align-items: center; gap: 4px; margin-left: 0.8rem; }
 
+/* ---- Sketches ---- */
+.sketch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; margin-top: 0.6rem; }
+.sketch-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.sketch-thumb {
+  aspect-ratio: 3 / 4; background: #fff; overflow: hidden; border: none; border-bottom: 1px solid var(--hairline);
+  padding: 0; cursor: pointer; display: block; width: 100%;
+}
+.sketch-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sketch-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.55rem 0.7rem; }
+.sketch-name {
+  font-size: 0.82rem; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; background: none; border: none; padding: 0; text-align: left; cursor: pointer; min-width: 0;
+}
+.sketch-del { background: none; border: none; cursor: pointer; opacity: 0.5; font-size: 0.9rem; padding: 2px; flex-shrink: 0; }
+.sketch-del:hover { opacity: 1; }
+
+.sketch-title-input {
+  border: none; background: none; font-size: 1.3rem; font-weight: 800; color: var(--text-1);
+  padding: 0; margin: 0; min-width: 0; flex: 1; font-family: inherit;
+}
+.sketch-title-input:focus { outline: none; }
+
+.sketch-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.sketch-colors { display: flex; gap: 0.45rem; }
+.sketch-swatch { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--hairline); cursor: pointer; padding: 0; }
+.sketch-swatch.on { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--accent-bright); }
+.sketch-tools { display: flex; gap: 0.5rem; align-items: center; }
+.sketch-tool-btn {
+  border: 1px solid var(--hairline); background: var(--glass); border-radius: 10px; padding: 0.4rem 0.7rem;
+  cursor: pointer; font-size: 0.95rem; line-height: 1; font-weight: 600;
+}
+.sketch-tool-btn:hover:not(:disabled) { background: var(--glass-strong); }
+.sketch-tool-btn.on { background: var(--accent-wash); color: var(--accent-bright); border-color: var(--accent-bright); }
+.sketch-tool-btn:disabled { opacity: 0.4; cursor: default; }
+
+.sketch-canvas-wrap { display: flex; justify-content: center; }
+.sketch-canvas {
+  width: 100%; max-width: 480px; height: auto; display: block; background: #fff;
+  border-radius: 16px; border: 1px solid var(--hairline); touch-action: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
+
 /* ---- Background picker (Settings) ---- */
 .bg-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
 @media (min-width: 460px) { .bg-row { grid-template-columns: repeat(6, 1fr); } }

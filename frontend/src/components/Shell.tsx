@@ -10,6 +10,7 @@ const links = [
   { to: '/board', key: 'nav.board', ico: '🗂️' },
   { to: '/goals', key: 'nav.goals', ico: '🎯' },
   { to: '/reviews', key: 'nav.reviews', ico: '✍️' },
+  { to: '/sketches', key: 'nav.sketches', ico: '🎨' },
   { to: '/analytics', key: 'nav.stats', ico: '📊' },
 ]
 
