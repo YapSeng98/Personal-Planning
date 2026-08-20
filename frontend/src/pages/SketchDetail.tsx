@@ -9,6 +9,10 @@ const PEN_WIDTH = 6
 const ERASER_WIDTH = 32
 const COLORS = ['#1B1B1F', '#D6472E', '#C07508', '#059669', '#2563EB']
 const HISTORY_CAP = 20
+// Once a real stylus (Apple Pencil, S-Pen, Surface Pen, ...) has touched the
+// canvas, the device clearly has one — remember that forever so a resting
+// palm (pointerType 'touch') stops being treated as drawing input.
+const HAS_PEN_KEY = 'planner_has_pen'
 
 export default function SketchDetail() {
   const { id } = useParams<{ id: string }>()
@@ -17,10 +21,12 @@ export default function SketchDetail() {
   const drawingRef = useRef(false)
   const lastPoint = useRef<{ x: number; y: number } | null>(null)
   const historyRef = useRef<string[]>([])
+  const activePointerId = useRef<number | null>(null)
   const [title, setTitle] = useState('')
   const [color, setColor] = useState(COLORS[0])
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen')
   const [canUndo, setCanUndo] = useState(false)
+  const [penMode, setPenMode] = useState(() => localStorage.getItem(HAS_PEN_KEY) === '1')
   const { t } = useLang()
 
   useEffect(() => {
@@ -62,14 +68,29 @@ export default function SketchDetail() {
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    e.currentTarget.setPointerCapture(e.pointerId)
+    if (e.pointerType === 'pen' && !penMode) {
+      setPenMode(true)
+      localStorage.setItem(HAS_PEN_KEY, '1')
+    }
+    // Once a real pen has been seen, treat touch as a resting palm, not
+    // drawing input — let the browser handle it normally (e.g. scroll).
+    if (e.pointerType === 'touch' && penMode) return
+    // A stroke already in progress from another contact (e.g. a palm
+    // landing mid-draw) shouldn't hijack it.
+    if (activePointerId.current !== null) return
+    activePointerId.current = e.pointerId
+    // Best-effort: keeps tracking the stroke if the pointer drifts outside
+    // the canvas bounds. Some input paths don't register a capture-eligible
+    // pointer — drawing still works fine without it, so don't let a throw
+    // here block the rest of the stroke setup.
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* not capture-eligible */ }
     pushHistory()
     drawingRef.current = true
     lastPoint.current = getPos(e)
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawingRef.current) return
+    if (!drawingRef.current || e.pointerId !== activePointerId.current) return
     const canvas = canvasRef.current!
     const ctx = canvas.getContext('2d')!
     const p = getPos(e)
@@ -84,7 +105,9 @@ export default function SketchDetail() {
     lastPoint.current = p
   }
 
-  async function onPointerUp() {
+  async function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (e.pointerId !== activePointerId.current) return
+    activePointerId.current = null
     if (!drawingRef.current) return
     drawingRef.current = false
     lastPoint.current = null
@@ -181,6 +204,7 @@ export default function SketchDetail() {
           width={CANVAS_W}
           height={CANVAS_H}
           className="sketch-canvas"
+          style={{ touchAction: penMode ? 'auto' : 'none' }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
