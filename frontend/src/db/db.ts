@@ -114,13 +114,19 @@ export interface Review {
   updatedAt: number
 }
 
-/** Hand-drawn sketch note. Local-only — never synced (the push/pull pipeline
-    sends whole-record payloads with no chunking, and ServiceNow string
-    fields cap out around 4000 chars; a canvas PNG dataUrl runs far larger). */
+/** A sketch note is either hand-drawn or typed. Local-only — never synced
+    (the push/pull pipeline sends whole-record payloads with no chunking,
+    and ServiceNow string fields cap out around 4000 chars; a canvas PNG
+    dataUrl runs far larger, and typed notes could too). */
 export interface DrawingNote {
   id: string
   title: string
-  dataUrl: string
+  /** Missing on records saved before typed notes existed — treat as 'draw'. */
+  kind?: 'draw' | 'text'
+  /** kind='draw' */
+  dataUrl?: string
+  /** kind='text' */
+  text?: string
   updatedAt: number
 }
 

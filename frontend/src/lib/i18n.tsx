@@ -82,8 +82,9 @@ const en: Dict = {
   'habit.logSave': 'Save', 'habit.logMinus': 'Decrease', 'habit.logPlus': 'Increase',
   // sketches
   'sketch.title': 'Sketches', 'sketch.sub': 'Quick doodles and hand-drawn notes.',
-  'sketch.new': '+ New sketch', 'sketch.empty': 'No sketches yet — tap + to start drawing.',
-  'sketch.untitled': 'Untitled sketch',
+  'sketch.newDraw': 'Draw', 'sketch.newType': 'Type',
+  'sketch.empty': 'No sketches yet — tap Draw or Type to start.',
+  'sketch.untitled': 'Untitled sketch', 'sketch.typePh': 'Start typing…',
   'sketch.deleteConfirm': 'Delete "{title}"? This can\'t be undone.',
   'sketch.clear': 'Clear', 'sketch.clearConfirm': 'Clear this drawing? This can\'t be undone.',
   'sketch.undo': 'Undo', 'sketch.eraser': 'Eraser', 'sketch.color': 'Color', 'sketch.size': 'Size',
@@ -232,8 +233,9 @@ const zh: Dict = {
   'habit.logSave': '保存', 'habit.logMinus': '减少', 'habit.logPlus': '增加',
   // sketches
   'sketch.title': '手绘', 'sketch.sub': '随手涂鸦和手绘笔记。',
-  'sketch.new': '+ 新建手绘', 'sketch.empty': '还没有手绘 — 点击 + 开始画吧。',
-  'sketch.untitled': '未命名手绘',
+  'sketch.newDraw': '画画', 'sketch.newType': '打字',
+  'sketch.empty': '还没有笔记 — 点击"画画"或"打字"开始吧。',
+  'sketch.untitled': '未命名手绘', 'sketch.typePh': '开始输入…',
   'sketch.deleteConfirm': '删除"{title}"？此操作无法撤销。',
   'sketch.clear': '清空', 'sketch.clearConfirm': '清空这幅画？此操作无法撤销。',
   'sketch.undo': '撤销', 'sketch.eraser': '橡皮擦', 'sketch.color': '颜色', 'sketch.size': '粗细',

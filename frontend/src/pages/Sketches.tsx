@@ -28,6 +28,17 @@ export default function Sketches() {
     notifyChange()
   }
 
+  function createNew(kind: 'draw' | 'text') {
+    navigate(`/sketches/${uuid()}?type=${kind}`)
+  }
+
+  const newButtons = (
+    <div className="sketch-new-row">
+      <button className="btn btn-primary" onClick={() => createNew('draw')}>✏️ {t('sketch.newDraw')}</button>
+      <button className="btn btn-primary" onClick={() => createNew('text')}>⌨️ {t('sketch.newType')}</button>
+    </div>
+  )
+
   return (
     <div>
       <div className="greet page-head">
@@ -35,7 +46,7 @@ export default function Sketches() {
           <h1>{t('sketch.title')}</h1>
           <div className="sub">{t('sketch.sub')}</div>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate(`/sketches/${uuid()}`)}>{t('sketch.new')}</button>
+        {newButtons}
       </div>
 
       {items.length === 0 ? (
@@ -47,10 +58,16 @@ export default function Sketches() {
           {items.map((d) => (
             <div key={d.id} className="card sketch-card">
               <button type="button" className="sketch-thumb" onClick={() => navigate(`/sketches/${d.id}`)} aria-label={d.title || t('sketch.untitled')}>
-                <img src={d.dataUrl} alt="" />
+                {d.kind === 'text' ? (
+                  <div className="sketch-thumb-text">{d.text || ''}</div>
+                ) : (
+                  <img src={d.dataUrl} alt="" />
+                )}
               </button>
               <div className="sketch-meta">
-                <button type="button" className="sketch-name" onClick={() => navigate(`/sketches/${d.id}`)}>{d.title || t('sketch.untitled')}</button>
+                <button type="button" className="sketch-name" onClick={() => navigate(`/sketches/${d.id}`)}>
+                  {d.kind === 'text' ? '⌨️ ' : '✏️ '}{d.title || t('sketch.untitled')}
+                </button>
                 <button type="button" className="sketch-del" onClick={(e) => remove(d, e)} aria-label={t('common.delete')}>🗑</button>
               </div>
             </div>

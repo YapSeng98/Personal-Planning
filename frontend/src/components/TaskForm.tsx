@@ -30,6 +30,11 @@ function parseExtras(input: string) {
 
 const STATES: TaskState[] = ['open', 'in_progress', 'done', 'cancelled']
 
+/** Whole days from `from` to `to` (both YYYY-MM-DD), can be negative. */
+function daysBetween(from: string, to: string): number {
+  return Math.round((new Date(to + 'T00:00').getTime() - new Date(from + 'T00:00').getTime()) / 86400_000)
+}
+
 export default function TaskForm({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const editing = task !== null
   const [title, setTitle] = useState(task?.title ?? '')
@@ -46,6 +51,15 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const { t } = useLang()
+
+  // A single-shot reminder N days before due never fires if that day has
+  // already passed — cap how far back it can be set to what's actually left
+  // between today and the due date (0 = due date is today or already past).
+  const maxReminderDays = Math.max(0, Math.min(30, daysBetween(todayStr(), due)))
+
+  useEffect(() => {
+    setReminderDays((d) => (d !== undefined ? Math.min(d, maxReminderDays) : d))
+  }, [maxReminderDays])
 
   useEffect(() => {
     db.goals
@@ -190,10 +204,10 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                 <input
                   type="number"
                   min={0}
-                  max={30}
+                  max={maxReminderDays}
                   placeholder={t('task.reminderOff')}
                   value={reminderDays ?? ''}
-                  onChange={(e) => setReminderDays(e.target.value === '' ? undefined : Math.max(0, Math.min(30, Math.round(Number(e.target.value)))))}
+                  onChange={(e) => setReminderDays(e.target.value === '' ? undefined : Math.max(0, Math.min(maxReminderDays, Math.round(Number(e.target.value)))))}
                   aria-label={t('task.reminder')}
                   className="reminder-days-input"
                 />

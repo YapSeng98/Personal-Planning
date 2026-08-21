@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { db, notifyChange, type DrawingNote } from '../db/db'
 import { useLang } from '../lib/i18n'
 
@@ -20,6 +20,7 @@ const HAS_PEN_KEY = 'planner_has_pen'
 
 export default function SketchDetail() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef(false)
@@ -27,6 +28,10 @@ export default function SketchDetail() {
   const historyRef = useRef<string[]>([])
   const activePointerId = useRef<number | null>(null)
   const [title, setTitle] = useState('')
+  const [text, setText] = useState('')
+  // New notes pick their kind from the ?type= the gallery linked with;
+  // existing notes always keep whatever they were saved as, ignoring the URL.
+  const [kind, setKind] = useState<'draw' | 'text'>(searchParams.get('type') === 'text' ? 'text' : 'draw')
   const [color, setColor] = useState(COLORS[0])
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen')
   const [sizeKey, setSizeKey] = useState<SizeKey>('md')
@@ -39,14 +44,17 @@ export default function SketchDetail() {
     ;(async () => {
       if (!id) return
       const existing = await db.drawings.get(id)
-      if (cancelled) return
-      setTitle(existing?.title ?? '')
+      if (cancelled || !existing) return
+      setTitle(existing.title ?? '')
+      setKind(existing.kind ?? 'draw')
+      setText(existing.text ?? '')
+      if (existing.kind === 'text') return
       const canvas = canvasRef.current
       if (!canvas) return
       const ctx = canvas.getContext('2d')!
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      if (existing?.dataUrl) {
+      if (existing.dataUrl) {
         const img = new Image()
         img.onload = () => { if (!cancelled) ctx.drawImage(img, 0, 0, canvas.width, canvas.height) }
         img.src = existing.dataUrl
@@ -118,7 +126,7 @@ export default function SketchDetail() {
     if (!drawingRef.current) return
     drawingRef.current = false
     lastPoint.current = null
-    await autosave()
+    await autosaveDrawing()
   }
 
   async function undo() {
@@ -131,7 +139,7 @@ export default function SketchDetail() {
     img.onload = async () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.drawImage(img, 0, 0)
-      await autosave()
+      await autosaveDrawing()
     }
     img.src = prev
   }
@@ -143,21 +151,31 @@ export default function SketchDetail() {
     const ctx = canvas.getContext('2d')!
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    await autosave()
+    await autosaveDrawing()
   }
 
-  async function autosave() {
+  async function autosaveDrawing() {
     const canvas = canvasRef.current
     if (!canvas || !id) return
     const record: DrawingNote = {
       id,
       title,
+      kind: 'draw',
       dataUrl: canvas.toDataURL('image/png'),
       updatedAt: Date.now(),
     }
     await db.drawings.put(record)
     notifyChange()
   }
+
+  async function autosaveText(nextText = text) {
+    if (!id) return
+    const record: DrawingNote = { id, title, kind: 'text', text: nextText, updatedAt: Date.now() }
+    await db.drawings.put(record)
+    notifyChange()
+  }
+
+  const autosave = kind === 'text' ? () => autosaveText() : autosaveDrawing
 
   async function remove() {
     if (!id) return
@@ -185,51 +203,64 @@ export default function SketchDetail() {
         <button className="btn btn-danger-soft" onClick={remove}>{t('common.delete')}</button>
       </div>
 
-      <div className="card sketch-toolbar">
-        <div className="sketch-colors">
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`sketch-swatch ${tool === 'pen' && color === c ? 'on' : ''}`}
-              style={{ background: c }}
-              onClick={() => { setTool('pen'); setColor(c) }}
-              aria-label={`${t('sketch.color')}: ${c}`}
-            />
-          ))}
-        </div>
-        <div className="sketch-sizes">
-          {SIZES.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              className={`sketch-size-btn ${sizeKey === s.key ? 'on' : ''}`}
-              onClick={() => setSizeKey(s.key)}
-              aria-label={`${t('sketch.size')}: ${s.key}`}
-            >
-              <span className="sketch-size-dot" style={{ width: s.dot, height: s.dot }} />
-            </button>
-          ))}
-        </div>
-        <div className="sketch-tools">
-          <button type="button" className={`sketch-tool-btn ${tool === 'eraser' ? 'on' : ''}`} onClick={() => setTool('eraser')} aria-label={t('sketch.eraser')}>🧽</button>
-          <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo} aria-label={t('sketch.undo')}>↺</button>
-          <button type="button" className="sketch-tool-btn" onClick={clearCanvas}>{t('sketch.clear')}</button>
-        </div>
-      </div>
-
-      <div className="sketch-canvas-wrap">
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="sketch-canvas"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
+      {kind === 'text' ? (
+        <textarea
+          className="sketch-text-editor"
+          value={text}
+          placeholder={t('sketch.typePh')}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => autosaveText()}
+          autoFocus
         />
-      </div>
+      ) : (
+        <>
+          <div className="card sketch-toolbar">
+            <div className="sketch-colors">
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`sketch-swatch ${tool === 'pen' && color === c ? 'on' : ''}`}
+                  style={{ background: c }}
+                  onClick={() => { setTool('pen'); setColor(c) }}
+                  aria-label={`${t('sketch.color')}: ${c}`}
+                />
+              ))}
+            </div>
+            <div className="sketch-sizes">
+              {SIZES.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  className={`sketch-size-btn ${sizeKey === s.key ? 'on' : ''}`}
+                  onClick={() => setSizeKey(s.key)}
+                  aria-label={`${t('sketch.size')}: ${s.key}`}
+                >
+                  <span className="sketch-size-dot" style={{ width: s.dot, height: s.dot }} />
+                </button>
+              ))}
+            </div>
+            <div className="sketch-tools">
+              <button type="button" className={`sketch-tool-btn ${tool === 'eraser' ? 'on' : ''}`} onClick={() => setTool('eraser')} aria-label={t('sketch.eraser')}>🧽</button>
+              <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo} aria-label={t('sketch.undo')}>↺</button>
+              <button type="button" className="sketch-tool-btn" onClick={clearCanvas}>{t('sketch.clear')}</button>
+            </div>
+          </div>
+
+          <div className="sketch-canvas-wrap">
+            <canvas
+              ref={canvasRef}
+              width={CANVAS_W}
+              height={CANVAS_H}
+              className="sketch-canvas"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={onPointerUp}
+            />
+          </div>
+        </>
+      )}
     </div>
   )
 }
