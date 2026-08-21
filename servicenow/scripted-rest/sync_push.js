@@ -32,7 +32,7 @@
             due: 'due', timeBlockStart: 'time_block_start', timeBlockEnd: 'time_block_end',
             estimatedHours: 'estimated_hours', actualHours: 'actual_hours',
             goalId: 'ref:goal:goal', projectId: 'ref:project:project', isMit: 'is_mit',
-            sortOrder: 'sort_order', deleted: 'deleted'
+            sortOrder: 'sort_order', reminder: 'reminder', deleted: 'deleted'
         },
         habit: {
             name: 'name', emoji: 'emoji', frequency: 'frequency',

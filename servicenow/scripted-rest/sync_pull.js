@@ -27,7 +27,8 @@
             title: 'title', notes: 'notes', state: 'state', priority: 'priority',
             due: 'due', time_block_start: 'timeBlockStart', time_block_end: 'timeBlockEnd',
             estimated_hours: 'estimatedHours', actual_hours: 'actualHours',
-            goal: 'ref:goalId', project: 'ref:projectId', is_mit: 'isMit', sort_order: 'sortOrder'
+            goal: 'ref:goalId', project: 'ref:projectId', is_mit: 'isMit', sort_order: 'sortOrder',
+            reminder: 'reminder'
         },
         habit: {
             name: 'name', emoji: 'emoji', frequency: 'frequency',

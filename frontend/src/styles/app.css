@@ -492,6 +492,16 @@ button.goal-card:hover { background: var(--glass-strong); }
 .hero-ring i { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(150deg, #FF9147, #FFB03A);
   display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 850; color: #2c1004; font-style: normal; font-variant-numeric: tabular-nums; }
 
+.reminder-banner { padding: 0.7rem 0.9rem 0.2rem; margin-bottom: 1.1rem; }
+.reminder-banner .lbl { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 800; color: var(--text-2); margin-bottom: 0.2rem; }
+.reminder-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; width: 100%;
+  background: none; border: none; border-top: 1px solid var(--hairline); padding: 0.55rem 0; cursor: pointer; text-align: left;
+}
+.reminder-row:first-of-type { border-top: none; }
+.reminder-title { font-size: 0.86rem; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.reminder-tag { font-size: 0.68rem; font-weight: 700; color: var(--amber); flex-shrink: 0; white-space: nowrap; }
+
 /* momentum: weekly chart + streak */
 .momentum { display: grid; grid-template-columns: 1.55fr 1fr; gap: 0.7rem; margin-top: 0.4rem; }
 .m-card { background: var(--glass); border: 1px solid var(--hairline); border-radius: 18px; padding: 0.85rem 0.9rem;

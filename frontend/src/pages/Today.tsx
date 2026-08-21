@@ -70,6 +70,11 @@ interface Momentum {
   streakHabit?: { id: string; name: string; emoji: string }
 }
 
+interface Reminder {
+  task: Task
+  when: 'today' | 'tomorrow'
+}
+
 function TodayCard({ task, proj, onToggle, onEdit, t }: {
   task: Task; proj?: Project; onToggle: () => void; onEdit: () => void; t: TFn
 }) {
@@ -109,6 +114,7 @@ function TodayCard({ task, proj, onToggle, onEdit, t }: {
 
 export default function Today() {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [reminders, setReminders] = useState<Reminder[]>([])
   const [habits, setHabits] = useState<HabitView[]>([])
   const [projects, setProjects] = useState<Record<string, Project>>({})
   const [mom, setMom] = useState<Momentum>({ series: [0, 0, 0, 0, 0, 0, 0], weekDone: 0, streak: 0 })
@@ -130,6 +136,17 @@ export default function Today() {
   const load = useCallback(async () => {
     const rows = (await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()).sort(byOrder)
     setTasks(rows)
+
+    // Reminders: tasks due today that asked for an on-day nudge, plus tasks
+    // due tomorrow that asked to be flagged a day early — the latter
+    // wouldn't otherwise show up anywhere on Today.
+    const open = (x: Task) => x.state !== 'done' && x.state !== 'cancelled'
+    const tomorrow = todayStr(new Date(Date.now() + 86400_000))
+    const dueTomorrow = await db.tasks.where('due').equals(tomorrow).and((x) => !x.deleted).toArray()
+    setReminders([
+      ...rows.filter((x) => x.reminder === 'on_day' && open(x)).map((task) => ({ task, when: 'today' as const })),
+      ...dueTomorrow.filter((x) => x.reminder === 'day_before' && open(x)).map((task) => ({ task, when: 'tomorrow' as const })),
+    ])
 
     const projRows = await db.projects.filter((p) => !p.deleted).toArray()
     setProjects(Object.fromEntries(projRows.map((p) => [p.id, p])))
@@ -290,6 +307,18 @@ export default function Today() {
           </div>
         )}
       </div>
+
+      {reminders.length > 0 && (
+        <div className="card reminder-banner">
+          <div className="lbl">🔔 {t('today.reminders')}</div>
+          {reminders.map(({ task, when }) => (
+            <button key={task.id} type="button" className="reminder-row" onClick={() => setEditing(task)}>
+              <span className="reminder-title">{task.title}</span>
+              <span className="reminder-tag">{when === 'today' ? t('today.dueToday') : t('today.dueTomorrow')}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
 
     <div className="ga-side">

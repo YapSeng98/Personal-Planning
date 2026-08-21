@@ -67,6 +67,20 @@ the order **syncs across devices**:
 The updated `sync_pull.js`/`sync_push.js` already map it. If you skip this,
 reordering still works on each device but the order won't travel between them.
 
+### (Optional) `reminder` for in-app reminders
+
+Tasks can be flagged to surface on the Today screen the day they're due, or
+the day before (`frontend/src/pages/Today.tsx`'s "Reminders" banner — purely
+local, no email or scheduled job involved). Works locally without this
+column; add it so the setting **syncs across devices**:
+
+| Column label | Internal name | Type            | Max length |
+|--------------|---------------|------------------|-----------|
+| Reminder     | `reminder`    | String           | 20        |
+
+The updated `sync_pull.js`/`sync_push.js` already map it. If you skip this,
+the reminder setting still works on each device but won't travel between them.
+
 ---
 
 ## 3. Check the task `state` field

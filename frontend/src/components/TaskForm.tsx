@@ -40,6 +40,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [projectId, setProjectId] = useState(task?.projectId ?? '')
   const [state, setState] = useState<TaskState>(task?.state ?? 'open')
   const [isMit, setIsMit] = useState(Boolean(task?.isMit))
+  const [reminder, setReminder] = useState<Task['reminder']>(task?.reminder)
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -90,6 +91,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       goalId: goalId || undefined,
       projectId: projectId || undefined,
       isMit,
+      reminder,
       deleted: 0,
       updatedAt: Date.now(),
     }
@@ -180,6 +182,19 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                 />
               </div>
             )}
+            <div className="f">
+              <label className="fl">{t('task.reminder')}</label>
+              <Select
+                ariaLabel={t('task.reminder')}
+                value={reminder ?? ''}
+                onChange={(v) => setReminder(v ? (v as Task['reminder']) : undefined)}
+                options={[
+                  { value: '', label: t('task.reminderNone') },
+                  { value: 'on_day', label: t('task.reminderOnDay') },
+                  { value: 'day_before', label: t('task.reminderDayBefore') },
+                ]}
+              />
+            </div>
             <button
               type="button"
               className={`chip-toggle ${isMit ? 'on' : ''}`}

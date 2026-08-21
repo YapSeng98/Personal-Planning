@@ -40,7 +40,7 @@ const tableMap = {
 // cleared value would simply be omitted and the server would keep the old one.
 const SYNC_FIELDS: Record<keyof typeof tableMap, string[]> = {
   task: ['title', 'notes', 'state', 'priority', 'due', 'timeBlockStart', 'timeBlockEnd',
-    'estimatedHours', 'actualHours', 'goalId', 'projectId', 'isMit', 'sortOrder', 'deleted'],
+    'estimatedHours', 'actualHours', 'goalId', 'projectId', 'isMit', 'sortOrder', 'reminder', 'deleted'],
   habit: ['name', 'emoji', 'frequency', 'targetPerDay', 'active', 'deleted'],
   habit_log: ['habitId', 'date', 'count', 'deleted'],
   goal: ['title', 'type', 'parentId', 'lifeArea', 'whyItMatters', 'progress', 'status', 'targetDate', 'deleted'],
