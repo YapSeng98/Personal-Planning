@@ -25,8 +25,12 @@ export interface Task {
   isMit?: boolean
   /** Manual drag order within a day / board column. Lower = higher up. */
   sortOrder?: number
-  /** In-app reminder: surface this task on Today the day it's due, or the day before. */
-  reminder?: 'on_day' | 'day_before'
+  /** In-app reminder: surface this task on Today starting this many days
+      before it's due (0 = the due day itself). */
+  reminderDaysBefore?: number
+  /** If set, the reminder repeats every day from reminderDaysBefore through
+      the due date, instead of showing just once. */
+  reminderDaily?: boolean
   deleted: 0 | 1
   updatedAt: number
 }

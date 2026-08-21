@@ -72,7 +72,8 @@ interface Momentum {
 
 interface Reminder {
   task: Task
-  when: 'today' | 'tomorrow'
+  /** Days until the task is due (0 = today, 1 = tomorrow, ...). */
+  daysUntilDue: number
 }
 
 function TodayCard({ task, proj, onToggle, onEdit, t }: {
@@ -137,16 +138,23 @@ export default function Today() {
     const rows = (await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()).sort(byOrder)
     setTasks(rows)
 
-    // Reminders: tasks due today that asked for an on-day nudge, plus tasks
-    // due tomorrow that asked to be flagged a day early — the latter
-    // wouldn't otherwise show up anywhere on Today.
-    const open = (x: Task) => x.state !== 'done' && x.state !== 'cancelled'
-    const tomorrow = todayStr(new Date(Date.now() + 86400_000))
-    const dueTomorrow = await db.tasks.where('due').equals(tomorrow).and((x) => !x.deleted).toArray()
-    setReminders([
-      ...rows.filter((x) => x.reminder === 'on_day' && open(x)).map((task) => ({ task, when: 'today' as const })),
-      ...dueTomorrow.filter((x) => x.reminder === 'day_before' && open(x)).map((task) => ({ task, when: 'tomorrow' as const })),
-    ])
+    // Reminders: any open task with a reminder set, whose window (either a
+    // single day N days before due, or every day from N-before through due
+    // if repeating) includes today — this is why it can surface tasks due
+    // well beyond today, which wouldn't otherwise show up anywhere on Today.
+    const todayMs = new Date(today + 'T00:00').getTime()
+    const withReminder = await db.tasks
+      .filter((x) => !x.deleted && x.state !== 'done' && x.state !== 'cancelled' && x.reminderDaysBefore != null && !!x.due)
+      .toArray()
+    const active: Reminder[] = []
+    for (const task of withReminder) {
+      const daysUntilDue = Math.round((new Date(task.due! + 'T00:00').getTime() - todayMs) / 86400_000)
+      const n = task.reminderDaysBefore!
+      const inWindow = task.reminderDaily ? daysUntilDue >= 0 && daysUntilDue <= n : daysUntilDue === n
+      if (inWindow) active.push({ task, daysUntilDue })
+    }
+    active.sort((a, b) => a.daysUntilDue - b.daysUntilDue)
+    setReminders(active)
 
     const projRows = await db.projects.filter((p) => !p.deleted).toArray()
     setProjects(Object.fromEntries(projRows.map((p) => [p.id, p])))
@@ -311,7 +319,7 @@ export default function Today() {
       {reminders.length > 0 && (
         <div className="card reminder-banner">
           <div className="lbl"><span className="reminder-bell">🔔</span> {t('today.reminders')}</div>
-          {reminders.map(({ task, when }, i) => (
+          {reminders.map(({ task, daysUntilDue }, i) => (
             <button
               key={task.id}
               type="button"
@@ -320,8 +328,8 @@ export default function Today() {
               onClick={() => setEditing(task)}
             >
               <span className="reminder-title">{task.title}</span>
-              <span className={`reminder-tag ${when === 'today' ? 'due-today' : 'due-tomorrow'}`}>
-                {when === 'today' ? t('today.dueToday') : t('today.dueTomorrow')}
+              <span className={`reminder-tag ${daysUntilDue === 0 ? 'due-today' : 'due-tomorrow'}`}>
+                {daysUntilDue === 0 ? t('today.dueToday') : daysUntilDue === 1 ? t('today.dueTomorrow') : t('today.dueInDays', { n: daysUntilDue })}
               </span>
             </button>
           ))}

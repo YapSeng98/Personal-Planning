@@ -325,6 +325,9 @@
   -webkit-appearance: none; appearance: none;
 }
 .form-grid .sel-btn { background: var(--glass); }
+.reminder-days-row { display: flex; align-items: center; gap: 0.6rem; }
+.form-grid .reminder-days-row input[type='number'] { width: 4.5rem; text-align: center; flex-shrink: 0; }
+.reminder-days-lbl { font-size: 0.86rem; color: var(--text-2); }
 /* Native date/time inputs: center the value both ways so it sits in the
    middle of the box (matches how iOS shows date/time values). */
 .form-grid input[type='date'], .form-grid input[type='time'] {

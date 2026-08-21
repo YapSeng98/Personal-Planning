@@ -40,7 +40,8 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [projectId, setProjectId] = useState(task?.projectId ?? '')
   const [state, setState] = useState<TaskState>(task?.state ?? 'open')
   const [isMit, setIsMit] = useState(Boolean(task?.isMit))
-  const [reminder, setReminder] = useState<Task['reminder']>(task?.reminder)
+  const [reminderDays, setReminderDays] = useState<number | undefined>(task?.reminderDaysBefore)
+  const [reminderDaily, setReminderDaily] = useState(Boolean(task?.reminderDaily))
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -91,7 +92,8 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       goalId: goalId || undefined,
       projectId: projectId || undefined,
       isMit,
-      reminder,
+      reminderDaysBefore: reminderDays,
+      reminderDaily: reminderDays !== undefined && reminderDays > 0 ? reminderDaily : undefined,
       deleted: 0,
       updatedAt: Date.now(),
     }
@@ -184,16 +186,32 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
             )}
             <div className="f">
               <label className="fl">{t('task.reminder')}</label>
-              <Select
-                ariaLabel={t('task.reminder')}
-                value={reminder ?? ''}
-                onChange={(v) => setReminder(v ? (v as Task['reminder']) : undefined)}
-                options={[
-                  { value: '', label: t('task.reminderNone') },
-                  { value: 'on_day', label: t('task.reminderOnDay') },
-                  { value: 'day_before', label: t('task.reminderDayBefore') },
-                ]}
-              />
+              <div className="reminder-days-row">
+                <input
+                  type="number"
+                  min={0}
+                  max={30}
+                  placeholder={t('task.reminderOff')}
+                  value={reminderDays ?? ''}
+                  onChange={(e) => setReminderDays(e.target.value === '' ? undefined : Math.max(0, Math.min(30, Math.round(Number(e.target.value)))))}
+                  aria-label={t('task.reminder')}
+                  className="reminder-days-input"
+                />
+                <span className="reminder-days-lbl">
+                  {reminderDays === 0 ? t('task.reminderOnDueDay') : t('task.reminderDaysSuffix')}
+                </span>
+              </div>
+              {reminderDays !== undefined && reminderDays > 0 && (
+                <button
+                  type="button"
+                  className={`chip-toggle ${reminderDaily ? 'on' : ''}`}
+                  onClick={() => setReminderDaily(!reminderDaily)}
+                  aria-pressed={reminderDaily}
+                  style={{ marginTop: '0.5rem' }}
+                >
+                  🔁 {t('task.reminderDaily')} {reminderDaily ? t('task.on') : ''}
+                </button>
+              )}
             </div>
             <button
               type="button"

@@ -32,7 +32,8 @@
             due: 'due', timeBlockStart: 'time_block_start', timeBlockEnd: 'time_block_end',
             estimatedHours: 'estimated_hours', actualHours: 'actual_hours',
             goalId: 'ref:goal:goal', projectId: 'ref:project:project', isMit: 'is_mit',
-            sortOrder: 'sort_order', reminder: 'reminder', deleted: 'deleted'
+            sortOrder: 'sort_order', reminderDaysBefore: 'reminder_days_before',
+            reminderDaily: 'reminder_daily', deleted: 'deleted'
         },
         habit: {
             name: 'name', emoji: 'emoji', frequency: 'frequency',
@@ -69,7 +70,7 @@
 
     // True/False columns must be written as real booleans so they read back
     // as 'true'/'false' — the app may send them as 1/0, true/false, or "1"/"0".
-    var BOOL_COLS = { deleted: 1, active: 1, is_mit: 1, archived: 1 };
+    var BOOL_COLS = { deleted: 1, active: 1, is_mit: 1, archived: 1, reminder_daily: 1 };
     function truthy(v) { return v === true || v === 1 || v === '1' || v === 'true'; }
 
     var body = request.body ? request.body.data : {};
