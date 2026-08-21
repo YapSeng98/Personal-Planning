@@ -492,15 +492,62 @@ button.goal-card:hover { background: var(--glass-strong); }
 .hero-ring i { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(150deg, #FF9147, #FFB03A);
   display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 850; color: #2c1004; font-style: normal; font-variant-numeric: tabular-nums; }
 
-.reminder-banner { padding: 0.7rem 0.9rem 0.2rem; margin-bottom: 1.1rem; }
-.reminder-banner .lbl { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 800; color: var(--text-2); margin-bottom: 0.2rem; }
+.reminder-banner {
+  position: relative; padding: 0.8rem 1rem 0.25rem; margin-bottom: 1.1rem; overflow: hidden;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-bright) 12%, var(--glass)), color-mix(in srgb, var(--amber) 14%, var(--glass)));
+  border-color: color-mix(in srgb, var(--accent-bright) 30%, var(--hairline));
+  animation: reminder-in 420ms var(--ease) both;
+}
+@keyframes reminder-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reminder-banner .lbl {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 800;
+  color: var(--accent-bright); margin-bottom: 0.25rem;
+}
+.reminder-bell { display: inline-block; transform-origin: 50% 0%; animation: reminder-ring 2.8s ease-in-out infinite; }
+@keyframes reminder-ring {
+  0%, 62%, 100% { transform: rotate(0deg); }
+  67% { transform: rotate(14deg); }
+  72% { transform: rotate(-11deg); }
+  77% { transform: rotate(7deg); }
+  82% { transform: rotate(-4deg); }
+  87% { transform: rotate(0deg); }
+}
 .reminder-row {
   display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; width: 100%;
-  background: none; border: none; border-top: 1px solid var(--hairline); padding: 0.55rem 0; cursor: pointer; text-align: left;
+  background: none; border: none; border-top: 1px solid color-mix(in srgb, var(--accent-bright) 14%, var(--hairline));
+  padding: 0.6rem 0.1rem; cursor: pointer; text-align: left;
+  transition: transform 150ms var(--ease), padding-left 150ms var(--ease);
+  animation: reminder-row-in 380ms var(--ease) both;
 }
 .reminder-row:first-of-type { border-top: none; }
-.reminder-title { font-size: 0.86rem; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.reminder-tag { font-size: 0.68rem; font-weight: 700; color: var(--amber); flex-shrink: 0; white-space: nowrap; }
+.reminder-row:hover { padding-left: 0.4rem; transform: translateX(2px); }
+.reminder-row:hover .reminder-title { color: var(--accent-bright); }
+@keyframes reminder-row-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.reminder-title {
+  font-size: 0.86rem; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; min-width: 0; transition: color 150ms var(--ease);
+}
+.reminder-tag {
+  font-size: 0.66rem; font-weight: 800; flex-shrink: 0; white-space: nowrap;
+  padding: 0.22rem 0.6rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.35rem;
+}
+.reminder-tag.due-today { background: var(--accent-wash); color: var(--accent-bright); }
+.reminder-tag.due-tomorrow { background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); }
+.reminder-tag.due-today::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-bright);
+  animation: reminder-dot-pulse 1.6s ease-in-out infinite;
+}
+@keyframes reminder-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.6); }
+}
 
 /* momentum: weekly chart + streak */
 .momentum { display: grid; grid-template-columns: 1.55fr 1fr; gap: 0.7rem; margin-top: 0.4rem; }

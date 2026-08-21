@@ -310,11 +310,19 @@ export default function Today() {
 
       {reminders.length > 0 && (
         <div className="card reminder-banner">
-          <div className="lbl">🔔 {t('today.reminders')}</div>
-          {reminders.map(({ task, when }) => (
-            <button key={task.id} type="button" className="reminder-row" onClick={() => setEditing(task)}>
+          <div className="lbl"><span className="reminder-bell">🔔</span> {t('today.reminders')}</div>
+          {reminders.map(({ task, when }, i) => (
+            <button
+              key={task.id}
+              type="button"
+              className="reminder-row"
+              style={{ animationDelay: `${i * 70}ms` }}
+              onClick={() => setEditing(task)}
+            >
               <span className="reminder-title">{task.title}</span>
-              <span className="reminder-tag">{when === 'today' ? t('today.dueToday') : t('today.dueTomorrow')}</span>
+              <span className={`reminder-tag ${when === 'today' ? 'due-today' : 'due-tomorrow'}`}>
+                {when === 'today' ? t('today.dueToday') : t('today.dueTomorrow')}
+              </span>
             </button>
           ))}
         </div>
