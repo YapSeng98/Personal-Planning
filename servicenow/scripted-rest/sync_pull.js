@@ -74,7 +74,11 @@
                     data[target.substring(4)] = (refGr && refGr.isValidRecord()) ?
                         refGr.getValue('client_uuid') : null;
                 } else if (INT_FIELDS[col]) {
-                    data[target] = parseInt(gr.getValue(col), 10) || 0;
+                    // A blank field must stay unset, not coerce to 0 — for
+                    // reminder_days_before specifically, 0 is a real, active
+                    // value ("remind me on the due day"), not "no reminder".
+                    var iv = gr.getValue(col);
+                    data[target] = (iv === '' || iv === null) ? undefined : parseInt(iv, 10);
                 } else if (BOOL_FIELDS[col]) {
                     var bv = gr.getValue(col);
                     data[target] = (bv === 'true' || bv === '1') ? 1 : 0;
