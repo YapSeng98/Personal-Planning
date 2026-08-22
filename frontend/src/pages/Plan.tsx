@@ -3,7 +3,7 @@ import {
   DndContext, useDroppable, PointerSensor, TouchSensor, KeyboardSensor,
   useSensor, useSensors, closestCorners, type DragEndEvent,
 } from '@dnd-kit/core'
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { db, uuid, todayStr, writeAndQueue, rollUpGoal, byOrder, CHANGED, type Task, type Goal } from '../db/db'
 import { syncNow } from '../sync/engine'
@@ -16,11 +16,25 @@ interface DayView {
   tasks: Task[]
 }
 
+interface MonthCell {
+  date: string
+  inMonth: boolean
+  done: number
+  total: number
+}
+
 function relativeWeek(offset: number, t: TFn): string {
   if (offset === 0) return t('plan.thisWeek')
   if (offset === -1) return t('plan.lastWeek')
   if (offset === 1) return t('plan.nextWeek')
   return offset < 0 ? t('plan.weeksAgo', { n: -offset }) : t('plan.inWeeks', { n: offset })
+}
+
+function relativeMonth(offset: number, t: TFn): string {
+  if (offset === 0) return t('plan.thisMonth')
+  if (offset === -1) return t('plan.lastMonth')
+  if (offset === 1) return t('plan.nextMonth')
+  return offset < 0 ? t('plan.monthsAgo', { n: -offset }) : t('plan.inMonths', { n: offset })
 }
 
 function TaskRow({ task, onToggle, onEdit, t }: { task: Task; onToggle: () => void; onEdit: () => void; t: TFn }) {
@@ -88,6 +102,12 @@ export default function Plan() {
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [editing, setEditing] = useState<Task | null>(null)
   const [weekOffset, setWeekOffset] = useState(0)
+  const [view, setView] = useState<'week' | 'month'>('week')
+  const [monthOffset, setMonthOffset] = useState(0)
+  const [monthCells, setMonthCells] = useState<MonthCell[]>([])
+  const [selectedDate, setSelectedDate] = useState(todayStr())
+  const [selectedTasks, setSelectedTasks] = useState<Task[]>([])
+  const [selectedDraft, setSelectedDraft] = useState('')
   const { t, lang } = useLang()
   const today = todayStr()
 
@@ -113,11 +133,56 @@ export default function Plan() {
     setMonthGoals(await db.goals.filter((g) => g.type === 'month' && !g.deleted).toArray())
   }, [weekOffset, lang])
 
+  const loadMonth = useCallback(async () => {
+    const base = new Date()
+    base.setDate(1)
+    base.setMonth(base.getMonth() + monthOffset)
+    const year = base.getFullYear()
+    const month = base.getMonth()
+    const firstOfMonth = new Date(year, month, 1)
+    const startPad = (firstOfMonth.getDay() + 6) % 7 // Monday-start grid
+    const gridStart = new Date(firstOfMonth)
+    gridStart.setDate(firstOfMonth.getDate() - startPad)
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const totalCells = Math.ceil((startPad + daysInMonth) / 7) * 7
+    const gridEnd = new Date(gridStart)
+    gridEnd.setDate(gridStart.getDate() + totalCells - 1)
+
+    const tasksInRange = await db.tasks
+      .where('due').between(todayStr(gridStart), todayStr(gridEnd), true, true)
+      .and((x) => !x.deleted).toArray()
+    const byDate = new Map<string, Task[]>()
+    for (const x of tasksInRange) {
+      if (!x.due) continue
+      const arr = byDate.get(x.due) ?? []
+      arr.push(x)
+      byDate.set(x.due, arr)
+    }
+
+    const cells: MonthCell[] = []
+    for (let i = 0; i < totalCells; i++) {
+      const d = new Date(gridStart)
+      d.setDate(gridStart.getDate() + i)
+      const date = todayStr(d)
+      const dayTasks = byDate.get(date) ?? []
+      cells.push({ date, inMonth: d.getMonth() === month, done: dayTasks.filter((x) => x.state === 'done').length, total: dayTasks.length })
+    }
+    setMonthCells(cells)
+  }, [monthOffset])
+
+  const loadSelectedDay = useCallback(async () => {
+    const tasks = (await db.tasks.where('due').equals(selectedDate).and((x) => !x.deleted).toArray()).sort(byOrder)
+    setSelectedTasks(tasks)
+  }, [selectedDate])
+
   useEffect(() => {
     load()
-    window.addEventListener(CHANGED, load)
-    return () => window.removeEventListener(CHANGED, load)
-  }, [load])
+    loadMonth()
+    loadSelectedDay()
+    const reload = () => { load(); loadMonth(); loadSelectedDay() }
+    window.addEventListener(CHANGED, reload)
+    return () => window.removeEventListener(CHANGED, reload)
+  }, [load, loadMonth, loadSelectedDay])
 
   async function toggle(task: Task) {
     const updated: Task = { ...task, state: task.state === 'done' ? 'open' : 'done', updatedAt: Date.now() }
@@ -174,12 +239,52 @@ export default function Plan() {
     if (wrote) syncNow()
   }
 
+  async function addForSelected() {
+    const text = selectedDraft.trim()
+    if (!text) return
+    await writeAndQueue(db.tasks, 'task', {
+      id: uuid(), title: text, state: 'open', priority: 3, due: selectedDate, sortOrder: selectedTasks.length, deleted: 0, updatedAt: Date.now(),
+    })
+    setSelectedDraft('')
+    syncNow()
+  }
+
+  async function handleSelectedDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const ids = selectedTasks.map((x) => x.id)
+    const oldI = ids.indexOf(String(active.id))
+    const newI = ids.indexOf(String(over.id))
+    if (oldI < 0 || newI < 0) return
+    const ordered = arrayMove(ids, oldI, newI)
+    const now = Date.now()
+    for (let i = 0; i < ordered.length; i++) {
+      const task = selectedTasks.find((x) => x.id === ordered[i])!
+      if (task.sortOrder === i) continue
+      await writeAndQueue(db.tasks, 'task', { ...task, sortOrder: i, updatedAt: now })
+    }
+    syncNow()
+  }
+
   const locale = lang === 'zh' ? 'zh-CN' : undefined
   const monthName = new Date().toLocaleDateString(locale, { month: 'long', year: 'numeric' })
   const weekDone = days.reduce((s, d) => s + d.tasks.filter((x) => x.state === 'done').length, 0)
   const weekTotal = days.reduce((s, d) => s + d.tasks.length, 0)
   const fmt = (s?: string) => (s ? new Date(s + 'T00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' }) : '')
   const weekRange = days.length ? `${fmt(days[0].date)} – ${fmt(days[6].date)}` : ''
+  const gridMonthBase = new Date()
+  gridMonthBase.setDate(1)
+  gridMonthBase.setMonth(gridMonthBase.getMonth() + monthOffset)
+  const gridMonthName = gridMonthBase.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
+  const weekdayLabels = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(2024, 0, 1 + i) // Jan 1 2024 was a Monday — locale-correct short weekday names
+    return d.toLocaleDateString(locale, { weekday: 'short' })
+  })
+  const selectedDayView: DayView = {
+    date: selectedDate,
+    name: new Date(selectedDate + 'T00:00').toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' }),
+    tasks: selectedTasks,
+  }
 
   return (
     <div>
@@ -188,16 +293,43 @@ export default function Plan() {
         <div className="sub">{t('plan.sub', { month: monthName })}</div>
       </div>
 
-      <div className="week-nav">
-        <button className="wk-arrow" onClick={() => setWeekOffset((o) => o - 1)} aria-label="Previous week">‹</button>
-        <div className="wk-mid">
-          <div className="wk-rel">{relativeWeek(weekOffset, t)}</div>
-          <div className="wk-range num">{weekRange}{weekTotal > 0 ? ` · ${weekDone}/${weekTotal} ${t('plan.done')}` : ''}</div>
-        </div>
-        <button className="wk-arrow" onClick={() => setWeekOffset((o) => o + 1)} aria-label="Next week">›</button>
+      <div className="seg view-toggle">
+        <button className={`seg-btn ${view === 'week' ? 'on' : ''}`} onClick={() => setView('week')}>
+          <b>{t('plan.week')}</b>
+        </button>
+        <button className={`seg-btn ${view === 'month' ? 'on' : ''}`} onClick={() => setView('month')}>
+          <b>{t('plan.month')}</b>
+        </button>
       </div>
-      {weekOffset !== 0 && (
-        <button className="wk-today" onClick={() => setWeekOffset(0)}>{t('plan.backToWeek')}</button>
+
+      {view === 'week' ? (
+        <>
+          <div className="week-nav">
+            <button className="wk-arrow" onClick={() => setWeekOffset((o) => o - 1)} aria-label="Previous week">‹</button>
+            <div className="wk-mid">
+              <div className="wk-rel">{relativeWeek(weekOffset, t)}</div>
+              <div className="wk-range num">{weekRange}{weekTotal > 0 ? ` · ${weekDone}/${weekTotal} ${t('plan.done')}` : ''}</div>
+            </div>
+            <button className="wk-arrow" onClick={() => setWeekOffset((o) => o + 1)} aria-label="Next week">›</button>
+          </div>
+          {weekOffset !== 0 && (
+            <button className="wk-today" onClick={() => setWeekOffset(0)}>{t('plan.backToWeek')}</button>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="week-nav">
+            <button className="wk-arrow" onClick={() => setMonthOffset((o) => o - 1)} aria-label="Previous month">‹</button>
+            <div className="wk-mid">
+              <div className="wk-rel">{relativeMonth(monthOffset, t)}</div>
+              <div className="wk-range num">{gridMonthName}</div>
+            </div>
+            <button className="wk-arrow" onClick={() => setMonthOffset((o) => o + 1)} aria-label="Next month">›</button>
+          </div>
+          {monthOffset !== 0 && (
+            <button className="wk-today" onClick={() => setMonthOffset(0)}>{t('plan.backToMonth')}</button>
+          )}
+        </>
       )}
 
       {monthGoals.length > 0 && (
@@ -217,23 +349,66 @@ export default function Plan() {
         </>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-        <div className="stack week-days" style={{ marginTop: '0.6rem' }}>
-          {days.map((d) => (
-            <DayColumn
-              key={d.date}
-              day={d}
-              today={today}
-              draft={drafts[d.date] ?? ''}
-              onDraft={(v) => setDrafts((dr) => ({ ...dr, [d.date]: v }))}
-              onAdd={() => addFor(d.date)}
-              onToggle={toggle}
-              onEdit={setEditing}
-              t={t}
-            />
-          ))}
-        </div>
-      </DndContext>
+      {view === 'week' ? (
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+          <div className="stack week-days" style={{ marginTop: '0.6rem' }}>
+            {days.map((d) => (
+              <DayColumn
+                key={d.date}
+                day={d}
+                today={today}
+                draft={drafts[d.date] ?? ''}
+                onDraft={(v) => setDrafts((dr) => ({ ...dr, [d.date]: v }))}
+                onAdd={() => addFor(d.date)}
+                onToggle={toggle}
+                onEdit={setEditing}
+                t={t}
+              />
+            ))}
+          </div>
+        </DndContext>
+      ) : (
+        <>
+          <div className="month-weekday-row">
+            {weekdayLabels.map((l) => <span key={l} className="month-weekday">{l}</span>)}
+          </div>
+          <div className="month-grid">
+            {monthCells.map((c) => (
+              <button
+                key={c.date}
+                type="button"
+                className={`month-cell ${c.inMonth ? '' : 'out'} ${c.date === today ? 'today' : ''} ${c.date === selectedDate ? 'selected' : ''}`}
+                onClick={() => setSelectedDate(c.date)}
+              >
+                <span className="mc-num num">{Number(c.date.slice(8, 10))}</span>
+                {c.total > 0 && (
+                  <span className={`mc-count num ${c.done === c.total ? 'all-done' : 'pending'}`}>{c.done}/{c.total}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="section-h">{selectedDayView.name}{selectedDate === today ? ` · ${t('common.today')}` : ''}</div>
+          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleSelectedDragEnd}>
+            <SortableContext items={selectedTasks.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+              <div className="card day-card month-selected-panel">
+                {selectedTasks.map((task) => (
+                  <TaskRow key={task.id} task={task} onToggle={() => toggle(task)} onEdit={() => setEditing(task)} t={t} />
+                ))}
+                <input
+                  className="add-inline"
+                  type="text"
+                  placeholder={t('plan.addTask')}
+                  value={selectedDraft}
+                  onChange={(e) => setSelectedDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addForSelected()}
+                  aria-label={t('plan.addTask')}
+                />
+              </div>
+            </SortableContext>
+          </DndContext>
+        </>
+      )}
       {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
     </div>
   )

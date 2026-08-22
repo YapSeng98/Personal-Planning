@@ -333,6 +333,27 @@
   font-weight: 700; cursor: pointer; font-family: inherit; }
 .wk-today:hover { background: var(--accent-wash); }
 
+.view-toggle { margin-top: 0.9rem; max-width: 260px; }
+
+.month-weekday-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 1rem; }
+.month-weekday { text-align: center; font-size: 0.64rem; font-weight: 800; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-3); padding-bottom: 0.3rem; }
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.month-cell {
+  aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--hairline); background: var(--glass);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  cursor: pointer; padding: 0.2rem; transition: background 150ms var(--ease);
+}
+.month-cell:hover { background: var(--glass-strong); }
+.month-cell.out { opacity: 0.35; }
+.month-cell.today { border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright); }
+.month-cell.selected { background: var(--accent-wash); border-color: var(--accent-bright); }
+.month-cell .mc-num { font-size: 0.82rem; font-weight: 700; color: var(--text-1); }
+.month-cell .mc-count { font-size: 0.6rem; font-weight: 700; color: var(--text-3); }
+.month-cell .mc-count.all-done { color: var(--ok); }
+.month-cell .mc-count.pending { color: var(--accent-bright); }
+.month-selected-panel { margin-top: 0.6rem; }
+
 .day-card { padding: 0.8rem 1rem; }
 .day-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
 .day-h .d { font-weight: 700; font-size: 0.85rem; }
