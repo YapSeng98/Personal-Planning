@@ -2,7 +2,9 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { onSyncState, type SyncState } from '../sync/engine'
 import { useLang } from '../lib/i18n'
+import { type Task } from '../db/db'
 import TaskForm from './TaskForm'
+import SearchModal from './SearchModal'
 
 const links = [
   { to: '/', key: 'nav.today', ico: '☀️' },
@@ -24,6 +26,8 @@ const syncKey: Record<SyncState, string> = {
 
 export default function Shell() {
   const [adding, setAdding] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [searchTask, setSearchTask] = useState<Task | null>(null)
   const [sync, setSync] = useState<SyncState>('idle')
   const { t } = useLang()
   useEffect(() => onSyncState(setSync), [])
@@ -31,6 +35,16 @@ export default function Shell() {
     const open = () => setAdding(true)
     window.addEventListener('planner:quickadd', open)
     return () => window.removeEventListener('planner:quickadd', open)
+  }, [])
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearching(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   const nav = (cls: string) =>
@@ -44,7 +58,10 @@ export default function Shell() {
   return (
     <div className="shell">
       <nav className="nav-rail" aria-label="Main">
-        <div className="brand grad-text">{t('brand')}</div>
+        <div className="nav-rail-top">
+          <div className="brand grad-text">{t('brand')}</div>
+          <button className="nav-search-btn" onClick={() => setSearching(true)} aria-label={t('search.trigger')} title={t('search.trigger')}>🔍</button>
+        </div>
         {nav('')}
         <div style={{ flex: 1 }} />
         <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
@@ -64,7 +81,15 @@ export default function Shell() {
       <button className="fab fab-desktop" aria-label="Add task" onClick={() => setAdding(true)}>+</button>
       <button className="fab fab-float" aria-label="Add task" onClick={() => setAdding(true)}>+</button>
       <NavLink to="/settings" className="gear-mobile" aria-label="Settings">⚙️</NavLink>
+      <button className="search-mobile" onClick={() => setSearching(true)} aria-label={t('search.trigger')}>🔍</button>
       {adding && <TaskForm task={null} onClose={() => setAdding(false)} />}
+      {searching && (
+        <SearchModal
+          onClose={() => setSearching(false)}
+          onOpenTask={(task) => setSearchTask(task)}
+        />
+      )}
+      {searchTask && <TaskForm task={searchTask} onClose={() => setSearchTask(null)} />}
     </div>
   )
 }

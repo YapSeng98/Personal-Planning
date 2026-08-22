@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { db, uuid, writeAndQueue, rollUpGoal, CHANGED, type Goal, type GoalType } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
@@ -21,6 +22,7 @@ export default function Goals() {
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ ...blank })
+  const [searchParams, setSearchParams] = useSearchParams()
   const { t } = useLang()
 
   const load = useCallback(async () => {
@@ -31,6 +33,16 @@ export default function Goals() {
     window.addEventListener(CHANGED, load)
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
+
+  // Deep-link from search: /goals?edit=<id> opens that goal's editor once
+  // its data has loaded, then clears the param so it doesn't reopen later.
+  useEffect(() => {
+    const editId = searchParams.get('edit')
+    if (!editId || goals.length === 0) return
+    const g = goals.find((x) => x.id === editId)
+    if (g) startEdit(g)
+    setSearchParams({}, { replace: true })
+  }, [goals, searchParams])
 
   function startCreate() {
     setEditingId(null)

@@ -88,6 +88,10 @@ const en: Dict = {
   'sketch.deleteConfirm': 'Delete "{title}"? This can\'t be undone.',
   'sketch.clear': 'Clear', 'sketch.clearConfirm': 'Clear this drawing? This can\'t be undone.',
   'sketch.undo': 'Undo', 'sketch.eraser': 'Eraser', 'sketch.color': 'Color', 'sketch.size': 'Size',
+  // search
+  'search.trigger': 'Search', 'search.placeholder': 'Search tasks, goals, sketches…',
+  'search.hint': 'Type to search everything.', 'search.empty': 'No results.',
+  'search.tasks': 'Tasks', 'search.goals': 'Goals', 'search.sketches': 'Sketches',
   // common
   'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.today': 'today',
   // goals
@@ -239,6 +243,10 @@ const zh: Dict = {
   'sketch.deleteConfirm': '删除"{title}"？此操作无法撤销。',
   'sketch.clear': '清空', 'sketch.clearConfirm': '清空这幅画？此操作无法撤销。',
   'sketch.undo': '撤销', 'sketch.eraser': '橡皮擦', 'sketch.color': '颜色', 'sketch.size': '粗细',
+  // search
+  'search.trigger': '搜索', 'search.placeholder': '搜索任务、目标、手绘…',
+  'search.hint': '输入以搜索全部内容。', 'search.empty': '没有找到结果。',
+  'search.tasks': '任务', 'search.goals': '目标', 'search.sketches': '手绘',
   'common.cancel': '取消', 'common.delete': '删除', 'common.today': '今天',
   'goals.title': '目标', 'goals.sub': '愿景 → 年 → 季 → 月 → 周 — 进度自动汇总。点击目标可编辑。',
   'goals.add': '+ 目标', 'goals.empty': '还没有目标 — 添加一个年度目标作为基石。',
