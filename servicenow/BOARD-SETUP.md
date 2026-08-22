@@ -67,21 +67,23 @@ the order **syncs across devices**:
 The updated `sync_pull.js`/`sync_push.js` already map it. If you skip this,
 reordering still works on each device but the order won't travel between them.
 
-### (Optional) `reminder_days_before` / `reminder_daily` for in-app reminders
+### (Optional) `reminder_days_before` for in-app reminders
 
-Tasks can be flagged to surface on the Today screen starting N days before
-they're due — either once, or repeating every day through the due date
-(`frontend/src/pages/Today.tsx`'s "Reminders" banner — purely local, no email
-or scheduled job involved). Works locally without these columns; add them so
-the setting **syncs across devices**:
+Tasks can be flagged to surface on the Today screen a chosen number of days
+before they're due (`frontend/src/pages/Today.tsx`'s "Reminders" banner —
+purely local, no email or scheduled job involved). Works locally without
+this column; add it so the setting **syncs across devices**:
 
 | Column label          | Internal name           | Type    |
 |------------------------|--------------------------|---------|
 | Reminder Days Before   | `reminder_days_before`  | Integer |
-| Reminder Daily         | `reminder_daily`        | True/False |
 
-The updated `sync_pull.js`/`sync_push.js` already map both. If you skip this,
+The updated `sync_pull.js`/`sync_push.js` already map it. If you skip this,
 the reminder setting still works on each device but won't travel between them.
+
+(An earlier version of this feature also had a `reminder_daily` repeat
+option, since simplified away — if you created that column already, it's
+harmless to leave in place, just unused.)
 
 ---
 

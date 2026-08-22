@@ -28,7 +28,7 @@
             due: 'due', time_block_start: 'timeBlockStart', time_block_end: 'timeBlockEnd',
             estimated_hours: 'estimatedHours', actual_hours: 'actualHours',
             goal: 'ref:goalId', project: 'ref:projectId', is_mit: 'isMit', sort_order: 'sortOrder',
-            reminder_days_before: 'reminderDaysBefore', reminder_daily: 'reminderDaily'
+            reminder_days_before: 'reminderDaysBefore'
         },
         habit: {
             name: 'name', emoji: 'emoji', frequency: 'frequency',
@@ -49,7 +49,7 @@
     };
 
     var INT_FIELDS = { priority: 1, progress: 1, energy: 1, count: 1, target_per_day: 1, sort_order: 1, reminder_days_before: 1 };
-    var BOOL_FIELDS = { is_mit: 1, active: 1, archived: 1, reminder_daily: 1 };
+    var BOOL_FIELDS = { is_mit: 1, active: 1, archived: 1 };
 
     var since = request.queryParams.since || '1970-01-01 00:00:00';
     // Cursor captured BEFORE querying: concurrent writes land in the next

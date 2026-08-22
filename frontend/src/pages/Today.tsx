@@ -138,21 +138,16 @@ export default function Today() {
     const rows = (await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()).sort(byOrder)
     setTasks(rows)
 
-    // Reminders: any open task with a reminder set, whose window (either a
-    // single day N days before due, or every day from N-before through due
-    // if repeating) includes today — this is why it can surface tasks due
-    // well beyond today, which wouldn't otherwise show up anywhere on Today.
+    // Reminders: any open task whose reminderDaysBefore matches exactly how
+    // many days away its due date is — this is why it can surface tasks due
+    // a few days out, which wouldn't otherwise show up anywhere on Today.
     const todayMs = new Date(today + 'T00:00').getTime()
     const withReminder = await db.tasks
       .filter((x) => !x.deleted && x.state !== 'done' && x.state !== 'cancelled' && x.reminderDaysBefore != null && !!x.due)
       .toArray()
-    const active: Reminder[] = []
-    for (const task of withReminder) {
-      const daysUntilDue = Math.round((new Date(task.due! + 'T00:00').getTime() - todayMs) / 86400_000)
-      const n = task.reminderDaysBefore!
-      const inWindow = task.reminderDaily ? daysUntilDue >= 0 && daysUntilDue <= n : daysUntilDue === n
-      if (inWindow) active.push({ task, daysUntilDue })
-    }
+    const active: Reminder[] = withReminder
+      .map((task) => ({ task, daysUntilDue: Math.round((new Date(task.due! + 'T00:00').getTime() - todayMs) / 86400_000) }))
+      .filter(({ task, daysUntilDue }) => daysUntilDue === task.reminderDaysBefore)
     active.sort((a, b) => a.daysUntilDue - b.daysUntilDue)
     setReminders(active)
 

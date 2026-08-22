@@ -35,6 +35,9 @@ function daysBetween(from: string, to: string): number {
   return Math.round((new Date(to + 'T00:00').getTime() - new Date(from + 'T00:00').getTime()) / 86400_000)
 }
 
+const REMINDER_MAX_DAYS = 3
+const REMINDER_LABELS = ['task.reminderOnDueDay', 'task.reminder1Day', 'task.reminder2Days', 'task.reminder3Days']
+
 export default function TaskForm({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const editing = task !== null
   const [title, setTitle] = useState(task?.title ?? '')
@@ -46,16 +49,19 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [state, setState] = useState<TaskState>(task?.state ?? 'open')
   const [isMit, setIsMit] = useState(Boolean(task?.isMit))
   const [reminderDays, setReminderDays] = useState<number | undefined>(task?.reminderDaysBefore)
-  const [reminderDaily, setReminderDaily] = useState(Boolean(task?.reminderDaily))
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const { t } = useLang()
 
-  // A single-shot reminder N days before due never fires if that day has
-  // already passed — cap how far back it can be set to what's actually left
-  // between today and the due date (0 = due date is today or already past).
-  const maxReminderDays = Math.max(0, Math.min(30, daysBetween(todayStr(), due)))
+  // A reminder N days before due never fires if that day has already
+  // passed — cap how far back it can be set to what's actually left between
+  // today and the due date (0 = due date is today or already past).
+  const maxReminderDays = Math.max(0, Math.min(REMINDER_MAX_DAYS, daysBetween(todayStr(), due)))
+  const reminderOptions = [
+    { value: '', label: t('task.reminderOff') },
+    ...REMINDER_LABELS.slice(0, maxReminderDays + 1).map((label, days) => ({ value: String(days), label: t(label) })),
+  ]
 
   useEffect(() => {
     setReminderDays((d) => (d !== undefined ? Math.min(d, maxReminderDays) : d))
@@ -107,7 +113,6 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       projectId: projectId || undefined,
       isMit,
       reminderDaysBefore: reminderDays,
-      reminderDaily: reminderDays !== undefined && reminderDays > 0 ? reminderDaily : undefined,
       deleted: 0,
       updatedAt: Date.now(),
     }
@@ -200,32 +205,12 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
             )}
             <div className="f">
               <label className="fl">{t('task.reminder')}</label>
-              <div className="reminder-days-row">
-                <input
-                  type="number"
-                  min={0}
-                  max={maxReminderDays}
-                  placeholder={t('task.reminderOff')}
-                  value={reminderDays ?? ''}
-                  onChange={(e) => setReminderDays(e.target.value === '' ? undefined : Math.max(0, Math.min(maxReminderDays, Math.round(Number(e.target.value)))))}
-                  aria-label={t('task.reminder')}
-                  className="reminder-days-input"
-                />
-                <span className="reminder-days-lbl">
-                  {reminderDays === 0 ? t('task.reminderOnDueDay') : t('task.reminderDaysSuffix')}
-                </span>
-              </div>
-              {reminderDays !== undefined && reminderDays > 0 && (
-                <button
-                  type="button"
-                  className={`chip-toggle ${reminderDaily ? 'on' : ''}`}
-                  onClick={() => setReminderDaily(!reminderDaily)}
-                  aria-pressed={reminderDaily}
-                  style={{ marginTop: '0.5rem' }}
-                >
-                  🔁 {t('task.reminderDaily')} {reminderDaily ? t('task.on') : ''}
-                </button>
-              )}
+              <Select
+                ariaLabel={t('task.reminder')}
+                value={reminderDays === undefined ? '' : String(reminderDays)}
+                onChange={(v) => setReminderDays(v === '' ? undefined : Number(v))}
+                options={reminderOptions}
+              />
             </div>
             <button
               type="button"
