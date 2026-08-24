@@ -340,8 +340,11 @@
   text-transform: uppercase; color: var(--text-3); padding-bottom: 0.3rem; }
 .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .month-cell {
-  aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--hairline); background: var(--glass);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  /* Fixed (not aspect-ratio) height — on wide screens 7 columns makes cells
+     very wide, and aspect-ratio:1 would make them just as tall, forcing a
+     lot of scrolling. A flat height stays compact at any screen width. */
+  height: 52px; border-radius: 10px; border: 1px solid var(--hairline); background: var(--glass);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   cursor: pointer; padding: 0.2rem; transition: background 150ms var(--ease);
 }
 .month-cell:hover { background: var(--glass-strong); }
