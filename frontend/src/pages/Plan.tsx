@@ -5,7 +5,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, uuid, todayStr, writeAndQueue, rollUpGoal, byOrder, CHANGED, type Task, type Goal } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, CHANGED, type Task, type Goal } from '../db/db'
 import { syncNow } from '../sync/engine'
 import TaskForm from '../components/TaskForm'
 import { useLang, type TFn } from '../lib/i18n'
@@ -14,6 +14,10 @@ interface DayView {
   date: string
   name: string
   tasks: Task[]
+  /** Recurring tasks projected onto this day even though no real row exists
+      here yet — e.g. the rest of this week for a daily task. Titles only;
+      not interactive, since there's nothing to check off until it's real. */
+  previews: string[]
 }
 
 interface MonthCell {
@@ -83,6 +87,13 @@ function DayColumn({
           <TaskRow key={task.id} task={task} onToggle={() => onToggle(task)} onEdit={() => onEdit(task)} t={t} />
         ))}
       </SortableContext>
+      {day.previews.map((title, i) => (
+        <div key={i} className="task-row preview-row" title={t('plan.previewHint')}>
+          <span className="drag-grip" aria-hidden />
+          <span className="check" aria-hidden>&#8635;</span>
+          <span className="title">{title}</span>
+        </div>
+      ))}
       <input
         className="add-inline"
         type="text"
@@ -121,13 +132,18 @@ export default function Plan() {
     const now = new Date()
     const monday = new Date(now)
     monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7)
+    const series = await activeRecurringSeries()
     const views: DayView[] = []
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday)
       d.setDate(monday.getDate() + i)
       const date = todayStr(d)
       const tasks = (await db.tasks.where('due').equals(date).and((x) => !x.deleted).toArray()).sort(byOrder)
-      views.push({ date, name: d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined, { weekday: 'long' }), tasks })
+      const realSeriesIds = new Set(tasks.map((x) => x.seriesId).filter(Boolean))
+      const previews = series
+        .filter((s) => !realSeriesIds.has(s.seriesId) && isProjectedOccurrence(s, date))
+        .map((s) => s.title)
+      views.push({ date, name: d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined, { weekday: 'long' }), tasks, previews })
     }
     setDays(views)
     setMonthGoals(await db.goals.filter((g) => g.type === 'month' && !g.deleted).toArray())
@@ -284,6 +300,7 @@ export default function Plan() {
     date: selectedDate,
     name: new Date(selectedDate + 'T00:00').toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' }),
     tasks: selectedTasks,
+    previews: [],
   }
 
   return (

@@ -239,6 +239,43 @@ function nextOccurrence(date: string, recurrence: NonNullable<Task['recurrence']
   return todayStr(d)
 }
 
+/** The latest (most recent due date) row in each still-recurring series —
+    "still recurring" meaning that latest row has `recurrence` set. Shared by
+    rollRecurringTasks (decides whether to generate the next real row) and
+    the Plan screens (decide which future days to preview a repeat on). */
+export async function activeRecurringSeries(): Promise<Task[]> {
+  const all = await db.tasks.filter((t) => !t.deleted && !!t.seriesId).toArray()
+  const bySeries = new Map<string, Task[]>()
+  for (const t of all) {
+    const arr = bySeries.get(t.seriesId!) ?? []
+    arr.push(t)
+    bySeries.set(t.seriesId!, arr)
+  }
+  const latest: Task[] = []
+  for (const rows of bySeries.values()) {
+    const l = rows.reduce((a, b) => ((a.due ?? '') > (b.due ?? '') ? a : b))
+    if (l.recurrence && l.due) latest.push(l)
+  }
+  return latest
+}
+
+/** True if `candidateDate` is a day this series would land on, projecting
+    forward from its latest real occurrence — used to preview a recurring
+    task on days that don't have a materialized row yet (e.g. the rest of
+    this week for a daily task). Never true for the latest row's own date or
+    anything before it, since that's real data, not a preview. */
+export function isProjectedOccurrence(latest: Task, candidateDate: string): boolean {
+  if (!latest.due || !latest.recurrence || candidateDate <= latest.due) return false
+  if (latest.recurrence === 'daily') return true
+  const latestD = new Date(latest.due + 'T00:00')
+  const candD = new Date(candidateDate + 'T00:00')
+  if (latest.recurrence === 'weekly') {
+    const diffDays = Math.round((candD.getTime() - latestD.getTime()) / 86400_000)
+    return diffDays % 7 === 0
+  }
+  return latestD.getDate() === candD.getDate() // monthly: same day-of-month
+}
+
 /** Recurring tasks are one row per occurrence, linked by seriesId — the
     latest occurrence in each series never mutates; when its next scheduled
     date has arrived, a fresh row is generated for it (whether or not the
@@ -249,23 +286,14 @@ function nextOccurrence(date: string, recurrence: NonNullable<Task['recurrence']
     nothing is due yet. */
 export async function rollRecurringTasks() {
   const today = todayStr()
-  const all = await db.tasks.filter((t) => !t.deleted && !!t.seriesId).toArray()
-  const bySeries = new Map<string, Task[]>()
-  for (const t of all) {
-    const arr = bySeries.get(t.seriesId!) ?? []
-    arr.push(t)
-    bySeries.set(t.seriesId!, arr)
-  }
+  const series = await activeRecurringSeries()
 
-  for (const rows of bySeries.values()) {
-    const latest = rows.reduce((a, b) => ((a.due ?? '') > (b.due ?? '') ? a : b))
-    if (!latest.recurrence || !latest.due) continue
-
+  for (const latest of series) {
     // Walk forward to the latest scheduled date that isn't past today —
     // may land on a past-but-unreached date for weekly/monthly cadences.
-    let due = latest.due
+    let due = latest.due!
     for (;;) {
-      const candidate = nextOccurrence(due, latest.recurrence)
+      const candidate = nextOccurrence(due, latest.recurrence!)
       if (candidate > today) break
       due = candidate
     }

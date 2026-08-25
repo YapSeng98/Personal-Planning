@@ -87,6 +87,14 @@
 .task-row .title.done { color: var(--text-3); text-decoration: line-through; }
 .task-row .when { font-size: 0.72rem; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .task-row .when.faint { opacity: 0.55; font-style: italic; }
+.preview-row { opacity: 0.5; cursor: default; }
+.preview-row .drag-grip { visibility: hidden; }
+.preview-row .check {
+  width: 22px; height: 22px; border-radius: 7px; border: 1.5px dashed var(--text-3);
+  display: flex; align-items: center; justify-content: center; font-size: 0.72rem; color: var(--text-3);
+  flex-shrink: 0;
+}
+.preview-row .title { font-style: italic; }
 .check {
   width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
   border: 2px solid var(--text-3); background: none; cursor: pointer;
