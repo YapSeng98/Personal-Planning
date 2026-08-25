@@ -85,6 +85,26 @@ the reminder setting still works on each device but won't travel between them.
 option, since simplified away — if you created that column already, it's
 harmless to leave in place, just unused.)
 
+### (Optional) `recurrence` + `series_id` for repeating tasks
+
+Tasks can be set to repeat daily/weekly/monthly. Each occurrence is its own
+row — completing (or missing) one doesn't touch it; once its next scheduled
+date arrives, a fresh row is generated (`rollRecurringTasks()` in
+`frontend/src/db/db.ts`, runs once per app load) and the old row stays as
+history. `series_id` links every occurrence of the same repeating task
+together. Works locally without these columns; add them so repeat **syncs
+across devices**:
+
+| Column label | Internal name | Type   | Max length |
+|---------------|-----------------|--------|-----------|
+| Recurrence    | `recurrence`   | String | 10        |
+| Series Id     | `series_id`    | String | 40        |
+
+The updated `sync_pull.js`/`sync_push.js` already map both. If you skip
+this, repeat still works on each device but won't travel between them (and a
+task edited on a device without the columns would silently drop its repeat
+setting on that device's copy — everywhere else it stays intact).
+
 ---
 
 ## 3. Check the task `state` field

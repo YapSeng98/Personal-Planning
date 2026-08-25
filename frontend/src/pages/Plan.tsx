@@ -48,7 +48,7 @@ function TaskRow({ task, onToggle, onEdit, t }: { task: Task; onToggle: () => vo
       <button className="drag-grip" aria-label="Drag to reorder" {...listeners} {...attributes}>⠿</button>
       <button className={`check ${task.state === 'done' ? 'on' : ''}`} onClick={onToggle} aria-label={task.title}>✓</button>
       <button className={`title title-btn ${task.state === 'done' ? 'done' : ''}`} onClick={onEdit} title={task.title}>
-        {task.title}
+        {task.recurrence && <span title={t('task.repeat')}>🔁 </span>}{task.title}
       </button>
       <span className={`when num ${task.timeBlockStart ? '' : 'faint'}`}>
         {task.timeBlockStart ? task.timeBlockStart.slice(11, 16) : t('today.anytime')}

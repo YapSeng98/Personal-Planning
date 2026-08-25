@@ -28,7 +28,7 @@
             due: 'due', time_block_start: 'timeBlockStart', time_block_end: 'timeBlockEnd',
             estimated_hours: 'estimatedHours', actual_hours: 'actualHours',
             goal: 'ref:goalId', project: 'ref:projectId', is_mit: 'isMit', sort_order: 'sortOrder',
-            reminder_days_before: 'reminderDaysBefore'
+            reminder_days_before: 'reminderDaysBefore', recurrence: 'recurrence', series_id: 'seriesId'
         },
         habit: {
             name: 'name', emoji: 'emoji', frequency: 'frequency',

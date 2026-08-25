@@ -44,9 +44,10 @@ function BoardCard({ task, proj, onEdit }: { task: Task; proj?: Project; onEdit:
     >
       {proj && <span className="b-acc" style={{ background: projectColorVar(proj.color) }} />}
       <div className="t">{task.title}</div>
-      {(task.due || Boolean(task.isMit) || proj) && (
+      {(task.due || Boolean(task.isMit) || task.recurrence || proj) && (
         <div className="meta">
           {Boolean(task.isMit) && <span>⭐</span>}
+          {task.recurrence && <span>🔁</span>}
           {task.due && <span className="num">{task.due.slice(5)}</span>}
           {proj && (
             <span className="tchip" style={{ background: 'var(--accent-wash)', color: 'var(--text-2)' }}>

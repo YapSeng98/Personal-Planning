@@ -41,7 +41,7 @@ const tableMap = {
 const SYNC_FIELDS: Record<keyof typeof tableMap, string[]> = {
   task: ['title', 'notes', 'state', 'priority', 'due', 'timeBlockStart', 'timeBlockEnd',
     'estimatedHours', 'actualHours', 'goalId', 'projectId', 'isMit', 'sortOrder',
-    'reminderDaysBefore', 'deleted'],
+    'reminderDaysBefore', 'recurrence', 'seriesId', 'deleted'],
   habit: ['name', 'emoji', 'frequency', 'targetPerDay', 'active', 'deleted'],
   habit_log: ['habitId', 'date', 'count', 'deleted'],
   goal: ['title', 'type', 'parentId', 'lifeArea', 'whyItMatters', 'progress', 'status', 'targetDate', 'deleted'],

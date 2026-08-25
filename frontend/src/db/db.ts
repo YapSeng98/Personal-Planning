@@ -28,6 +28,13 @@ export interface Task {
   /** In-app reminder: surface this task on Today this many days before it's
       due (0 = the due day itself). Undefined = no reminder. */
   reminderDaysBefore?: number
+  /** If set, this task repeats: once its due date's next scheduled
+      occurrence has arrived, a NEW row is generated (see rollRecurringTasks)
+      rather than this row being mutated — this row stays as history. */
+  recurrence?: 'daily' | 'weekly' | 'monthly'
+  /** Links every occurrence of a recurring task together. Set to the first
+      occurrence's own id when recurrence is first turned on. */
+  seriesId?: string
   deleted: 0 | 1
   updatedAt: number
 }
@@ -222,6 +229,64 @@ export async function writeAndQueue<T extends { id: string; updatedAt: number }>
     await db.outbox.add({ table: tableName, recordId: record.id, editedAt: record.updatedAt })
   })
   notifyChange()
+}
+
+function nextOccurrence(date: string, recurrence: NonNullable<Task['recurrence']>): string {
+  const d = new Date(date + 'T00:00')
+  if (recurrence === 'daily') d.setDate(d.getDate() + 1)
+  else if (recurrence === 'weekly') d.setDate(d.getDate() + 7)
+  else d.setMonth(d.getMonth() + 1)
+  return todayStr(d)
+}
+
+/** Recurring tasks are one row per occurrence, linked by seriesId — the
+    latest occurrence in each series never mutates; when its next scheduled
+    date has arrived, a fresh row is generated for it (whether or not the
+    previous one was ever completed) and the old row stays as history. For
+    weekly/monthly series the new row lands on the actual scheduled date,
+    which may already be overdue if the app wasn't opened for a while — it
+    does not jump forward to today. Call once per app load; cheap no-op when
+    nothing is due yet. */
+export async function rollRecurringTasks() {
+  const today = todayStr()
+  const all = await db.tasks.filter((t) => !t.deleted && !!t.seriesId).toArray()
+  const bySeries = new Map<string, Task[]>()
+  for (const t of all) {
+    const arr = bySeries.get(t.seriesId!) ?? []
+    arr.push(t)
+    bySeries.set(t.seriesId!, arr)
+  }
+
+  for (const rows of bySeries.values()) {
+    const latest = rows.reduce((a, b) => ((a.due ?? '') > (b.due ?? '') ? a : b))
+    if (!latest.recurrence || !latest.due) continue
+
+    // Walk forward to the latest scheduled date that isn't past today —
+    // may land on a past-but-unreached date for weekly/monthly cadences.
+    let due = latest.due
+    for (;;) {
+      const candidate = nextOccurrence(due, latest.recurrence)
+      if (candidate > today) break
+      due = candidate
+    }
+    if (due === latest.due) continue // next occurrence isn't due yet
+
+    const startTime = latest.timeBlockStart?.slice(11, 16)
+    const endTime = latest.timeBlockEnd?.slice(11, 16)
+    const next: Task = {
+      ...latest,
+      id: uuid(),
+      sysId: undefined,
+      due,
+      timeBlockStart: startTime ? `${due}T${startTime}` : undefined,
+      timeBlockEnd: endTime ? `${due}T${endTime}` : undefined,
+      actualHours: undefined,
+      state: 'open',
+      sortOrder: undefined,
+      updatedAt: Date.now(),
+    }
+    await writeAndQueue(db.tasks, 'task', next)
+  }
 }
 
 /** Local mirror of the ServiceNow roll-up Business Rule (doc §06): a goal's

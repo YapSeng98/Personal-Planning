@@ -92,9 +92,10 @@ function TodayCard({ task, proj, onToggle, onEdit, t }: {
       <button className={`check ${done ? 'on' : ''}`} onClick={onToggle} aria-label={task.title}>✓</button>
       <button className="tbody" onClick={onEdit} title={task.title}>
         <div className={`ttitle ${done ? 'done' : ''}`}>{task.title}</div>
-        {(Boolean(task.isMit) || proj) && (
+        {(Boolean(task.isMit) || task.recurrence || proj) && (
           <div className="tmeta">
             {Boolean(task.isMit) && <span className="tstar">⭐</span>}
+            {task.recurrence && <span className="trecur" title={t('task.repeat')}>🔁</span>}
             {proj && (
               <span className="tchip" style={{ background: 'var(--accent-wash)', color: 'var(--text-2)' }}>
                 <span className="cd" style={{ background: projectColorVar(proj.color) }} />

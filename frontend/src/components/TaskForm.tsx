@@ -49,6 +49,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [state, setState] = useState<TaskState>(task?.state ?? 'open')
   const [isMit, setIsMit] = useState(Boolean(task?.isMit))
   const [reminderDays, setReminderDays] = useState<number | undefined>(task?.reminderDaysBefore)
+  const [recurrence, setRecurrence] = useState<Task['recurrence']>(task?.recurrence)
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -97,8 +98,23 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
 
   async function save() {
     if (!title.trim()) return
+
+    // Turning off repeat on an occurrence that hasn't happened yet removes
+    // it outright — there's no history to preserve, and it was the latest
+    // row in its series, so nothing more gets generated. An already-done
+    // occurrence just loses the badge and stays as a normal record.
+    if (task && task.recurrence && !recurrence && task.state !== 'done') {
+      const tombstone: Task = { ...task, deleted: 1, updatedAt: Date.now() }
+      await writeAndQueue(db.tasks, 'task', tombstone)
+      if (task.goalId) await rollUpGoal(task.goalId)
+      syncNow()
+      onClose()
+      return
+    }
+
+    const id = task?.id ?? uuid()
     const record: Task = {
-      id: task?.id ?? uuid(),
+      id,
       sysId: task?.sysId,
       title: title.trim(),
       notes: task?.notes,
@@ -113,6 +129,8 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       projectId: projectId || undefined,
       isMit,
       reminderDaysBefore: reminderDays,
+      recurrence,
+      seriesId: recurrence ? (task?.seriesId ?? id) : task?.seriesId,
       deleted: 0,
       updatedAt: Date.now(),
     }
@@ -211,6 +229,23 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                 onChange={(v) => setReminderDays(v === '' ? undefined : Number(v))}
                 options={reminderOptions}
               />
+            </div>
+            <div className="f">
+              <label className="fl">{t('task.repeat')}</label>
+              <Select
+                ariaLabel={t('task.repeat')}
+                value={recurrence ?? ''}
+                onChange={(v) => setRecurrence(v === '' ? undefined : (v as Task['recurrence']))}
+                options={[
+                  { value: '', label: t('task.repeatOff') },
+                  { value: 'daily', label: t('task.repeatDaily') },
+                  { value: 'weekly', label: t('task.repeatWeekly') },
+                  { value: 'monthly', label: t('task.repeatMonthly') },
+                ]}
+              />
+              {task && task.recurrence && !recurrence && task.state !== 'done' && (
+                <p className="hint">{t('task.repeatOffHint')}</p>
+              )}
             </div>
             <button
               type="button"

@@ -635,6 +635,7 @@ button.goal-card:hover { background: var(--glass-strong); }
 .tchip { font-size: 0.62rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
 .tchip .cd { width: 6px; height: 6px; border-radius: 50%; }
 .tcard .tstar { color: var(--amber); font-size: 0.72rem; }
+.tcard .trecur { font-size: 0.72rem; }
 .tcard .ttime { font-size: 0.72rem; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tcard .ttime.faint { opacity: 0.6; font-style: italic; }
 
