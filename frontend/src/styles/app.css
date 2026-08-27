@@ -2,6 +2,12 @@
 
 .shell { display: flex; min-height: 100dvh; }
 .shell-main { flex: 1; min-width: 0; padding: 1.2rem 1.2rem 6rem; max-width: 860px; margin: 0 auto; }
+/* Mobile-only: the fixed search/gear circles float in the top corners over
+   the page — without this, a page-head action button (e.g. Sketches'
+   Delete) sits right underneath them and gets visually clipped/overlapped. */
+@media (max-width: 639px) {
+  .shell-main { padding-top: 3.6rem; }
+}
 
 /* Side rail — iPad / laptop */
 .nav-rail {
@@ -823,10 +829,22 @@ button.goal-card:hover { transform: translateY(-2px); }
 
 .sketch-text-editor {
   width: 100%; max-width: 820px; margin: 0 auto; display: block; box-sizing: border-box;
-  min-height: 60vh; background: #fff; color: #1B1B1F;
+  /* Fills the actual remaining viewport height on this device rather than a
+     fixed vh guess — vh alone leaves a lot of dead space on tall desktop
+     windows and undershoots on short mobile ones. Roughly: page-head (~70px)
+     + toolbar area + shell-main's own top/bottom padding + a bit of margin. */
+  min-height: calc(100vh - 230px);
+  min-height: calc(100dvh - 230px);
+  background: #fff; color: #1B1B1F;
   border-radius: 16px; border: 1px solid var(--hairline); box-shadow: 0 10px 30px rgba(0,0,0,0.12);
   padding: 1.3rem 1.5rem; font-size: 1rem; line-height: 1.65; font-family: inherit;
   resize: vertical;
+}
+@media (max-width: 639px) {
+  .sketch-text-editor { min-height: calc(100vh - 270px); min-height: calc(100dvh - 270px); font-size: 1.05rem; }
+}
+@media (min-width: 900px) {
+  .sketch-text-editor { max-width: 900px; }
 }
 .sketch-text-editor::placeholder { color: #9a968f; }
 .sketch-text-editor:focus { outline: none; }
