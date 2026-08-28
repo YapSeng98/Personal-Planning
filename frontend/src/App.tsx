@@ -15,7 +15,7 @@ import Settings from './pages/Settings'
 import { isAuthed } from './sync/api'
 import { startSyncLoop } from './sync/engine'
 import { seedIfEmpty } from './db/seed'
-import { rollRecurringTasks } from './db/db'
+import { startRecurringLoop } from './db/db'
 import { LangProvider } from './lib/i18n'
 
 function Guard({ children }: { children: React.ReactNode }) {
@@ -28,7 +28,7 @@ export default function App() {
     // Demo users get seed top-ups (new demo content) at startup, not only
     // on the login button they'll never press again.
     if (localStorage.getItem('offline_mode') === '1') seedIfEmpty()
-    rollRecurringTasks()
+    startRecurringLoop()
     startSyncLoop()
   }, [])
 

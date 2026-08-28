@@ -282,8 +282,8 @@ export function isProjectedOccurrence(latest: Task, candidateDate: string): bool
     previous one was ever completed) and the old row stays as history. For
     weekly/monthly series the new row lands on the actual scheduled date,
     which may already be overdue if the app wasn't opened for a while — it
-    does not jump forward to today. Call once per app load; cheap no-op when
-    nothing is due yet. */
+    does not jump forward to today. Cheap no-op when nothing is due yet —
+    see startRecurringLoop for when this actually gets called. */
 export async function rollRecurringTasks() {
   const today = todayStr()
   const series = await activeRecurringSeries()
@@ -315,6 +315,20 @@ export async function rollRecurringTasks() {
     }
     await writeAndQueue(db.tasks, 'task', next)
   }
+}
+
+/** rollRecurringTasks only matters at a day boundary, but React only mounts
+    once — a PWA left open (or just backgrounded) across midnight, which is
+    the common case on mobile, would never see it run again and a "daily"
+    task would sit as a preview forever. Re-checks whenever the tab/app
+    becomes visible again, plus a periodic safety net for tabs that are
+    never backgrounded at all. */
+export function startRecurringLoop() {
+  rollRecurringTasks()
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') rollRecurringTasks()
+  })
+  setInterval(rollRecurringTasks, 30 * 60_000)
 }
 
 /** Local mirror of the ServiceNow roll-up Business Rule (doc §06): a goal's
