@@ -276,18 +276,23 @@ export function isProjectedOccurrence(latest: Task, candidateDate: string): bool
   return latestD.getDate() === candD.getDate() // monthly: same day-of-month
 }
 
-/** Collapses accidental duplicate occurrences — same series, same due date —
-    down to one. This shouldn't happen once rollRecurringTasks is guarded
-    against overlapping calls (see the lock below), but it's cheap to run
-    every time and it repairs any damage already sitting in the DB from
-    before that guard existed (rows on the same day racing to each decide
-    "today's occurrence doesn't exist yet" and all creating one). Keeps
+/** Collapses accidental duplicate occurrences down to one. This shouldn't
+    happen once rollRecurringTasks is guarded against overlapping calls (see
+    the lock below), but it's cheap to run every time and it repairs any
+    damage already sitting in the DB from before that guard existed — rows
+    on the same day racing to each decide "today's occurrence doesn't exist
+    yet" and all creating one. Keyed by title+due (not seriesId+due): the
+    race could also fire from multiple concurrent creates that each started
+    their OWN fresh series (every occurrence created without a prior
+    seriesId becomes its own series-of-one), so two duplicates can end up
+    with different seriesId values despite being the same occurrence — only
+    matching on the visible title+date actually catches that case. Keeps
     whichever row is done, else the oldest — tombstones the rest. */
 async function dedupeRecurringOccurrences() {
   const all = await db.tasks.filter((t) => !t.deleted && !!t.seriesId && !!t.due).toArray()
   const byKey = new Map<string, Task[]>()
   for (const t of all) {
-    const key = `${t.seriesId}|${t.due}`
+    const key = `${t.title}|${t.due}`
     const arr = byKey.get(key) ?? []
     arr.push(t)
     byKey.set(key, arr)
