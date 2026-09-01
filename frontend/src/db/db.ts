@@ -276,6 +276,32 @@ export function isProjectedOccurrence(latest: Task, candidateDate: string): bool
   return latestD.getDate() === candD.getDate() // monthly: same day-of-month
 }
 
+/** Collapses accidental duplicate occurrences — same series, same due date —
+    down to one. This shouldn't happen once rollRecurringTasks is guarded
+    against overlapping calls (see the lock below), but it's cheap to run
+    every time and it repairs any damage already sitting in the DB from
+    before that guard existed (rows on the same day racing to each decide
+    "today's occurrence doesn't exist yet" and all creating one). Keeps
+    whichever row is done, else the oldest — tombstones the rest. */
+async function dedupeRecurringOccurrences() {
+  const all = await db.tasks.filter((t) => !t.deleted && !!t.seriesId && !!t.due).toArray()
+  const byKey = new Map<string, Task[]>()
+  for (const t of all) {
+    const key = `${t.seriesId}|${t.due}`
+    const arr = byKey.get(key) ?? []
+    arr.push(t)
+    byKey.set(key, arr)
+  }
+  for (const rows of byKey.values()) {
+    if (rows.length <= 1) continue
+    rows.sort((a, b) => (a.state === 'done' ? -1 : 1) - (b.state === 'done' ? -1 : 1) || a.updatedAt - b.updatedAt)
+    for (const dupe of rows.slice(1)) {
+      const tombstone: Task = { ...dupe, deleted: 1, updatedAt: Date.now() }
+      await writeAndQueue(db.tasks, 'task', tombstone)
+    }
+  }
+}
+
 /** Recurring tasks are one row per occurrence, linked by seriesId — the
     latest occurrence in each series never mutates; when its next scheduled
     date has arrived, a fresh row is generated for it (whether or not the
@@ -283,8 +309,28 @@ export function isProjectedOccurrence(latest: Task, candidateDate: string): bool
     weekly/monthly series the new row lands on the actual scheduled date,
     which may already be overdue if the app wasn't opened for a while — it
     does not jump forward to today. Cheap no-op when nothing is due yet —
-    see startRecurringLoop for when this actually gets called. */
-export async function rollRecurringTasks() {
+    see startRecurringLoop for when this actually gets called.
+
+    Guarded against overlapping invocations: two calls firing close together
+    (StrictMode's dev double-effect, rapid visibilitychange during tab
+    switching, the 30-min interval landing next to a visibility trigger)
+    could otherwise both read "no occurrence for today yet" before either
+    had written one, and both create it — the exact bug dedupeRecurringOccurrences
+    exists to clean up. A second call while one is already running just waits
+    for it instead of racing it. */
+let rollInFlight: Promise<void> | null = null
+export async function rollRecurringTasks(): Promise<void> {
+  if (rollInFlight) return rollInFlight
+  rollInFlight = (async () => {
+    await dedupeRecurringOccurrences()
+    await rollRecurringTasksInner()
+  })().finally(() => {
+    rollInFlight = null
+  })
+  return rollInFlight
+}
+
+async function rollRecurringTasksInner() {
   const today = todayStr()
   const series = await activeRecurringSeries()
 
@@ -322,8 +368,16 @@ export async function rollRecurringTasks() {
     the common case on mobile, would never see it run again and a "daily"
     task would sit as a preview forever. Re-checks whenever the tab/app
     becomes visible again, plus a periodic safety net for tabs that are
-    never backgrounded at all. */
+    never backgrounded at all.
+
+    Idempotent: App.tsx's mount effect has no cleanup, so React StrictMode's
+    dev-only double-invoke would otherwise attach this twice (two listeners,
+    two intervals, both running forever) — harmless now that
+    rollRecurringTasks itself is lock-protected, but wasteful. */
+let recurringLoopStarted = false
 export function startRecurringLoop() {
+  if (recurringLoopStarted) return
+  recurringLoopStarted = true
   rollRecurringTasks()
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') rollRecurringTasks()
