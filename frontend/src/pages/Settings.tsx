@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { db } from '../db/db'
+import { db, cleanupDuplicateRecurringTasks } from '../db/db'
 import { isAuthed, currentUser, clearTokens, serverLogout } from '../sync/api'
 import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
@@ -14,6 +14,7 @@ export default function Settings() {
   const [aiTest, setAiTest] = useState<{ state: 'idle' | 'testing' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const [sync, setSync] = useState<SyncState>('idle')
   const [pending, setPending] = useState(0)
+  const [cleanup, setCleanup] = useState<{ state: 'idle' | 'running' | 'done'; msg: string }>({ state: 'idle', msg: '' })
   const { t, lang, setLang } = useLang()
   const offlineMode = localStorage.getItem('offline_mode') === '1' && !isAuthed()
 
@@ -56,6 +57,15 @@ export default function Settings() {
     } catch (e) {
       setAiTest({ state: 'err', msg: e instanceof Error ? e.message : 'failed' })
     }
+  }
+
+  async function runCleanup() {
+    setCleanup({ state: 'running', msg: '' })
+    const removed = await cleanupDuplicateRecurringTasks()
+    setCleanup({
+      state: 'done',
+      msg: removed === 0 ? t('set.cleanupNone') : t(removed === 1 ? 'set.cleanupRemoved' : 'set.cleanupRemovedPlural', { n: removed }),
+    })
   }
 
   async function logout() {
@@ -173,6 +183,15 @@ export default function Settings() {
           </div>
         </div>
         {!offlineMode && <button className="btn" onClick={() => syncNow()}>{t('set.syncNow')}</button>}
+      </div>
+
+      <div className="section-h">{t('set.maintenance')}</div>
+      <div className="card">
+        <div className="row-sub" style={{ marginBottom: '0.6rem' }}>{t('set.cleanupHint')}</div>
+        <button className="btn" onClick={runCleanup} disabled={cleanup.state === 'running'}>
+          {cleanup.state === 'running' ? t('set.cleanupRunning') : t('set.cleanupBtn')}
+        </button>
+        {cleanup.state === 'done' && <div className="ai-status ok">✓ {cleanup.msg}</div>}
       </div>
 
       <p className="about-line">{t('set.about')}</p>

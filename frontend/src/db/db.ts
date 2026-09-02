@@ -288,7 +288,7 @@ export function isProjectedOccurrence(latest: Task, candidateDate: string): bool
     with different seriesId values despite being the same occurrence — only
     matching on the visible title+date actually catches that case. Keeps
     whichever row is done, else the oldest — tombstones the rest. */
-async function dedupeRecurringOccurrences() {
+async function dedupeRecurringOccurrences(): Promise<number> {
   const all = await db.tasks.filter((t) => !t.deleted && !!t.seriesId && !!t.due).toArray()
   const byKey = new Map<string, Task[]>()
   for (const t of all) {
@@ -297,14 +297,17 @@ async function dedupeRecurringOccurrences() {
     arr.push(t)
     byKey.set(key, arr)
   }
+  let removed = 0
   for (const rows of byKey.values()) {
     if (rows.length <= 1) continue
     rows.sort((a, b) => (a.state === 'done' ? -1 : 1) - (b.state === 'done' ? -1 : 1) || a.updatedAt - b.updatedAt)
     for (const dupe of rows.slice(1)) {
       const tombstone: Task = { ...dupe, deleted: 1, updatedAt: Date.now() }
       await writeAndQueue(db.tasks, 'task', tombstone)
+      removed++
     }
   }
+  return removed
 }
 
 /** Recurring tasks are one row per occurrence, linked by seriesId — the
@@ -323,16 +326,32 @@ async function dedupeRecurringOccurrences() {
     had written one, and both create it — the exact bug dedupeRecurringOccurrences
     exists to clean up. A second call while one is already running just waits
     for it instead of racing it. */
-let rollInFlight: Promise<void> | null = null
-export async function rollRecurringTasks(): Promise<void> {
+let rollInFlight: Promise<number> | null = null
+function rollRecurringTasksLocked(): Promise<number> {
   if (rollInFlight) return rollInFlight
   rollInFlight = (async () => {
-    await dedupeRecurringOccurrences()
+    const removed = await dedupeRecurringOccurrences()
     await rollRecurringTasksInner()
+    return removed
   })().finally(() => {
     rollInFlight = null
   })
   return rollInFlight
+}
+
+export async function rollRecurringTasks(): Promise<void> {
+  await rollRecurringTasksLocked()
+}
+
+/** Manual, user-triggered version of the same cleanup+catch-up the app runs
+    automatically in the background (Settings → "Clean up duplicate tasks")
+    — reports how many duplicate occurrences it found and removed, so
+    there's a direct, on-screen way to confirm the fix ran even if a
+    background trigger hasn't fired yet (e.g. a stale cached PWA that hasn't
+    picked up a newer app version). Shares the same lock as the automatic
+    path, so it can't race it. */
+export async function cleanupDuplicateRecurringTasks(): Promise<number> {
+  return rollRecurringTasksLocked()
 }
 
 async function rollRecurringTasksInner() {
