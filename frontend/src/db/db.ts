@@ -276,20 +276,18 @@ export function isProjectedOccurrence(latest: Task, candidateDate: string): bool
   return latestD.getDate() === candD.getDate() // monthly: same day-of-month
 }
 
-/** Collapses accidental duplicate occurrences down to one. This shouldn't
-    happen once rollRecurringTasks is guarded against overlapping calls (see
-    the lock below), but it's cheap to run every time and it repairs any
-    damage already sitting in the DB from before that guard existed — rows
-    on the same day racing to each decide "today's occurrence doesn't exist
-    yet" and all creating one. Keyed by title+due (not seriesId+due): the
-    race could also fire from multiple concurrent creates that each started
-    their OWN fresh series (every occurrence created without a prior
-    seriesId becomes its own series-of-one), so two duplicates can end up
-    with different seriesId values despite being the same occurrence — only
-    matching on the visible title+date actually catches that case. Keeps
-    whichever row is done, else the oldest — tombstones the rest. */
+/** Collapses accidental duplicate tasks — same title, same due date — down
+    to one. Deliberately NOT scoped to recurring tasks (no `seriesId`
+    requirement): a plain task created twice by a mis-click on any "+ add
+    task" button looks identical to a recurring-series duplicate from the
+    user's side, and if this only matched rows that already have a
+    `seriesId`, a plain duplicate would never be caught at all — it has no
+    seriesId to match on, so it would sit there forever. Runs every time
+    rollRecurringTasks does (cheap at personal-app scale), repairing damage
+    from before overlapping-call/multi-click guards existed. Keeps whichever
+    row is done, else the oldest — tombstones the rest. */
 async function dedupeRecurringOccurrences(): Promise<number> {
-  const all = await db.tasks.filter((t) => !t.deleted && !!t.seriesId && !!t.due).toArray()
+  const all = await db.tasks.filter((t) => !t.deleted && !!t.due).toArray()
   const byKey = new Map<string, Task[]>()
   for (const t of all) {
     const key = `${t.title}|${t.due}`

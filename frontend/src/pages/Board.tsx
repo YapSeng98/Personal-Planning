@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   DndContext, useDroppable, PointerSensor, TouchSensor, KeyboardSensor,
   useSensor, useSensors, closestCorners, type DragEndEvent,
@@ -113,6 +113,7 @@ export default function Board() {
   const [draft, setDraft] = useState('')
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [projectSheet, setProjectSheet] = useState<'closed' | 'new' | Project>('closed')
+  const addingRef = useRef(false)
   const { t } = useLang()
 
   const sensors = useSensors(
@@ -164,20 +165,25 @@ export default function Board() {
 
   async function addTask() {
     const title = draft.trim()
-    if (!title || !selected || isAll) return
-    const openCount = tasks.filter((x) => x.state === 'open').length
-    await writeAndQueue(db.tasks, 'task', {
-      id: uuid(),
-      title,
-      state: 'open',
-      priority: 3,
-      projectId: selected,
-      sortOrder: openCount,
-      deleted: 0,
-      updatedAt: Date.now(),
-    })
-    setDraft('')
-    syncNow()
+    if (!title || !selected || isAll || addingRef.current) return
+    addingRef.current = true
+    try {
+      const openCount = tasks.filter((x) => x.state === 'open').length
+      await writeAndQueue(db.tasks, 'task', {
+        id: uuid(),
+        title,
+        state: 'open',
+        priority: 3,
+        projectId: selected,
+        sortOrder: openCount,
+        deleted: 0,
+        updatedAt: Date.now(),
+      })
+      setDraft('')
+      syncNow()
+    } finally {
+      addingRef.current = false
+    }
   }
 
   async function handleDragEnd(e: DragEndEvent) {

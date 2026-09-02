@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   DndContext, useDroppable, PointerSensor, TouchSensor, KeyboardSensor,
   useSensor, useSensors, closestCorners, type DragEndEvent,
@@ -119,6 +119,11 @@ export default function Plan() {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [selectedTasks, setSelectedTasks] = useState<Task[]>([])
   const [selectedDraft, setSelectedDraft] = useState('')
+  // Re-entrancy guards against rapid Enter presses on the inline "+ add
+  // task" inputs creating multiple copies — refs, not state, since nothing
+  // needs to re-render on this, just block a second write mid-flight.
+  const addingDatesRef = useRef<Set<string>>(new Set())
+  const addingSelectedRef = useRef(false)
   const { t, lang } = useLang()
   const today = todayStr()
 
@@ -209,14 +214,19 @@ export default function Plan() {
 
   async function addFor(date: string) {
     const text = (drafts[date] ?? '').trim()
-    if (!text) return
-    const count = days.find((d) => d.date === date)?.tasks.length ?? 0
-    await writeAndQueue(db.tasks, 'task', {
-      id: uuid(), title: text, state: 'open', priority: 3, due: date, sortOrder: count, deleted: 0, updatedAt: Date.now(),
-    })
-    setDrafts((d) => ({ ...d, [date]: '' }))
-    await load()
-    syncNow()
+    if (!text || addingDatesRef.current.has(date)) return
+    addingDatesRef.current.add(date)
+    try {
+      const count = days.find((d) => d.date === date)?.tasks.length ?? 0
+      await writeAndQueue(db.tasks, 'task', {
+        id: uuid(), title: text, state: 'open', priority: 3, due: date, sortOrder: count, deleted: 0, updatedAt: Date.now(),
+      })
+      setDrafts((d) => ({ ...d, [date]: '' }))
+      await load()
+      syncNow()
+    } finally {
+      addingDatesRef.current.delete(date)
+    }
   }
 
   async function handleDragEnd(e: DragEndEvent) {
@@ -257,12 +267,17 @@ export default function Plan() {
 
   async function addForSelected() {
     const text = selectedDraft.trim()
-    if (!text) return
-    await writeAndQueue(db.tasks, 'task', {
-      id: uuid(), title: text, state: 'open', priority: 3, due: selectedDate, sortOrder: selectedTasks.length, deleted: 0, updatedAt: Date.now(),
-    })
-    setSelectedDraft('')
-    syncNow()
+    if (!text || addingSelectedRef.current) return
+    addingSelectedRef.current = true
+    try {
+      await writeAndQueue(db.tasks, 'task', {
+        id: uuid(), title: text, state: 'open', priority: 3, due: selectedDate, sortOrder: selectedTasks.length, deleted: 0, updatedAt: Date.now(),
+      })
+      setSelectedDraft('')
+      syncNow()
+    } finally {
+      addingSelectedRef.current = false
+    }
   }
 
   async function handleSelectedDragEnd(e: DragEndEvent) {
