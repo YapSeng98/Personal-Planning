@@ -49,6 +49,7 @@ export default function Reviews() {
   const [stats, setStats] = useState('')
   const [past, setPast] = useState<Review[]>([])
   const [flash, setFlash] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [drafting, setDrafting] = useState(false)
   const [draftErr, setDraftErr] = useState('')
   const { t, lang } = useLang()
@@ -155,24 +156,36 @@ export default function Reviews() {
   }
 
   async function save() {
-    const { start, end } = period
-    await writeAndQueue(db.reviews, 'review', {
-      id: existingId ?? uuid(),
-      type,
-      periodStart: start,
-      periodEnd: end,
-      wins: form.wins || undefined,
-      failures: form.failures || undefined,
-      lesson: form.lesson || undefined,
-      nextPriorities: form.next || undefined,
-      mood: form.mood,
-      energy: form.energy || undefined,
-      deleted: 0,
-      updatedAt: Date.now(),
-    })
-    syncNow()
-    setFlash(t('rev.saved'))
-    setTimeout(() => setFlash(''), 2000)
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      const { start, end } = period
+      // Resolve the id once and remember it locally — existingId otherwise
+      // only updates via the CHANGED-triggered reload, which lags behind a
+      // fast second save enough to generate a second review for the same
+      // period instead of updating the first.
+      const id = existingId ?? uuid()
+      await writeAndQueue(db.reviews, 'review', {
+        id,
+        type,
+        periodStart: start,
+        periodEnd: end,
+        wins: form.wins || undefined,
+        failures: form.failures || undefined,
+        lesson: form.lesson || undefined,
+        nextPriorities: form.next || undefined,
+        mood: form.mood,
+        energy: form.energy || undefined,
+        deleted: 0,
+        updatedAt: Date.now(),
+      })
+      setExistingId(id)
+      syncNow()
+      setFlash(t('rev.saved'))
+      setTimeout(() => setFlash(''), 2000)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const { start, end } = period
@@ -260,8 +273,8 @@ export default function Reviews() {
         </div>
 
         <div className="row" style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-          <button className="btn btn-primary" onClick={save}>{existingId ? t('rev.update') : t('rev.save')}</button>
-          {existingId && <button className="btn btn-danger" onClick={remove}>{t('common.delete')}</button>}
+          <button className="btn btn-primary" onClick={save} disabled={submitting}>{existingId ? t('rev.update') : t('rev.save')}</button>
+          {existingId && <button className="btn btn-danger" onClick={remove} disabled={submitting}>{t('common.delete')}</button>}
           {flash && <span className="flash" role="status">{flash}</span>}
         </div>
 

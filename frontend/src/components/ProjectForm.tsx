@@ -19,23 +19,29 @@ export default function ProjectForm({
   const editing = project !== null
   const [title, setTitle] = useState(project?.title ?? '')
   const [color, setColor] = useState<ProjectColor>(project?.color ?? 'coral')
+  const [submitting, setSubmitting] = useState(false)
   const { t } = useLang()
 
   async function save() {
-    if (!title.trim()) return
-    const record: Project = {
-      id: project?.id ?? uuid(),
-      sysId: project?.sysId,
-      title: title.trim(),
-      color,
-      archived: project?.archived ?? 0,
-      deleted: 0,
-      updatedAt: Date.now(),
+    if (!title.trim() || submitting) return
+    setSubmitting(true)
+    try {
+      const record: Project = {
+        id: project?.id ?? uuid(),
+        sysId: project?.sysId,
+        title: title.trim(),
+        color,
+        archived: project?.archived ?? 0,
+        deleted: 0,
+        updatedAt: Date.now(),
+      }
+      await writeAndQueue(db.projects, 'project', record)
+      syncNow()
+      onSaved(record.id)
+      onClose()
+    } finally {
+      setSubmitting(false)
     }
-    await writeAndQueue(db.projects, 'project', record)
-    syncNow()
-    onSaved(record.id)
-    onClose()
   }
 
   async function toggleArchive() {
@@ -89,15 +95,15 @@ export default function ProjectForm({
         <div className="row sheet-actions" style={{ justifyContent: editing ? 'space-between' : 'flex-end' }}>
           {editing && (
             <span style={{ display: 'flex', gap: '0.6rem' }}>
-              <button className="btn btn-danger" onClick={remove}>{t('common.delete')}</button>
-              <button className="btn" onClick={toggleArchive}>
+              <button className="btn btn-danger" onClick={remove} disabled={submitting}>{t('common.delete')}</button>
+              <button className="btn" onClick={toggleArchive} disabled={submitting}>
                 {project?.archived ? t('project.unarchive') : t('project.archive')}
               </button>
             </span>
           )}
           <span style={{ display: 'flex', gap: '0.6rem' }}>
-            <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-            <button className="btn btn-primary" onClick={save}>{editing ? t('project.save') : t('project.addProject')}</button>
+            <button className="btn" onClick={onClose} disabled={submitting}>{t('common.cancel')}</button>
+            <button className="btn btn-primary" onClick={save} disabled={submitting}>{editing ? t('project.save') : t('project.addProject')}</button>
           </span>
         </div>
       </div>

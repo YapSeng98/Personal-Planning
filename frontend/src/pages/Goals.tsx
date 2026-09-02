@@ -22,6 +22,7 @@ export default function Goals() {
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ ...blank })
+  const [submitting, setSubmitting] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const { t } = useLang()
 
@@ -64,25 +65,30 @@ export default function Goals() {
   }
 
   async function save() {
-    if (!form.title.trim()) return
-    const existing = editingId ? await db.goals.get(editingId) : undefined
-    const goal: Goal = {
-      id: editingId ?? uuid(),
-      lifeArea: existing?.lifeArea,
-      whyItMatters: existing?.whyItMatters,
-      title: form.title.trim(),
-      type: form.type,
-      parentId: form.parentId || undefined,
-      targetDate: form.targetDate || undefined,
-      status: form.status,
-      progress: Math.max(0, Math.min(100, parseInt(form.progress, 10) || 0)),
-      deleted: 0,
-      updatedAt: Date.now(),
+    if (!form.title.trim() || submitting) return
+    setSubmitting(true)
+    try {
+      const existing = editingId ? await db.goals.get(editingId) : undefined
+      const goal: Goal = {
+        id: editingId ?? uuid(),
+        lifeArea: existing?.lifeArea,
+        whyItMatters: existing?.whyItMatters,
+        title: form.title.trim(),
+        type: form.type,
+        parentId: form.parentId || undefined,
+        targetDate: form.targetDate || undefined,
+        status: form.status,
+        progress: Math.max(0, Math.min(100, parseInt(form.progress, 10) || 0)),
+        deleted: 0,
+        updatedAt: Date.now(),
+      }
+      await writeAndQueue(db.goals, 'goal', goal)
+      await rollUpGoal(goal.id) // refresh: from linked tasks if any, then ancestors
+      setOpen(false)
+      syncNow()
+    } finally {
+      setSubmitting(false)
     }
-    await writeAndQueue(db.goals, 'goal', goal)
-    await rollUpGoal(goal.id) // refresh: from linked tasks if any, then ancestors
-    setOpen(false)
-    syncNow()
   }
 
   async function remove() {
@@ -207,10 +213,10 @@ export default function Goals() {
             <p className="hint">{hasLinkedTasks ? '' : t('goals.hint')}</p>
             </div>
             <div className="row sheet-actions" style={{ justifyContent: editingId ? 'space-between' : 'flex-end' }}>
-              {editingId && <button className="btn btn-danger" onClick={remove}>{t('common.delete')}</button>}
+              {editingId && <button className="btn btn-danger" onClick={remove} disabled={submitting}>{t('common.delete')}</button>}
               <span style={{ display: 'flex', gap: '0.6rem' }}>
-                <button className="btn" onClick={() => setOpen(false)}>{t('common.cancel')}</button>
-                <button className="btn btn-primary" onClick={save}>{editingId ? t('goals.save') : t('goals.addGoal')}</button>
+                <button className="btn" onClick={() => setOpen(false)} disabled={submitting}>{t('common.cancel')}</button>
+                <button className="btn btn-primary" onClick={save} disabled={submitting}>{editingId ? t('goals.save') : t('goals.addGoal')}</button>
               </span>
             </div>
           </div>

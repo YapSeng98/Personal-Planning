@@ -53,6 +53,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [submitting, setSubmitting] = useState(false)
   const { t } = useLang()
 
   // A reminder N days before due never fires if that day has already
@@ -97,48 +98,56 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   }
 
   async function save() {
-    if (!title.trim()) return
+    if (!title.trim() || submitting) return
+    setSubmitting(true)
 
-    // Turning off repeat on an occurrence that hasn't happened yet removes
-    // it outright — there's no history to preserve, and it was the latest
-    // row in its series, so nothing more gets generated. An already-done
-    // occurrence just loses the badge and stays as a normal record.
-    if (task && task.recurrence && !recurrence && task.state !== 'done') {
-      const tombstone: Task = { ...task, deleted: 1, updatedAt: Date.now() }
-      await writeAndQueue(db.tasks, 'task', tombstone)
-      if (task.goalId) await rollUpGoal(task.goalId)
+    try {
+      // Turning off repeat on an occurrence that hasn't happened yet removes
+      // it outright — there's no history to preserve, and it was the latest
+      // row in its series, so nothing more gets generated. An already-done
+      // occurrence just loses the badge and stays as a normal record.
+      if (task && task.recurrence && !recurrence && task.state !== 'done') {
+        const tombstone: Task = { ...task, deleted: 1, updatedAt: Date.now() }
+        await writeAndQueue(db.tasks, 'task', tombstone)
+        if (task.goalId) await rollUpGoal(task.goalId)
+        syncNow()
+        onClose()
+        return
+      }
+
+      const id = task?.id ?? uuid()
+      const record: Task = {
+        id,
+        sysId: task?.sysId,
+        title: title.trim(),
+        notes: task?.notes,
+        state,
+        priority: task?.priority ?? 3,
+        due,
+        timeBlockStart: start ? `${due}T${start}` : undefined,
+        timeBlockEnd: end ? `${due}T${end}` : undefined,
+        estimatedHours: hours,
+        actualHours: task?.actualHours,
+        goalId: goalId || undefined,
+        projectId: projectId || undefined,
+        isMit,
+        reminderDaysBefore: reminderDays,
+        recurrence,
+        seriesId: recurrence ? (task?.seriesId ?? id) : task?.seriesId,
+        deleted: 0,
+        updatedAt: Date.now(),
+      }
+      await writeAndQueue(db.tasks, 'task', record)
+      if (task?.goalId && task.goalId !== record.goalId) await rollUpGoal(task.goalId)
+      if (record.goalId) await rollUpGoal(record.goalId)
       syncNow()
       onClose()
-      return
+    } finally {
+      // Only matters if save() threw before reaching onClose() (which
+      // unmounts this form) — otherwise this runs on a component that's
+      // already gone, which is harmless.
+      setSubmitting(false)
     }
-
-    const id = task?.id ?? uuid()
-    const record: Task = {
-      id,
-      sysId: task?.sysId,
-      title: title.trim(),
-      notes: task?.notes,
-      state,
-      priority: task?.priority ?? 3,
-      due,
-      timeBlockStart: start ? `${due}T${start}` : undefined,
-      timeBlockEnd: end ? `${due}T${end}` : undefined,
-      estimatedHours: hours,
-      actualHours: task?.actualHours,
-      goalId: goalId || undefined,
-      projectId: projectId || undefined,
-      isMit,
-      reminderDaysBefore: reminderDays,
-      recurrence,
-      seriesId: recurrence ? (task?.seriesId ?? id) : task?.seriesId,
-      deleted: 0,
-      updatedAt: Date.now(),
-    }
-    await writeAndQueue(db.tasks, 'task', record)
-    if (task?.goalId && task.goalId !== record.goalId) await rollUpGoal(task.goalId)
-    if (record.goalId) await rollUpGoal(record.goalId)
-    syncNow()
-    onClose()
   }
 
   async function remove() {
@@ -258,10 +267,12 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
           </div>
         </div>
         <div className="row sheet-actions" style={{ justifyContent: editing ? 'space-between' : 'flex-end' }}>
-          {editing && <button className="btn btn-danger" onClick={remove}>{t('common.delete')}</button>}
+          {editing && <button className="btn btn-danger" onClick={remove} disabled={submitting}>{t('common.delete')}</button>}
           <span style={{ display: 'flex', gap: '0.6rem' }}>
-            <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-            <button className="btn btn-primary" onClick={save}>{editing ? t('task.save') : t('task.addTask')}</button>
+            <button className="btn" onClick={onClose} disabled={submitting}>{t('common.cancel')}</button>
+            <button className="btn btn-primary" onClick={save} disabled={submitting}>
+              {editing ? t('task.save') : t('task.addTask')}
+            </button>
           </span>
         </div>
       </div>

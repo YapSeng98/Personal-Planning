@@ -11,24 +11,30 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
   // Kept as text while typing (so clearing the field doesn't snap back to 0);
   // parsed and clamped only on save.
   const [target, setTarget] = useState(habit ? String(habit.targetPerDay) : '1')
+  const [submitting, setSubmitting] = useState(false)
   const { t } = useLang()
 
   async function save() {
-    if (!name.trim()) return
-    const h: Habit = {
-      id: habit?.id ?? uuid(),
-      sysId: habit?.sysId,
-      name: name.trim(),
-      emoji: emoji.trim() || '✅',
-      frequency: 'daily',
-      targetPerDay: Math.max(1, parseInt(target, 10) || 1),
-      active: 1,
-      deleted: 0,
-      updatedAt: Date.now(),
+    if (!name.trim() || submitting) return
+    setSubmitting(true)
+    try {
+      const h: Habit = {
+        id: habit?.id ?? uuid(),
+        sysId: habit?.sysId,
+        name: name.trim(),
+        emoji: emoji.trim() || '✅',
+        frequency: 'daily',
+        targetPerDay: Math.max(1, parseInt(target, 10) || 1),
+        active: 1,
+        deleted: 0,
+        updatedAt: Date.now(),
+      }
+      await writeAndQueue(db.habits, 'habit', h)
+      syncNow()
+      onClose()
+    } finally {
+      setSubmitting(false)
     }
-    await writeAndQueue(db.habits, 'habit', h)
-    syncNow()
-    onClose()
   }
 
   async function remove() {
@@ -80,10 +86,10 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
         </div>
         </div>
         <div className="row sheet-actions" style={{ justifyContent: habit ? 'space-between' : 'flex-end' }}>
-          {habit && <button className="btn btn-danger" onClick={remove}>{t('common.delete')}</button>}
+          {habit && <button className="btn btn-danger" onClick={remove} disabled={submitting}>{t('common.delete')}</button>}
           <span style={{ display: 'flex', gap: '0.6rem' }}>
-            <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-            <button className="btn btn-primary" onClick={save}>{habit ? t('habit.save') : t('habit.add')}</button>
+            <button className="btn" onClick={onClose} disabled={submitting}>{t('common.cancel')}</button>
+            <button className="btn btn-primary" onClick={save} disabled={submitting}>{habit ? t('habit.save') : t('habit.add')}</button>
           </span>
         </div>
       </div>
