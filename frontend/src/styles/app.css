@@ -757,6 +757,32 @@ button.goal-card:hover { background: var(--glass-strong); }
 }
 .ql-row:hover .ql-arrow { transform: translate(2px, -2px); }
 
+/* On phones the panel becomes a row of tappable circles, matching the habit
+   rings right below it, instead of a boxed list. */
+@media (max-width: 999px) {
+  .hero-toprow .quicklink-panel {
+    margin: 0; width: 100%;
+    flex-direction: row; gap: 0.6rem; padding: 0.2rem 0;
+    background: none; border: none; border-radius: 0; box-shadow: none; overflow-x: auto;
+  }
+  .ql-row {
+    flex-direction: column; align-items: center; text-align: center; gap: 0.1rem;
+    min-width: 64px; padding: 0.3rem;
+  }
+  .ql-row + .ql-row { border-top: none; }
+  .ql-row::before { content: none; }
+  .ql-row:hover { background: none; }
+  .ql-ico {
+    width: 50px; height: 50px; border-radius: 50%; font-size: 1.15rem; margin-bottom: 0.3rem;
+    background: var(--glass-strong);
+    box-shadow: inset 0 0 0 2px var(--ql-accent);
+    transition: transform 150ms var(--ease);
+  }
+  .ql-row:active .ql-ico { transform: scale(1.06); }
+  .ql-label { font-size: 0.66rem; font-weight: 600; color: var(--text-2); flex: none; white-space: normal; }
+  .ql-arrow { display: none; }
+}
+
 /* elevated task cards */
 .tstack { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.6rem; }
 .tcard { position: relative; overflow: hidden; display: flex; align-items: center; gap: 0.75rem;
