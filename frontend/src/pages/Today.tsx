@@ -377,6 +377,8 @@ export default function Today() {
         )}
       </div>
 
+      <Insights />
+
       <div className="section-h">{t('today.habits')}</div>
       <div className="habit-row">
         {habits.map((h) => {
@@ -409,7 +411,6 @@ export default function Today() {
           </span>
         </div>
       </div>
-      <Insights />
     </div>
 
     <div className="ga-tasks">
