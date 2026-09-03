@@ -456,11 +456,12 @@ export default function Plan() {
             {weekdayLabels.map((l) => <span key={l} className="month-weekday">{l}</span>)}
           </div>
           <div className="month-grid">
-            {monthCells.map((c) => (
+            {monthCells.map((c, i) => (
               <button
                 key={c.date}
                 type="button"
                 className={`month-cell ${c.inMonth ? '' : 'out'} ${c.date === today ? 'today' : ''} ${c.date === selectedDate ? 'selected' : ''}`}
+                style={{ animationDelay: `${Math.min(i * 9, 260)}ms` }}
                 onClick={() => setSelectedDate(c.date)}
               >
                 <span className="mc-top">
@@ -483,51 +484,53 @@ export default function Plan() {
             ))}
           </div>
 
-          <div className="section-h">
-            {selectedDayView.name}{selectedDate === today ? ` · ${t('common.today')}` : ''}
-            {selectedReview?.mood && <span className="panel-mood" aria-hidden>{MOOD_EMOJI[selectedReview.mood]}</span>}
+          <div key={selectedDate} className="day-detail-fade">
+            <div className="section-h">
+              {selectedDayView.name}{selectedDate === today ? ` · ${t('common.today')}` : ''}
+              {selectedReview?.mood && <span className="panel-mood" aria-hidden>{MOOD_EMOJI[selectedReview.mood]}</span>}
+            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleSelectedDragEnd}>
+              <SortableContext items={selectedTasks.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+                <div className="card day-card month-selected-panel">
+                  {selectedTasks.map((task) => (
+                    <TaskRow key={task.id} task={task} onToggle={() => toggle(task)} onEdit={() => setEditing(task)} t={t} />
+                  ))}
+                  <input
+                    className="add-inline"
+                    type="text"
+                    placeholder={t('plan.addTask')}
+                    value={selectedDraft}
+                    onChange={(e) => setSelectedDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addForSelected()}
+                    aria-label={t('plan.addTask')}
+                  />
+                </div>
+              </SortableContext>
+            </DndContext>
+
+            {selectedHabits.length > 0 && (
+              <>
+                <div className="section-h">{t('today.habits')}</div>
+                <div className="habit-strip">
+                  {selectedHabits.map(({ habit, done }) => (
+                    <span key={habit.id} className={`hchip ${done ? 'on' : ''}`}>
+                      <span className="ico">{habit.emoji}</span>{habit.name}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {selectedReview && (selectedReview.wins || selectedReview.mood) && (
+              <>
+                <div className="section-h">{t('plan.dayReview')}</div>
+                <div className="card review-mini">
+                  {selectedReview.mood && <span className="e" aria-hidden>{MOOD_EMOJI[selectedReview.mood]}</span>}
+                  {selectedReview.wins && <span className="txt">{selectedReview.wins}</span>}
+                </div>
+              </>
+            )}
           </div>
-          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleSelectedDragEnd}>
-            <SortableContext items={selectedTasks.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-              <div className="card day-card month-selected-panel">
-                {selectedTasks.map((task) => (
-                  <TaskRow key={task.id} task={task} onToggle={() => toggle(task)} onEdit={() => setEditing(task)} t={t} />
-                ))}
-                <input
-                  className="add-inline"
-                  type="text"
-                  placeholder={t('plan.addTask')}
-                  value={selectedDraft}
-                  onChange={(e) => setSelectedDraft(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addForSelected()}
-                  aria-label={t('plan.addTask')}
-                />
-              </div>
-            </SortableContext>
-          </DndContext>
-
-          {selectedHabits.length > 0 && (
-            <>
-              <div className="section-h">{t('today.habits')}</div>
-              <div className="habit-strip">
-                {selectedHabits.map(({ habit, done }) => (
-                  <span key={habit.id} className={`hchip ${done ? 'on' : ''}`}>
-                    <span className="ico">{habit.emoji}</span>{habit.name}
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-
-          {selectedReview && (selectedReview.wins || selectedReview.mood) && (
-            <>
-              <div className="section-h">{t('plan.dayReview')}</div>
-              <div className="card review-mini">
-                {selectedReview.mood && <span className="e" aria-hidden>{MOOD_EMOJI[selectedReview.mood]}</span>}
-                {selectedReview.wins && <span className="txt">{selectedReview.wins}</span>}
-              </div>
-            </>
-          )}
         </>
       )}
       {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}

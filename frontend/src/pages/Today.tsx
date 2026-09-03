@@ -402,7 +402,7 @@ export default function Today() {
         href="https://yapseng98.github.io/personal_business/#/"
         target="_blank"
         rel="noopener noreferrer"
-        className="card quicklink-card"
+        className="quicklink-card"
       >
         <span className="quicklink-ico">💼</span>
         <span className="quicklink-text">
