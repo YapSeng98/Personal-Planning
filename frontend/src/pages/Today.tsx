@@ -295,8 +295,10 @@ export default function Today() {
           <div className="hero-video">
             {videoPlaying ? (
               <>
+                {/* youtube.com (not -nocookie) so a signed-in / Premium session
+                    applies where the browser allows third-party cookies */}
                 <iframe
-                  src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
+                  src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
                   title="YouTube"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -311,6 +313,18 @@ export default function Today() {
                 <span className="hv-play" aria-hidden>▶</span>
               </button>
             )}
+            {/* opens the real YouTube app/site, where the account (and Premium)
+                always applies — the embed can't be relied on for that on iOS */}
+            <a
+              className="hv-btn open"
+              href={`https://www.youtube.com/watch?v=${videoId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t('today.videoOpen')}
+              title={t('today.videoOpen')}
+            >
+              ↗
+            </a>
           </div>
         )}
         <div className="hero-brief">

@@ -637,12 +637,15 @@ button.goal-card:hover { background: var(--glass-strong); }
 .hv-poster:hover .hv-play { transform: scale(1.1); background: rgba(0,0,0,0.75); }
 .hv-btn {
   /* above the iframe so YouTube's own hover chrome can't bury it */
-  position: absolute; z-index: 3; left: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 50%;
+  position: absolute; z-index: 3; width: 26px; height: 26px; border-radius: 50%;
   border: none; cursor: pointer; background: rgba(0,0,0,0.72); color: #fff; font-size: 0.7rem;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 160ms var(--ease);
+  display: flex; align-items: center; justify-content: center; text-decoration: none;
+  transition: background 160ms var(--ease), transform 160ms var(--ease);
 }
 .hv-btn:hover { background: rgba(0,0,0,0.85); }
+.hv-btn.stop { left: 6px; bottom: 6px; }
+.hv-btn.open { right: 6px; bottom: 6px; font-size: 0.78rem; }
+.hv-btn.open:hover { transform: translate(1px, -1px); }
 
 .hero-toprow { display: flex; align-items: flex-start; gap: 0.7rem; flex-wrap: wrap; margin: 0.6rem 0 1.1rem; }
 .hero-toprow .reminder-banner { flex: 1 1 240px; margin: 0; min-width: 0; }
