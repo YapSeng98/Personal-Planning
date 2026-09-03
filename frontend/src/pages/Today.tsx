@@ -312,25 +312,37 @@ export default function Today() {
         )}
       </div>
 
-      {reminders.length > 0 && (
-        <div className="card reminder-banner">
-          <div className="lbl"><span className="reminder-bell">🔔</span> {t('today.reminders')}</div>
-          {reminders.map(({ task, daysUntilDue }, i) => (
-            <button
-              key={task.id}
-              type="button"
-              className="reminder-row"
-              style={{ animationDelay: `${i * 70}ms` }}
-              onClick={() => setEditing(task)}
-            >
-              <span className="reminder-title">{task.title}</span>
-              <span className={`reminder-tag ${daysUntilDue === 0 ? 'due-today' : 'due-tomorrow'}`}>
-                {daysUntilDue === 0 ? t('today.dueToday') : daysUntilDue === 1 ? t('today.dueTomorrow') : t('today.dueInDays', { n: daysUntilDue })}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="hero-toprow">
+        {reminders.length > 0 && (
+          <div className="card reminder-banner">
+            <div className="lbl"><span className="reminder-bell">🔔</span> {t('today.reminders')}</div>
+            {reminders.map(({ task, daysUntilDue }, i) => (
+              <button
+                key={task.id}
+                type="button"
+                className="reminder-row"
+                style={{ animationDelay: `${i * 70}ms` }}
+                onClick={() => setEditing(task)}
+              >
+                <span className="reminder-title">{task.title}</span>
+                <span className={`reminder-tag ${daysUntilDue === 0 ? 'due-today' : 'due-tomorrow'}`}>
+                  {daysUntilDue === 0 ? t('today.dueToday') : daysUntilDue === 1 ? t('today.dueTomorrow') : t('today.dueInDays', { n: daysUntilDue })}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        <a
+          href="https://yapseng98.github.io/personal_business/#/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="quicklink-card"
+        >
+          <span className="quicklink-ico">💼</span>
+          <span className="quicklink-label">{t('today.bizLink')}</span>
+          <span className="quicklink-arrow" aria-hidden>↗</span>
+        </a>
+      </div>
     </div>
 
     <div className="ga-side">
@@ -398,16 +410,6 @@ export default function Today() {
         </div>
       </div>
       <Insights />
-      <a
-        href="https://yapseng98.github.io/personal_business/#/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="quicklink-card"
-      >
-        <span className="quicklink-ico">💼</span>
-        <span className="quicklink-label">{t('today.bizLink')}</span>
-        <span className="quicklink-arrow" aria-hidden>↗</span>
-      </a>
     </div>
 
     <div className="ga-tasks">
