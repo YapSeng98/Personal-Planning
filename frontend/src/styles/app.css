@@ -1011,13 +1011,13 @@ button.goal-card:hover { transform: translateY(-2px); }
   .hero-card.has-video .hero-dt,
   .hero-card.has-video .hero-wm { margin-right: 280px; }
   .hero-card.has-video .hero-brief { max-width: none; margin-right: 280px; }
-  /* with a video present the % ring sits just left of it, vertically centred
-     on the frame, rather than alone in the bottom corner */
+  /* with a video present the % ring sits just left of it, bottom-aligned with
+     the frame rather than floating at its middle */
   .hero-card.has-video.has-ring .hero-hi,
   .hero-card.has-video.has-ring .hero-dt,
   .hero-card.has-video.has-ring .hero-wm,
   .hero-card.has-video.has-ring .hero-brief { margin-right: 366px; }
-  .hero-card.has-video.has-ring .hero-ring { right: 292px; bottom: auto; top: 63px; }
+  .hero-card.has-video.has-ring .hero-ring { right: 292px; bottom: auto; top: 107px; }
   .today-grid > .ga-tasks { grid-area: tasks; }
   .today-grid > .ga-tasks > .section-h:first-child { margin-top: 0; }
   .today-grid > .ga-side { grid-area: side; display: flex; flex-direction: column; gap: 1rem; }
