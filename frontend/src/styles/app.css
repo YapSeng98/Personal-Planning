@@ -685,38 +685,39 @@ button.goal-card:hover { background: var(--glass-strong); }
 .m-streak .sl { font-size: 0.6rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
 
 .quicklink-card {
-  display: flex; align-items: center; gap: 0.65rem; margin-top: 0.7rem;
+  display: inline-flex; align-items: center; gap: 0.45rem; margin-top: 0.6rem;
+  align-self: flex-start; width: fit-content; max-width: 100%;
   text-decoration: none; cursor: pointer; position: relative; overflow: hidden;
-  background: var(--grad); border: none; border-radius: 16px; padding: 0.7rem 0.85rem;
-  box-shadow: 0 10px 22px -6px var(--accent-wash);
-  transition: transform 150ms var(--ease), box-shadow 150ms var(--ease);
+  background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 10px;
+  padding: 0.4rem 0.6rem 0.4rem 0.5rem;
+  transition: transform 150ms var(--ease), border-color 150ms var(--ease), box-shadow 150ms var(--ease);
 }
-.quicklink-card:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -6px var(--accent-wash); }
-.quicklink-card:active { transform: translateY(0); }
 .quicklink-card::before {
-  /* diagonal shine that sweeps across on hover */
-  content: ''; position: absolute; top: 0; left: -65%; width: 35%; height: 100%;
-  background: linear-gradient(115deg, transparent, rgba(255,255,255,0.4), transparent);
-  transform: skewX(-18deg); transition: left 600ms var(--ease); pointer-events: none;
+  /* left tab stripe — reads like a business-card / letterhead accent */
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--project-blue);
 }
-.quicklink-card:hover::before { left: 130%; }
+.quicklink-card:hover {
+  transform: translateY(-1px); border-color: var(--project-blue);
+  box-shadow: 0 6px 16px -8px var(--project-blue);
+}
+.quicklink-card:active { transform: translateY(0); }
 .quicklink-ico {
-  width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.22);
-  display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;
-  animation: quicklink-bob 3.4s ease-in-out infinite;
+  width: 24px; height: 24px; border-radius: 6px;
+  background: color-mix(in srgb, var(--project-blue) 16%, transparent);
+  display: flex; align-items: center; justify-content: center; font-size: 0.74rem; flex-shrink: 0;
 }
-@keyframes quicklink-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-2px) rotate(-5deg); }
+.quicklink-text { display: flex; flex-direction: column; gap: 0.01rem; min-width: 0; }
+.quicklink-text b { font-size: 0.74rem; font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quicklink-sub {
+  font-size: 0.56rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--project-blue);
 }
-.quicklink-text { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; position: relative; }
-.quicklink-text b { font-size: 0.86rem; font-weight: 800; color: var(--on-grad); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.quicklink-sub { font-size: 0.68rem; color: var(--on-grad); opacity: 0.72; }
 .quicklink-arrow {
-  margin-left: auto; color: var(--on-grad); font-size: 1.05rem; flex-shrink: 0; position: relative;
-  transition: transform 200ms var(--ease);
+  margin-left: 0.3rem; color: var(--text-3); font-size: 0.78rem; flex-shrink: 0;
+  transition: transform 200ms var(--ease), color 200ms var(--ease);
 }
-.quicklink-card:hover .quicklink-arrow { transform: translate(2px, -2px); }
+.quicklink-card:hover .quicklink-arrow { transform: translate(2px, -2px); color: var(--project-blue); }
 
 /* elevated task cards */
 .tstack { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.6rem; }
