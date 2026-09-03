@@ -356,20 +356,44 @@
 .month-cell {
   /* Fixed (not aspect-ratio) height — on wide screens 7 columns makes cells
      very wide, and aspect-ratio:1 would make them just as tall, forcing a
-     lot of scrolling. A flat height stays compact at any screen width. */
-  height: 52px; border-radius: 10px; border: 1px solid var(--hairline); background: var(--glass);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  cursor: pointer; padding: 0.2rem; transition: background 150ms var(--ease);
+     lot of scrolling. A flat height stays compact at any screen width.
+     Taller than before (52px) to fit the task bar + habit dots + mood. */
+  height: 68px; border-radius: 11px; border: 1px solid var(--hairline); background: var(--glass);
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+  cursor: pointer; padding: 0.3rem 0.35rem; transition: background 150ms var(--ease);
+  text-align: left;
 }
 .month-cell:hover { background: var(--glass-strong); }
 .month-cell.out { opacity: 0.35; }
 .month-cell.today { border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright); }
 .month-cell.selected { background: var(--accent-wash); border-color: var(--accent-bright); }
-.month-cell .mc-num { font-size: 0.82rem; font-weight: 700; color: var(--text-1); }
-.month-cell .mc-count { font-size: 0.6rem; font-weight: 700; color: var(--text-3); }
-.month-cell .mc-count.all-done { color: var(--ok); }
-.month-cell .mc-count.pending { color: var(--accent-bright); }
+.month-cell .mc-top { display: flex; align-items: center; justify-content: space-between; }
+.month-cell .mc-num { font-size: 0.78rem; font-weight: 700; color: var(--text-1); }
+.month-cell .mc-mood { font-size: 0.7rem; line-height: 1; }
+.month-cell .mc-taskbar { height: 3px; border-radius: 2px; background: var(--hairline); margin-top: 0.28rem; overflow: hidden; }
+.month-cell .mc-taskbar i { display: block; height: 100%; border-radius: 2px; background: var(--text-3); }
+.month-cell .mc-taskbar i.partial { background: var(--accent-bright); }
+.month-cell .mc-taskbar i.done { background: var(--ok); }
+.month-cell .mc-habits { display: flex; gap: 2.5px; margin-top: auto; padding-top: 0.26rem; flex-wrap: wrap; }
+.month-cell .hdot { width: 5px; height: 5px; border-radius: 50%; background: var(--hairline); flex-shrink: 0; }
+.month-cell .hdot.on { background: var(--ok); }
 .month-selected-panel { margin-top: 0.6rem; }
+
+.panel-mood { margin-left: 0.4rem; font-size: 0.85rem; }
+.habit-strip { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.hchip {
+  display: flex; align-items: center; gap: 0.4rem; background: var(--glass); border: 1px solid var(--hairline);
+  border-radius: 999px; padding: 0.34rem 0.7rem 0.34rem 0.4rem; font-size: 0.8rem; color: var(--text-3);
+}
+.hchip .ico {
+  width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem; background: var(--glass-strong); flex-shrink: 0;
+}
+.hchip.on { color: var(--text-1); }
+.hchip.on .ico { background: var(--ok); }
+.review-mini { display: flex; gap: 0.7rem; align-items: flex-start; }
+.review-mini .e { font-size: 1.3rem; line-height: 1; flex-shrink: 0; }
+.review-mini .txt { font-size: 0.84rem; color: var(--text-2); line-height: 1.5; }
 
 .day-card { padding: 0.8rem 1rem; }
 .day-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }

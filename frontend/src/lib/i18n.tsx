@@ -114,6 +114,7 @@ const en: Dict = {
   // plan
   'plan.title': 'Plan', 'plan.sub': '{month} — month goals and your week, day by day.',
   'plan.monthGoals': 'Month goals', 'plan.addTask': '+ add task', 'plan.backToWeek': '↩ Back to this week',
+  'plan.dayReview': 'Review',
   'plan.thisWeek': 'This week', 'plan.lastWeek': 'Last week', 'plan.nextWeek': 'Next week',
   'plan.weeksAgo': '{n} weeks ago', 'plan.inWeeks': 'In {n} weeks', 'plan.done': 'done',
   'plan.previewHint': "Repeats here — appears for real once it's due.",
@@ -279,6 +280,7 @@ const zh: Dict = {
   'status.completed': '已完成', 'status.abandoned': '已放弃',
   'plan.title': '规划', 'plan.sub': '{month} — 月度目标与你的一周，按天安排。',
   'plan.monthGoals': '月度目标', 'plan.addTask': '+ 添加任务', 'plan.backToWeek': '↩ 回到本周',
+  'plan.dayReview': '回顾',
   'plan.thisWeek': '本周', 'plan.lastWeek': '上周', 'plan.nextWeek': '下周',
   'plan.weeksAgo': '{n} 周前', 'plan.inWeeks': '{n} 周后', 'plan.done': '完成',
   'plan.previewHint': '重复任务预览 — 到期后会正式出现。',

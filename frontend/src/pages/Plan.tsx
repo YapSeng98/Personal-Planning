@@ -5,7 +5,10 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, uuid, todayStr, writeAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, CHANGED, type Task, type Goal } from '../db/db'
+import {
+  db, uuid, todayStr, writeAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, CHANGED,
+  type Task, type Goal, type Habit, type Review,
+} from '../db/db'
 import { syncNow } from '../sync/engine'
 import TaskForm from '../components/TaskForm'
 import { useLang, type TFn } from '../lib/i18n'
@@ -25,7 +28,12 @@ interface MonthCell {
   inMonth: boolean
   done: number
   total: number
+  habitsDone: number
+  habitsTotal: number
+  mood?: Review['mood']
 }
+
+const MOOD_EMOJI: Record<NonNullable<Review['mood']>, string> = { great: '😊', good: '🙂', okay: '😐', bad: '☹️' }
 
 function relativeWeek(offset: number, t: TFn): string {
   if (offset === 0) return t('plan.thisWeek')
@@ -118,6 +126,8 @@ export default function Plan() {
   const [monthCells, setMonthCells] = useState<MonthCell[]>([])
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [selectedTasks, setSelectedTasks] = useState<Task[]>([])
+  const [selectedHabits, setSelectedHabits] = useState<{ habit: Habit; done: boolean }[]>([])
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null)
   const [selectedDraft, setSelectedDraft] = useState('')
   // Re-entrancy guards against rapid Enter presses on the inline "+ add
   // task" inputs creating multiple copies — refs, not state, since nothing
@@ -169,8 +179,11 @@ export default function Plan() {
     const gridEnd = new Date(gridStart)
     gridEnd.setDate(gridStart.getDate() + totalCells - 1)
 
+    const gridStartStr = todayStr(gridStart)
+    const gridEndStr = todayStr(gridEnd)
+
     const tasksInRange = await db.tasks
-      .where('due').between(todayStr(gridStart), todayStr(gridEnd), true, true)
+      .where('due').between(gridStartStr, gridEndStr, true, true)
       .and((x) => !x.deleted).toArray()
     const byDate = new Map<string, Task[]>()
     for (const x of tasksInRange) {
@@ -180,13 +193,40 @@ export default function Plan() {
       byDate.set(x.due, arr)
     }
 
+    // Habits: how many of the user's active habits hit their daily target,
+    // per date — same "count >= target" rule habitStats() uses elsewhere.
+    const activeHabits = await db.habits.where('active').equals(1).and((h) => !h.deleted).toArray()
+    const logsInRange = await db.habitLogs
+      .where('date').between(gridStartStr, gridEndStr, true, true)
+      .and((l) => !l.deleted).toArray()
+    const countByDateHabit = new Map<string, Map<string, number>>()
+    for (const l of logsInRange) {
+      const byHabit = countByDateHabit.get(l.date) ?? new Map<string, number>()
+      byHabit.set(l.habitId, (byHabit.get(l.habitId) ?? 0) + l.count)
+      countByDateHabit.set(l.date, byHabit)
+    }
+
+    // One daily review per date carries that day's mood.
+    const reviewsInRange = await db.reviews
+      .filter((r) => !r.deleted && r.type === 'daily' && r.periodStart >= gridStartStr && r.periodStart <= gridEndStr)
+      .toArray()
+    const moodByDate = new Map<string, Review['mood']>()
+    for (const r of reviewsInRange) if (r.mood) moodByDate.set(r.periodStart, r.mood)
+
     const cells: MonthCell[] = []
     for (let i = 0; i < totalCells; i++) {
       const d = new Date(gridStart)
       d.setDate(gridStart.getDate() + i)
       const date = todayStr(d)
       const dayTasks = byDate.get(date) ?? []
-      cells.push({ date, inMonth: d.getMonth() === month, done: dayTasks.filter((x) => x.state === 'done').length, total: dayTasks.length })
+      const byHabit = countByDateHabit.get(date)
+      const habitsDone = activeHabits.filter((h) => (byHabit?.get(h.id) ?? 0) >= h.targetPerDay).length
+      cells.push({
+        date, inMonth: d.getMonth() === month,
+        done: dayTasks.filter((x) => x.state === 'done').length, total: dayTasks.length,
+        habitsDone, habitsTotal: activeHabits.length,
+        mood: moodByDate.get(date),
+      })
     }
     setMonthCells(cells)
   }, [monthOffset])
@@ -194,6 +234,17 @@ export default function Plan() {
   const loadSelectedDay = useCallback(async () => {
     const tasks = (await db.tasks.where('due').equals(selectedDate).and((x) => !x.deleted).toArray()).sort(byOrder)
     setSelectedTasks(tasks)
+
+    const activeHabits = await db.habits.where('active').equals(1).and((h) => !h.deleted).toArray()
+    const logs = await db.habitLogs.where('date').equals(selectedDate).and((l) => !l.deleted).toArray()
+    const countByHabit = new Map<string, number>()
+    for (const l of logs) countByHabit.set(l.habitId, (countByHabit.get(l.habitId) ?? 0) + l.count)
+    setSelectedHabits(activeHabits.map((h) => ({ habit: h, done: (countByHabit.get(h.id) ?? 0) >= h.targetPerDay })))
+
+    const review = await db.reviews
+      .filter((r) => !r.deleted && r.type === 'daily' && r.periodStart === selectedDate)
+      .first()
+    setSelectedReview(review ?? null)
   }, [selectedDate])
 
   useEffect(() => {
@@ -412,15 +463,30 @@ export default function Plan() {
                 className={`month-cell ${c.inMonth ? '' : 'out'} ${c.date === today ? 'today' : ''} ${c.date === selectedDate ? 'selected' : ''}`}
                 onClick={() => setSelectedDate(c.date)}
               >
-                <span className="mc-num num">{Number(c.date.slice(8, 10))}</span>
+                <span className="mc-top">
+                  <span className="mc-num num">{Number(c.date.slice(8, 10))}</span>
+                  {c.mood && <span className="mc-mood" aria-hidden>{MOOD_EMOJI[c.mood]}</span>}
+                </span>
                 {c.total > 0 && (
-                  <span className={`mc-count num ${c.done === c.total ? 'all-done' : 'pending'}`}>{c.done}/{c.total}</span>
+                  <span className="mc-taskbar">
+                    <i className={c.done === c.total ? 'done' : 'partial'} style={{ width: `${(c.done / c.total) * 100}%` }} />
+                  </span>
+                )}
+                {c.habitsTotal > 0 && (
+                  <span className="mc-habits">
+                    {Array.from({ length: c.habitsTotal }).map((_, i) => (
+                      <span key={i} className={`hdot ${i < c.habitsDone ? 'on' : ''}`} />
+                    ))}
+                  </span>
                 )}
               </button>
             ))}
           </div>
 
-          <div className="section-h">{selectedDayView.name}{selectedDate === today ? ` · ${t('common.today')}` : ''}</div>
+          <div className="section-h">
+            {selectedDayView.name}{selectedDate === today ? ` · ${t('common.today')}` : ''}
+            {selectedReview?.mood && <span className="panel-mood" aria-hidden>{MOOD_EMOJI[selectedReview.mood]}</span>}
+          </div>
           <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleSelectedDragEnd}>
             <SortableContext items={selectedTasks.map((x) => x.id)} strategy={verticalListSortingStrategy}>
               <div className="card day-card month-selected-panel">
@@ -439,6 +505,29 @@ export default function Plan() {
               </div>
             </SortableContext>
           </DndContext>
+
+          {selectedHabits.length > 0 && (
+            <>
+              <div className="section-h">{t('today.habits')}</div>
+              <div className="habit-strip">
+                {selectedHabits.map(({ habit, done }) => (
+                  <span key={habit.id} className={`hchip ${done ? 'on' : ''}`}>
+                    <span className="ico">{habit.emoji}</span>{habit.name}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+
+          {selectedReview && (selectedReview.wins || selectedReview.mood) && (
+            <>
+              <div className="section-h">{t('plan.dayReview')}</div>
+              <div className="card review-mini">
+                {selectedReview.mood && <span className="e" aria-hidden>{MOOD_EMOJI[selectedReview.mood]}</span>}
+                {selectedReview.wins && <span className="txt">{selectedReview.wins}</span>}
+              </div>
+            </>
+          )}
         </>
       )}
       {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
