@@ -967,6 +967,7 @@ button.goal-card:hover { transform: translateY(-2px); }
   .today-grid > .ga-hero { grid-area: hero; }
   .today-grid > .ga-hero .hero-card { margin-bottom: 0; }
   .today-grid > .ga-tasks { grid-area: tasks; }
+  .today-grid > .ga-tasks > .section-h:first-child { margin-top: 0; }
   .today-grid > .ga-side { grid-area: side; display: flex; flex-direction: column; gap: 1rem; }
   .today-grid > .ga-side .momentum { margin-top: 0; }
   /* the year-goal ring shows inside the side column on desktop */
