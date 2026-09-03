@@ -233,9 +233,22 @@ export async function writeAndQueue<T extends { id: string; updatedAt: number }>
 
 function nextOccurrence(date: string, recurrence: NonNullable<Task['recurrence']>): string {
   const d = new Date(date + 'T00:00')
-  if (recurrence === 'daily') d.setDate(d.getDate() + 1)
-  else if (recurrence === 'weekly') d.setDate(d.getDate() + 7)
-  else d.setMonth(d.getMonth() + 1)
+  if (recurrence === 'daily') {
+    d.setDate(d.getDate() + 1)
+  } else if (recurrence === 'weekly') {
+    d.setDate(d.getDate() + 7)
+  } else {
+    // Naive d.setMonth(d.getMonth() + 1) overflows for day-of-month 29-31 in
+    // a shorter target month — Jan 31 lands on Mar 2/3, silently skipping
+    // February's occurrence entirely, rather than clamping to Feb 28/29.
+    // Reset to day 1 before changing the month so the month itself can't
+    // overflow, then clamp the day to whatever the target month actually has.
+    const originalDay = d.getDate()
+    d.setDate(1)
+    d.setMonth(d.getMonth() + 1)
+    const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+    d.setDate(Math.min(originalDay, daysInTargetMonth))
+  }
   return todayStr(d)
 }
 
