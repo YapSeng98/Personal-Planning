@@ -5,6 +5,7 @@ import { useLang } from '../lib/i18n'
 import { type Task } from '../db/db'
 import TaskForm from './TaskForm'
 import SearchModal from './SearchModal'
+import { VideoProvider } from './VideoPlayer'
 
 const links = [
   { to: '/', key: 'nav.today', ico: '☀️' },
@@ -56,6 +57,7 @@ export default function Shell() {
     ))
 
   return (
+    <VideoProvider>
     <div className="shell">
       <nav className="nav-rail" aria-label="Main">
         <div className="nav-rail-top">
@@ -91,5 +93,6 @@ export default function Shell() {
       )}
       {searchTask && <TaskForm task={searchTask} onClose={() => setSearchTask(null)} />}
     </div>
+    </VideoProvider>
   )
 }

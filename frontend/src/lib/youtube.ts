@@ -4,6 +4,10 @@
 
 const KEY = 'planner_youtube_url'
 
+/** Fired when the URL changes so the player (mounted in the Shell, not on the
+    Settings page) can pick it up without a reload. */
+export const YOUTUBE_CHANGED = 'planner:youtube'
+
 export function getYoutubeUrl(): string {
   return localStorage.getItem(KEY) ?? ''
 }
@@ -11,6 +15,7 @@ export function setYoutubeUrl(url: string) {
   const u = url.trim()
   if (u) localStorage.setItem(KEY, u)
   else localStorage.removeItem(KEY)
+  window.dispatchEvent(new CustomEvent(YOUTUBE_CHANGED))
 }
 
 /** Extract the 11-char video id from any common YouTube URL shape (watch,
