@@ -332,20 +332,33 @@ export default function Today() {
             ))}
           </div>
         )}
-        <a
-          href="https://yapseng98.github.io/personal_business/#/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="quicklink-card"
-        >
-          <span className="quicklink-ico">💼</span>
-          <span className="quicklink-label">{t('today.bizLink')}</span>
-          <span className="quicklink-arrow" aria-hidden>↗</span>
-        </a>
+        <div className="quicklink-stack">
+          <a
+            href="https://yapseng98.github.io/personal_business/#/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="quicklink-card"
+          >
+            <span className="quicklink-ico">💼</span>
+            <span className="quicklink-label">{t('today.bizLink')}</span>
+            <span className="quicklink-arrow" aria-hidden>↗</span>
+          </a>
+          <a
+            href="https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="quicklink-card game"
+          >
+            <span className="quicklink-ico">🎮</span>
+            <span className="quicklink-label">{t('today.gameLink')}</span>
+            <span className="quicklink-arrow" aria-hidden>↗</span>
+          </a>
+        </div>
       </div>
     </div>
 
     <div className="ga-side">
+      <div className="section-h">{t('today.overview')}</div>
       {/* ---- momentum ---- */}
       <div className="momentum">
         <div className="m-card m-chart">
