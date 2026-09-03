@@ -332,26 +332,26 @@ export default function Today() {
             ))}
           </div>
         )}
-        <div className="quicklink-stack">
+        <div className="quicklink-panel">
           <a
             href="https://yapseng98.github.io/personal_business/#/"
             target="_blank"
             rel="noopener noreferrer"
-            className="quicklink-card"
+            className="ql-row"
           >
-            <span className="quicklink-ico">💼</span>
-            <span className="quicklink-label">{t('today.bizLink')}</span>
-            <span className="quicklink-arrow" aria-hidden>↗</span>
+            <span className="ql-ico">💼</span>
+            <span className="ql-label">{t('today.bizLink')}</span>
+            <span className="ql-arrow" aria-hidden>↗</span>
           </a>
           <a
             href="https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776"
             target="_blank"
             rel="noopener noreferrer"
-            className="quicklink-card game"
+            className="ql-row game"
           >
-            <span className="quicklink-ico">🎮</span>
-            <span className="quicklink-label">{t('today.gameLink')}</span>
-            <span className="quicklink-arrow" aria-hidden>↗</span>
+            <span className="ql-ico">🎮</span>
+            <span className="ql-label">{t('today.gameLink')}</span>
+            <span className="ql-arrow" aria-hidden>↗</span>
           </a>
         </div>
       </div>
