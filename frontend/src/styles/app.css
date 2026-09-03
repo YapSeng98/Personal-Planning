@@ -615,6 +615,35 @@ button.goal-card:hover { background: var(--glass-strong); }
 .hero-ring i { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(150deg, #FF9147, #FFB03A);
   display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 850; color: #2c1004; font-style: normal; font-variant-numeric: tabular-nums; }
 
+/* Hero video: stacks under the greeting on phones, floats top-right on
+   laptop where the hero has spare horizontal room. */
+.hero-video {
+  position: relative; margin-top: 0.9rem; border-radius: 14px; overflow: hidden;
+  aspect-ratio: 16 / 9; background: #000;
+  border: 1px solid rgba(255,255,255,0.45); box-shadow: 0 10px 26px -12px rgba(44,16,4,0.6);
+}
+.hero-video iframe { width: 100%; height: 100%; border: 0; display: block; }
+.hv-poster {
+  width: 100%; height: 100%; padding: 0; border: none; background: none; cursor: pointer;
+  display: block; position: relative;
+}
+.hv-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hv-play {
+  position: absolute; inset: 0; margin: auto; width: 46px; height: 46px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55); color: #fff; font-size: 1rem; padding-left: 3px;
+  transition: transform 160ms var(--ease), background 160ms var(--ease);
+}
+.hv-poster:hover .hv-play { transform: scale(1.1); background: rgba(0,0,0,0.75); }
+.hv-btn {
+  /* above the iframe so YouTube's own hover chrome can't bury it */
+  position: absolute; z-index: 3; left: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 50%;
+  border: none; cursor: pointer; background: rgba(0,0,0,0.72); color: #fff; font-size: 0.7rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 160ms var(--ease);
+}
+.hv-btn:hover { background: rgba(0,0,0,0.85); }
+
 .hero-toprow { display: flex; align-items: flex-start; gap: 0.7rem; flex-wrap: wrap; margin: 0.6rem 0 1.1rem; }
 .hero-toprow .reminder-banner { flex: 1 1 240px; margin: 0; min-width: 0; }
 .hero-toprow .quicklink-panel { margin: 0 0 0 auto; }
@@ -973,6 +1002,22 @@ button.goal-card:hover { transform: translateY(-2px); }
     grid-template-areas: "hero hero" "tasks side" "tasks side"; }
   .today-grid > .ga-hero { grid-area: hero; }
   .today-grid > .ga-hero .hero-card { margin-bottom: 0; }
+  /* video floats top-right; text keeps clear of it, and the % ring steps
+     aside so the two never stack on the same corner */
+  .hero-card.has-video .hero-video {
+    position: absolute; top: 1.2rem; right: 1.2rem; width: 260px; margin-top: 0;
+  }
+  .hero-card.has-video .hero-hi,
+  .hero-card.has-video .hero-dt,
+  .hero-card.has-video .hero-wm { margin-right: 280px; }
+  .hero-card.has-video .hero-brief { max-width: none; margin-right: 280px; }
+  /* with a video present the % ring sits just left of it, vertically centred
+     on the frame, rather than alone in the bottom corner */
+  .hero-card.has-video.has-ring .hero-hi,
+  .hero-card.has-video.has-ring .hero-dt,
+  .hero-card.has-video.has-ring .hero-wm,
+  .hero-card.has-video.has-ring .hero-brief { margin-right: 366px; }
+  .hero-card.has-video.has-ring .hero-ring { right: 292px; bottom: auto; top: 63px; }
   .today-grid > .ga-tasks { grid-area: tasks; }
   .today-grid > .ga-tasks > .section-h:first-child { margin-top: 0; }
   .today-grid > .ga-side { grid-area: side; display: flex; flex-direction: column; gap: 1rem; }

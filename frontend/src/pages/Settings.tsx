@@ -5,6 +5,7 @@ import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { getAiUrl, setAiUrl, askAI } from '../lib/ai'
+import { getYoutubeUrl, setYoutubeUrl, extractYoutubeId } from '../lib/youtube'
 import { useLang, LANGS, type Lang } from '../lib/i18n'
 
 export default function Settings() {
@@ -12,6 +13,7 @@ export default function Settings() {
   const [bg, setBgState] = useState<Bg>(getBg())
   const [aiUrl, setAiUrlState] = useState(getAiUrl())
   const [aiTest, setAiTest] = useState<{ state: 'idle' | 'testing' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
+  const [ytUrl, setYtUrlState] = useState(getYoutubeUrl())
   const [sync, setSync] = useState<SyncState>('idle')
   const [pending, setPending] = useState(0)
   const [cleanup, setCleanup] = useState<{ state: 'idle' | 'running' | 'done'; msg: string }>({ state: 'idle', msg: '' })
@@ -57,6 +59,11 @@ export default function Settings() {
     } catch (e) {
       setAiTest({ state: 'err', msg: e instanceof Error ? e.message : 'failed' })
     }
+  }
+
+  function saveYtUrl(url: string) {
+    setYtUrlState(url)
+    setYoutubeUrl(url)
   }
 
   async function runCleanup() {
@@ -143,6 +150,26 @@ export default function Settings() {
         </div>
         {aiTest.state === 'ok' && <div className="ai-status ok">✓ {t('set.aiOk')}</div>}
         {aiTest.state === 'err' && <div className="ai-status err">✕ {aiTest.msg}</div>}
+      </div>
+
+      <div className="section-h">{t('set.video')}</div>
+      <div className="card">
+        <div className="row-sub" style={{ marginBottom: '0.6rem' }}>{t('set.videoHint')}</div>
+        <div className="ai-row">
+          <input
+            type="url"
+            inputMode="url"
+            placeholder="https://www.youtube.com/watch?v=..."
+            value={ytUrl}
+            onChange={(e) => saveYtUrl(e.target.value)}
+            aria-label={t('set.video')}
+          />
+        </div>
+        {ytUrl.trim() !== '' && (
+          extractYoutubeId(ytUrl)
+            ? <div className="ai-status ok">✓ {t('set.videoOk')}</div>
+            : <div className="ai-status err">✕ {t('set.videoBad')}</div>
+        )}
       </div>
 
       <div className="section-h">{t('set.language')}</div>

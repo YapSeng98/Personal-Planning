@@ -10,6 +10,7 @@ import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji,
 import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
 import { aiEnabled, askAI } from '../lib/ai'
+import { getYoutubeUrl, extractYoutubeId } from '../lib/youtube'
 import { projectColorVar } from '../lib/projectColors'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
@@ -122,6 +123,8 @@ export default function Today() {
   const [mom, setMom] = useState<Momentum>({ series: [0, 0, 0, 0, 0, 0, 0], weekDone: 0, streak: 0 })
   const [editing, setEditing] = useState<Task | null>(null)
   const [editingHabit, setEditingHabit] = useState<Habit | 'new' | null>(null)
+  const [videoPlaying, setVideoPlaying] = useState(false)
+  const videoId = extractYoutubeId(getYoutubeUrl())
   const [aiBrief, setAiBrief] = useState<string | null>(null)
   const [briefState, setBriefState] = useState<'idle' | 'loading' | 'err'>('idle')
   const briefAuto = useRef(false)
@@ -284,10 +287,32 @@ export default function Today() {
     <div className="today-grid">
     <div className="ga-hero">
       {/* ---- sunrise hero ---- */}
-      <div className={`hero-card ${tasks.length > 0 ? 'has-ring' : ''}`}>
+      <div className={`hero-card ${tasks.length > 0 ? 'has-ring' : ''} ${videoId ? 'has-video' : ''}`}>
         <div className="hero-wm">{t('brand')}</div>
         <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
         <div className="hero-dt">{dateLabel}</div>
+        {videoId && (
+          <div className="hero-video">
+            {videoPlaying ? (
+              <>
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
+                  title="YouTube"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+                <button className="hv-btn stop" onClick={() => setVideoPlaying(false)} aria-label={t('today.videoStop')}>
+                  ⏹
+                </button>
+              </>
+            ) : (
+              <button className="hv-poster" onClick={() => setVideoPlaying(true)} aria-label={t('today.videoPlay')}>
+                <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt="" />
+                <span className="hv-play" aria-hidden>▶</span>
+              </button>
+            )}
+          </div>
+        )}
         <div className="hero-brief">
           <div className="bl">
             ✦ {aiBrief ? t('today.aiBriefing') : t('today.briefing')}
