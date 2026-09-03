@@ -398,6 +398,19 @@ export default function Today() {
         </div>
       </div>
       <Insights />
+      <a
+        href="https://yapseng98.github.io/personal_business/#/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="card quicklink-card"
+      >
+        <span className="quicklink-ico">💼</span>
+        <span className="quicklink-text">
+          <b>{t('today.bizLink')}</b>
+          <span className="quicklink-sub">{t('today.bizLinkSub')}</span>
+        </span>
+        <span className="quicklink-arrow" aria-hidden>↗</span>
+      </a>
     </div>
 
     <div className="ga-tasks">
