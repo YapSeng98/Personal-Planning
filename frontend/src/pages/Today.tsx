@@ -347,6 +347,16 @@ export default function Today() {
             <span className="ql-arrow" aria-hidden>↗</span>
           </a>
           <a
+            href="https://yapseng98.github.io/Personal-Money-Tracker/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ql-row money"
+          >
+            <span className="ql-ico">💰</span>
+            <span className="ql-label">{t('today.moneyLink')}</span>
+            <span className="ql-arrow" aria-hidden>↗</span>
+          </a>
+          <a
             href="https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776"
             target="_blank"
             rel="noopener noreferrer"

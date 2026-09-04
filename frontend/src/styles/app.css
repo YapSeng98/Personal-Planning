@@ -762,6 +762,7 @@ button.goal-card:hover { background: var(--glass-strong); }
 }
 .ql-row + .ql-row { border-top: 1px solid var(--hairline); }
 .ql-row.game { --ql-accent: var(--project-purple); }
+.ql-row.money { --ql-accent: var(--project-teal); }
 .ql-row::before {
   /* left tab stripe — reads like a business-card / letterhead accent */
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
