@@ -2,7 +2,7 @@ import {
   createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState,
   type ReactNode,
 } from 'react'
-import { getYoutubeUrl, extractYoutubeId, YOUTUBE_CHANGED } from '../lib/youtube'
+import { getYoutubeUrl, extractYoutubeId, postYoutubeCommand, YOUTUBE_CHANGED } from '../lib/youtube'
 import { useLang } from '../lib/i18n'
 
 /* The player lives in the Shell (outside <Outlet/>) so navigating between
@@ -32,7 +32,31 @@ export function VideoProvider({ children }: { children: ReactNode }) {
   const [playing, setPlaying] = useState(false)
   const [slot, setSlotState] = useState<HTMLElement | null>(null)
   const [box, setBox] = useState<Box | null>(null)
+  const [volume, setVolume] = useState(100)
+  const [muted, setMuted] = useState(false)
+  const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const { t } = useLang()
+
+  // Reassert volume/mute once the (freshly mounted) player has loaded — the
+  // iframe remounts every time playback (re)starts, which resets its state.
+  const onIframeLoad = useCallback(() => {
+    postYoutubeCommand(iframeRef.current, 'setVolume', [volume])
+    postYoutubeCommand(iframeRef.current, muted ? 'mute' : 'unMute')
+  }, [volume, muted])
+
+  const changeVolume = useCallback((v: number) => {
+    setVolume(v)
+    setMuted(false)
+    postYoutubeCommand(iframeRef.current, 'unMute')
+    postYoutubeCommand(iframeRef.current, 'setVolume', [v])
+  }, [])
+
+  const toggleMute = useCallback(() => {
+    setMuted((m) => {
+      postYoutubeCommand(iframeRef.current, m ? 'unMute' : 'mute')
+      return !m
+    })
+  }, [])
 
   // Settings can change the URL while the app is open.
   useEffect(() => {
@@ -86,7 +110,9 @@ export function VideoProvider({ children }: { children: ReactNode }) {
       {videoId && playing && (
         <div className={`hv-float ${docked ? 'docked' : 'mini'}`} style={style}>
           <iframe
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+            ref={iframeRef}
+            onLoad={onIframeLoad}
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
             title="YouTube"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
@@ -104,6 +130,28 @@ export function VideoProvider({ children }: { children: ReactNode }) {
           >
             ↗
           </a>
+          {/* The embed's own control bar only has a mute toggle, no
+              draggable slider — this drives real volume via postMessage. */}
+          <div className="hv-vol">
+            <button
+              className="hv-vol-mute"
+              onClick={toggleMute}
+              aria-label={t(muted ? 'today.videoUnmute' : 'today.videoMute')}
+              title={t(muted ? 'today.videoUnmute' : 'today.videoMute')}
+            >
+              {muted || volume === 0 ? '🔇' : '🔉'}
+            </button>
+            <input
+              type="range"
+              className="hv-vol-slider"
+              min={0}
+              max={100}
+              value={muted ? 0 : volume}
+              onChange={(e) => changeVolume(Number(e.target.value))}
+              aria-label={t('today.videoVolume')}
+              title={t('today.videoVolume')}
+            />
+          </div>
         </div>
       )}
     </Ctx.Provider>

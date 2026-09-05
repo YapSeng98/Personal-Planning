@@ -671,6 +671,25 @@ button.goal-card:hover { background: var(--glass-strong); }
 .hv-btn:hover { background: rgba(0,0,0,0.85); }
 .hv-btn.stop { left: 6px; top: 6px; }
 .hv-btn.open { right: 6px; top: 6px; font-size: 0.78rem; }
+
+/* Bottom-left, clear of the top-corner buttons and of YouTube's own (mute-
+   only) control cluster which the embed keeps near the top on small players. */
+.hv-vol {
+  position: absolute; z-index: 3; left: 6px; bottom: 6px;
+  display: flex; align-items: center; gap: 0.35rem;
+  background: rgba(0,0,0,0.72); border-radius: 999px; padding: 3px 8px 3px 3px;
+}
+.hv-vol-mute {
+  width: 20px; height: 20px; border-radius: 50%; border: none; padding: 0;
+  background: transparent; color: #fff; font-size: 0.72rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex: none;
+}
+.hv-vol-slider {
+  width: 52px; height: 3px; accent-color: var(--accent-bright); cursor: pointer;
+}
+@media (max-width: 999px) {
+  .hv-float.mini .hv-vol-slider { width: 38px; }
+}
 .hv-btn.open:hover { transform: translate(1px, -1px); }
 
 .hero-toprow { display: flex; align-items: flex-start; gap: 0.7rem; flex-wrap: wrap; margin: 0.6rem 0 1.1rem; }

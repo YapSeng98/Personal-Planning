@@ -26,3 +26,10 @@ export function extractYoutubeId(url: string): string | null {
   const m = u.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/)
   return m ? m[1] : null
 }
+
+/** The embedded player's own control bar has no draggable volume slider —
+    only a mute toggle — so the app drives volume itself via the IFrame
+    Player API's postMessage protocol (requires `enablejsapi=1` on the src). */
+export function postYoutubeCommand(iframe: HTMLIFrameElement | null, func: string, args: unknown[] = []) {
+  iframe?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), 'https://www.youtube.com')
+}
