@@ -593,6 +593,22 @@ button.goal-card:hover { background: var(--glass-strong); }
 .proj-spark { display: flex; align-items: flex-end; gap: 3px; height: 18px; }
 .proj-spark b { flex: 1; display: block; background: var(--accent); opacity: 0.85; border-radius: 2px 2px 1px 1px; min-height: 2px; }
 
+@media (max-width: 639px) {
+  /* The auto-fill grid collapses to one full-width column at phone widths
+     (two 210px cards don't fit alongside the shell's own padding) — with
+     4-5 projects that's a tall stack pushing the actual kanban far down the
+     page before it's even visible. A horizontal, snap-scrolling row keeps
+     the strip to one compact band regardless of project count, matching
+     the shell's own 639px mobile breakpoint. */
+  .proj-strip {
+    display: flex; grid-template-columns: none; overflow-x: auto; scroll-snap-type: x proximity;
+    margin: 0 -1.2rem; padding: 0.15rem 1.2rem 0.4rem; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .proj-strip::-webkit-scrollbar { display: none; }
+  .proj-card { flex: 0 0 210px; width: 210px; scroll-snap-align: start; }
+}
+
 .swatch-row { display: flex; gap: 0.55rem; flex-wrap: wrap; }
 .swatch { width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; padding: 0; }
 .swatch.on { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--text-1); }
