@@ -21,11 +21,16 @@ function ProjectCard({
   stat, proj, selected, maxSpark, onSelect,
 }: { stat: ProjectStat; proj: Project; selected: boolean; maxSpark: number; onSelect: () => void }) {
   const { t } = useLang()
+  // "New" (never completed anything) and "quiet" (has a history, just none
+  // in the literal last 7 days, but not idle long enough to count as
+  // stalled) are different states — a project with 26 done tasks and none
+  // this week is not "just started".
   const statusCls = stat.stalled ? 'stalled' : stat.weekDone > 0 ? 'up' : stat.done === 0 ? 'new' : ''
   const statusText = stat.stalled
     ? stat.daysSinceLastDone == null ? t('board.projNoActivity') : t('board.projStalled', { n: stat.daysSinceLastDone })
     : stat.weekDone > 0 ? t('board.projWeekDone', { n: stat.weekDone })
-    : t('board.projNew')
+    : stat.done === 0 ? t('board.projNew')
+    : t('board.projQuiet')
   return (
     <button className={`card proj-card ${selected ? 'on' : ''}`} onClick={onSelect}>
       <div className="proj-top">

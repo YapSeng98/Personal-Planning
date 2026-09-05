@@ -138,6 +138,7 @@ const en: Dict = {
   'board.projStalled': 'Stalled — {n}d',
   'board.projNoActivity': 'No activity yet',
   'board.projNew': 'Just started',
+  'board.projQuiet': 'Quiet this week',
   // project form
   'project.titlePh': 'Project name… e.g. “Website redesign”', 'project.color': 'Color',
   'project.save': 'Save project', 'project.addProject': 'Add project',
@@ -315,6 +316,7 @@ const zh: Dict = {
   'board.projStalled': '已停滞 — {n} 天',
   'board.projNoActivity': '暂无进展',
   'board.projNew': '刚刚开始',
+  'board.projQuiet': '本周暂无进展',
   'project.titlePh': '项目名称… 例如“网站改版”', 'project.color': '颜色',
   'project.save': '保存项目', 'project.addProject': '添加项目',
   'project.archive': '归档', 'project.unarchive': '取消归档',
