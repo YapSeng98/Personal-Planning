@@ -6,7 +6,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, CHANGED, type Task, type Habit, type Project } from '../db/db'
+import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, nextCompletedAt, CHANGED, type Task, type TaskState, type Habit, type Project } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
 import { aiEnabled, askAI } from '../lib/ai'
@@ -237,7 +237,8 @@ export default function Today() {
   }, [today, generateBrief])
 
   async function toggleTask(t: Task) {
-    const updated: Task = { ...t, state: t.state === 'done' ? 'open' : 'done', updatedAt: Date.now() }
+    const state: TaskState = t.state === 'done' ? 'open' : 'done'
+    const updated: Task = { ...t, state, completedAt: nextCompletedAt(t.state, t.completedAt, state), updatedAt: Date.now() }
     await writeAndQueue(db.tasks, 'task', updated)
     if (updated.goalId) await rollUpGoal(updated.goalId)
     syncNow()

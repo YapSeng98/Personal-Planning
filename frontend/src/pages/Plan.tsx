@@ -6,8 +6,8 @@ import {
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  db, uuid, todayStr, writeAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, CHANGED,
-  type Task, type Goal, type Habit, type Review,
+  db, uuid, todayStr, writeAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, nextCompletedAt, CHANGED,
+  type Task, type TaskState, type Goal, type Habit, type Review,
 } from '../db/db'
 import { syncNow } from '../sync/engine'
 import TaskForm from '../components/TaskForm'
@@ -257,7 +257,8 @@ export default function Plan() {
   }, [load, loadMonth, loadSelectedDay])
 
   async function toggle(task: Task) {
-    const updated: Task = { ...task, state: task.state === 'done' ? 'open' : 'done', updatedAt: Date.now() }
+    const state: TaskState = task.state === 'done' ? 'open' : 'done'
+    const updated: Task = { ...task, state, completedAt: nextCompletedAt(task.state, task.completedAt, state), updatedAt: Date.now() }
     await writeAndQueue(db.tasks, 'task', updated)
     if (updated.goalId) await rollUpGoal(updated.goalId)
     syncNow()

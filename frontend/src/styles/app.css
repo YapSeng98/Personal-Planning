@@ -569,6 +569,30 @@ button.goal-card:hover { background: var(--glass-strong); }
 .board-card .meta { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.35rem; font-size: 0.72rem; color: var(--text-3); flex-wrap: wrap; }
 .board-empty-col { font-size: 0.78rem; color: var(--text-3); text-align: center; padding: 0.9rem 0; }
 
+/* ---- Board: projects overview strip ---- */
+.proj-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.85rem; }
+.proj-card {
+  display: flex; flex-direction: column; gap: 0.7rem; cursor: pointer; text-align: left;
+  font: inherit; color: inherit; width: 100%;
+  transition: transform 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+.proj-card:hover { transform: translateY(-2px); }
+.proj-card.on { border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright); }
+.proj-top { display: flex; align-items: center; gap: 0.5rem; }
+.proj-name { font-weight: 700; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.proj-body { display: flex; align-items: center; gap: 0.8rem; }
+.proj-ring { flex-shrink: 0; }
+.proj-ring text { font-weight: 800; fill: var(--text-1); font-variant-numeric: tabular-nums; }
+.proj-stats { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; flex: 1; }
+.proj-count { font-size: 0.8rem; color: var(--text-2); }
+.proj-status { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; color: var(--text-3); }
+.proj-status i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--text-3); }
+.proj-status.up i { background: var(--ok); }
+.proj-status.stalled i { background: var(--danger); }
+.proj-status.new i { background: var(--amber); }
+.proj-spark { display: flex; align-items: flex-end; gap: 3px; height: 18px; }
+.proj-spark b { flex: 1; display: block; background: var(--accent); opacity: 0.85; border-radius: 2px 2px 1px 1px; min-height: 2px; }
+
 .swatch-row { display: flex; gap: 0.55rem; flex-wrap: wrap; }
 .swatch { width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; padding: 0; }
 .swatch.on { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--text-1); }

@@ -5,13 +5,56 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, uuid, writeAndQueue, rollUpGoal, byOrder, CHANGED, type Task, type Project, type TaskState } from '../db/db'
+import { db, uuid, writeAndQueue, rollUpGoal, byOrder, nextCompletedAt, CHANGED, type Task, type Project, type TaskState } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
 import TaskForm from '../components/TaskForm'
 import ProjectForm from '../components/ProjectForm'
 import { projectColorVar } from '../lib/projectColors'
+import { computeProjectStats, type ProjectStat } from '../lib/projectStats'
 import { useLang } from '../lib/i18n'
+
+const RING_R = 26
+const RING_C = 2 * Math.PI * RING_R
+
+function ProjectCard({
+  stat, proj, selected, maxSpark, onSelect,
+}: { stat: ProjectStat; proj: Project; selected: boolean; maxSpark: number; onSelect: () => void }) {
+  const { t } = useLang()
+  const statusCls = stat.stalled ? 'stalled' : stat.weekDone > 0 ? 'up' : stat.done === 0 ? 'new' : ''
+  const statusText = stat.stalled
+    ? stat.daysSinceLastDone == null ? t('board.projNoActivity') : t('board.projStalled', { n: stat.daysSinceLastDone })
+    : stat.weekDone > 0 ? t('board.projWeekDone', { n: stat.weekDone })
+    : t('board.projNew')
+  return (
+    <button className={`card proj-card ${selected ? 'on' : ''}`} onClick={onSelect}>
+      <div className="proj-top">
+        <span className="proj-dot" style={{ background: projectColorVar(proj.color), width: 10, height: 10, borderRadius: '50%', flexShrink: 0 }} />
+        <span className="proj-name">{proj.title}</span>
+      </div>
+      <div className="proj-body">
+        <svg className="proj-ring" width="60" height="60" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r={RING_R} fill="none" stroke="var(--glass-strong)" strokeWidth="6" />
+          <circle
+            cx="30" cy="30" r={RING_R} fill="none" stroke="url(#projRingGrad)" strokeWidth="6"
+            strokeLinecap="round" strokeDasharray={RING_C} strokeDashoffset={RING_C * (1 - stat.pct / 100)}
+            transform="rotate(-90 30 30)"
+          />
+          <text x="30" y="35" textAnchor="middle" fontSize="15">{stat.pct}%</text>
+        </svg>
+        <div className="proj-stats">
+          <span className="proj-count num">{t('board.projTasks', { done: stat.done, total: stat.total })}</span>
+          <span className={`proj-status ${statusCls}`}><i />{statusText}</span>
+          <div className="proj-spark">
+            {stat.spark.map((v, i) => (
+              <b key={i} style={{ height: `${Math.max(2, Math.round((v / maxSpark) * 18))}px` }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </button>
+  )
+}
 
 const STORE_KEY = 'planner_board_project'
 const ALL_PROJECTS = '__all__'
@@ -113,6 +156,7 @@ export default function Board() {
   const [draft, setDraft] = useState('')
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [projectSheet, setProjectSheet] = useState<'closed' | 'new' | Project>('closed')
+  const [stats, setStats] = useState<ProjectStat[]>([])
   const addingRef = useRef(false)
   const { t } = useLang()
 
@@ -133,6 +177,10 @@ export default function Board() {
     })
   }, [])
 
+  const loadStats = useCallback(async () => {
+    setStats(await computeProjectStats())
+  }, [])
+
   const loadTasks = useCallback(async (projectId: string) => {
     if (!projectId) {
       setTasks([])
@@ -149,6 +197,12 @@ export default function Board() {
     window.addEventListener(CHANGED, loadProjects)
     return () => window.removeEventListener(CHANGED, loadProjects)
   }, [loadProjects])
+
+  useEffect(() => {
+    loadStats()
+    window.addEventListener(CHANGED, loadStats)
+    return () => window.removeEventListener(CHANGED, loadStats)
+  }, [loadStats])
 
   useEffect(() => {
     loadTasks(selected)
@@ -205,7 +259,11 @@ export default function Board() {
     // the next time it's opened individually.
     if (isAll) {
       if (moved.state === targetState) return
-      await writeAndQueue(db.tasks, 'task', { ...moved, state: targetState, updatedAt: Date.now() })
+      await writeAndQueue(db.tasks, 'task', {
+        ...moved, state: targetState,
+        completedAt: nextCompletedAt(moved.state, moved.completedAt, targetState),
+        updatedAt: Date.now(),
+      })
       if (moved.goalId) await rollUpGoal(moved.goalId)
       syncNow()
       return
@@ -227,7 +285,10 @@ export default function Board() {
       const stateChanged = task.id === activeId && task.state !== targetState
       if (task.sortOrder === i && !stateChanged) continue
       const patch: Task = { ...task, sortOrder: i, updatedAt: now }
-      if (task.id === activeId) patch.state = targetState
+      if (task.id === activeId) {
+        patch.state = targetState
+        patch.completedAt = nextCompletedAt(task.state, task.completedAt, targetState)
+      }
       await writeAndQueue(db.tasks, 'task', patch)
       wrote = true
     }
@@ -236,6 +297,7 @@ export default function Board() {
   }
 
   const project = projects.find((p) => p.id === selected)
+  const maxSpark = Math.max(1, ...stats.flatMap((x) => x.spark))
 
   return (
     <div>
@@ -255,6 +317,36 @@ export default function Board() {
         </div>
       ) : (
         <>
+          {stats.length > 0 && (
+            <>
+              <div className="section-h">{t('board.projOverview')}</div>
+              <svg width="0" height="0" style={{ position: 'absolute' }}>
+                <defs>
+                  <linearGradient id="projRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="var(--accent-bright)" />
+                    <stop offset="100%" stopColor="var(--amber)" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="proj-strip">
+                {stats.map((s) => {
+                  const proj = projectsById[s.id]
+                  if (!proj) return null
+                  return (
+                    <ProjectCard
+                      key={s.id}
+                      stat={s}
+                      proj={proj}
+                      selected={s.id === selected}
+                      maxSpark={maxSpark}
+                      onSelect={() => setSelected(s.id)}
+                    />
+                  )
+                })}
+              </div>
+            </>
+          )}
+
           <div className="board-head">
             <Select
               ariaLabel={t('board.selectProject')}

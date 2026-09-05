@@ -35,8 +35,26 @@ export interface Task {
   /** Links every occurrence of a recurring task together. Set to the first
       occurrence's own id when recurrence is first turned on. */
   seriesId?: string
+  /** When this task last entered state 'done' (cleared if it leaves 'done'
+      again). Local-only — not in sync/engine.ts's SYNC_FIELDS, since there's
+      no matching ServiceNow column — so it's a per-device approximation of
+      completion time, used for velocity/analytics with updatedAt as the
+      fallback on records that predate this field or arrived from another
+      device without it. Set this via nextCompletedAt(), never directly. */
+  completedAt?: number
   deleted: 0 | 1
   updatedAt: number
+}
+
+/** Stamps or clears Task.completedAt for a state transition — call at every
+    site that changes task.state so 'done' timestamps (and therefore
+    project-velocity stats) stay correct: entering 'done' stamps now (unless
+    already done, which keeps the original time), leaving it clears it. */
+export function nextCompletedAt(
+  prevState: TaskState, prevCompletedAt: number | undefined, nextState: TaskState,
+): number | undefined {
+  if (nextState !== 'done') return undefined
+  return prevState === 'done' ? prevCompletedAt : Date.now()
 }
 
 /** Order tasks by manual sortOrder, then time block, then id (stable). */
@@ -391,6 +409,7 @@ async function rollRecurringTasksInner() {
       timeBlockEnd: endTime ? `${due}T${endTime}` : undefined,
       actualHours: undefined,
       state: 'open',
+      completedAt: undefined,
       sortOrder: undefined,
       updatedAt: Date.now(),
     }

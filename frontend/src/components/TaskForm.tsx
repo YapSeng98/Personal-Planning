@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { db, uuid, todayStr, writeAndQueue, rollUpGoal, type Task, type Goal, type Project, type TaskState } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
 import { useLang } from '../lib/i18n'
@@ -128,6 +128,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
         timeBlockEnd: end ? `${due}T${end}` : undefined,
         estimatedHours: hours,
         actualHours: task?.actualHours,
+        completedAt: nextCompletedAt(task?.state ?? 'open', task?.completedAt, state),
         goalId: goalId || undefined,
         projectId: projectId || undefined,
         isMit,
