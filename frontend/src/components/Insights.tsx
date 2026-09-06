@@ -2,14 +2,17 @@ import { useEffect, useState, useCallback } from 'react'
 import { db, CHANGED, type Goal } from '../db/db'
 import { useLang } from '../lib/i18n'
 
-/** Right-hand rail on laptop: the year-goal ring. Week momentum + streak now
-    live inline on the Today screen, so the rail complements rather than repeats. */
+/** Right-hand rail on laptop: every Year goal, each with its own progress
+    bar — a single goal used to stand in for all of them (Dexie's .first(),
+    arbitrary order), silently hiding the rest whenever there was more than
+    one. Week momentum + streak live inline on the Today screen, so the rail
+    complements rather than repeats. */
 export default function Insights() {
-  const [goal, setGoal] = useState<Goal | null>(null)
+  const [goals, setGoals] = useState<Goal[]>([])
   const { t } = useLang()
 
   const load = useCallback(() => {
-    db.goals.filter((x) => x.type === 'year' && !x.deleted).first().then((g) => setGoal(g ?? null))
+    db.goals.filter((x) => x.type === 'year' && !x.deleted).sortBy('title').then(setGoals)
   }, [])
 
   useEffect(() => {
@@ -18,16 +21,21 @@ export default function Insights() {
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
-  if (!goal) return <aside className="insights" aria-label="Insights" />
+  if (goals.length === 0) return <aside className="insights" aria-label="Insights" />
 
   return (
     <aside className="insights" aria-label="Insights">
-      <div className="card ins-card">
-        <div className="ins-h">{t('ins.yearGoal')}</div>
-        <div className="ring-big" style={{ ['--p' as string]: goal.progress }}>
-          <span className="v num">{goal.progress}%</span>
-        </div>
-        <div className="ins-sub">{goal.title}</div>
+      <div className="card ins-card-list">
+        <div className="ins-h">{t(goals.length === 1 ? 'ins.yearGoal' : 'ins.yearGoals')}</div>
+        {goals.map((g) => (
+          <div className="yg-row" key={g.id}>
+            <div className="yg-top">
+              <span className="yg-title">{g.title}</span>
+              <span className="yg-pct num">{g.progress}%</span>
+            </div>
+            <div className="pbar"><i style={{ width: `${g.progress}%` }} /></div>
+          </div>
+        ))}
       </div>
     </aside>
   )

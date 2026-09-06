@@ -306,17 +306,12 @@
    (the laptop grid-areas live in the Responsive layout section below) */
 .today-grid { display: flex; flex-direction: column; }
 .insights { display: none; flex-direction: column; gap: 0.8rem; }
-.ins-card { display: flex; flex-direction: column; gap: 0.55rem; align-items: center; text-align: center; padding: 1.15rem 1rem; }
-.ins-h { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-3); font-weight: 800; align-self: flex-start; }
-.ring-big { position: relative; width: 112px; height: 112px; display: flex; align-items: center; justify-content: center; }
-.ring-big::before {
-  content: ''; position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(var(--accent) calc(var(--p, 0) * 1%), var(--glass-strong) 0);
-  -webkit-mask: radial-gradient(closest-side, transparent 76%, #000 77%);
-  mask: radial-gradient(closest-side, transparent 76%, #000 77%);
-}
-.ring-big .v { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em; }
-.ins-sub { font-size: 0.76rem; color: var(--text-2); }
+.ins-h { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-3); font-weight: 800; }
+.ins-card-list { display: flex; flex-direction: column; gap: 0.85rem; padding: 1.15rem 1.1rem; }
+.yg-row { display: flex; flex-direction: column; gap: 0.4rem; }
+.yg-top { display: flex; align-items: baseline; gap: 0.5rem; }
+.yg-title { flex: 1; font-size: 0.85rem; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yg-pct { font-size: 0.8rem; color: var(--text-2); flex-shrink: 0; }
 .bars { display: flex; gap: 6px; align-items: flex-end; height: 58px; width: 100%; }
 .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
 .bar-col i { width: 100%; background: var(--accent); border-radius: 4px 4px 2px 2px; opacity: 0.45; min-height: 4px; }
@@ -922,7 +917,6 @@ button.goal-card:hover { background: var(--glass-strong); }
 .goal-card { transition: transform 150ms var(--ease); }
 button.goal-card:hover { transform: translateY(-2px); }
 .pbar i { box-shadow: 0 0 12px -2px var(--accent-wash); }
-.ring-big::before { filter: drop-shadow(0 0 10px var(--accent-wash)); }
 
 /* Reviews: past-review chips get the card lift too */
 .review-past .rp { box-shadow: 0 1px 1px rgba(0,0,0,0.03), 0 10px 24px -20px rgba(0,0,0,0.45); }
