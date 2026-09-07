@@ -1124,13 +1124,17 @@ button.goal-card:hover { transform: translateY(-2px); }
   .hero-card.has-video .hero-dt,
   .hero-card.has-video .hero-wm { margin-right: 320px; }
   .hero-card.has-video .hero-brief { max-width: none; margin-right: 320px; }
-  /* with a video present the % ring sits just left of it, bottom-aligned with
-     the frame rather than floating at its middle */
+  /* with a video present the % ring sits just left of it. It stays
+     bottom-anchored to the CARD (not top-anchored to the video) — the video
+     is absolutely positioned so it never affects the card's own height, but
+     the briefing text does, so anchoring off the card's bottom edge is what
+     actually keeps the ring level with wherever the briefing box ends up,
+     whether its text wraps to one line or several. */
   .hero-card.has-video.has-ring .hero-hi,
   .hero-card.has-video.has-ring .hero-dt,
   .hero-card.has-video.has-ring .hero-wm,
   .hero-card.has-video.has-ring .hero-brief { margin-right: 406px; }
-  .hero-card.has-video.has-ring .hero-ring { right: 332px; bottom: auto; top: 130px; }
+  .hero-card.has-video.has-ring .hero-ring { right: 332px; bottom: 1.25rem; top: auto; }
   .today-grid > .ga-tasks { grid-area: tasks; }
   .today-grid > .ga-tasks > .section-h:first-child { margin-top: 0; }
   .today-grid > .ga-side { grid-area: side; display: flex; flex-direction: column; gap: 1rem; }
