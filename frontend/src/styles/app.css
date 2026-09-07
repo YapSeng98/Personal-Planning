@@ -1118,8 +1118,16 @@ button.goal-card:hover { transform: translateY(-2px); }
   /* video floats top-right; text keeps clear of it, and the % ring steps
      aside so the two never stack on the same corner */
   .hero-card.has-video .hero-video {
-    position: absolute; top: 1.2rem; right: 1.2rem; width: 300px; margin-top: 0;
+    /* bottom matches the % ring's own bottom (1.25rem, not the card's 1.2rem
+       side inset) so the video's, the ring's and the briefing box's bottom
+       edges all land on the same line */
+    position: absolute; top: 1.2rem; right: 1.2rem; bottom: 1.25rem; width: 300px; margin-top: 0;
+    aspect-ratio: auto; /* stretch to fill whatever height the text stack gives the card, instead of a fixed 16:9 box */
   }
+  /* the video is absolutely positioned (out of flow), so on its own it can't
+     make a sparse card (e.g. no briefing) taller — floor the card so the
+     video never gets squashed below a sane height */
+  .hero-card.has-video { min-height: 210px; }
   .hero-card.has-video .hero-hi,
   .hero-card.has-video .hero-dt,
   .hero-card.has-video .hero-wm { margin-right: 320px; }
