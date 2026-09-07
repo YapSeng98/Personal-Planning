@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { db, uuid, todayStr, writeAndQueue, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
@@ -41,6 +41,15 @@ const REMINDER_LABELS = ['task.reminderOnDueDay', 'task.reminder1Day', 'task.rem
 export default function TaskForm({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const editing = task !== null
   const [title, setTitle] = useState(task?.title ?? '')
+  const titleRef = useRef<HTMLTextAreaElement>(null)
+  // Titles can run long (quick-add notes, pasted text) — grow the field to
+  // fit instead of clipping the end of the line off-screen.
+  useLayoutEffect(() => {
+    const el = titleRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [title])
   const [due, setDue] = useState(task?.due ?? todayStr())
   const [start, setStart] = useState(task?.timeBlockStart?.slice(11, 16) ?? '')
   const [end, setEnd] = useState(task?.timeBlockEnd?.slice(11, 16) ?? '')
@@ -165,13 +174,15 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-body">
-          <input
-            type="text"
+          <textarea
+            ref={titleRef}
+            className="task-title-field"
+            rows={1}
             autoFocus
             placeholder={editing ? '' : t('task.titlePh')}
             value={title}
             onChange={(e) => onTitle(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && save()}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
             aria-label="Task title"
           />
           <div className="form-grid">

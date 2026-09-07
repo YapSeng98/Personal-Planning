@@ -165,6 +165,14 @@
   width: 100%; background: var(--glass); border: 1px solid var(--hairline);
   border-radius: 12px; padding: 0.75rem 0.9rem; font-size: 1rem;
 }
+/* Task title: wraps and grows with content (JS sets height from scrollHeight)
+   instead of a single-line input that scrolls long text off the visible edge. */
+.task-title-field {
+  width: 100%; background: var(--glass); border: 1px solid var(--hairline);
+  border-radius: 12px; padding: 0.75rem 0.9rem; font-size: 1rem;
+  font-family: inherit; color: inherit; resize: none; overflow: hidden;
+  line-height: 1.4; display: block;
+}
 .sheet .hint { font-size: 0.74rem; color: var(--text-3); margin: 0.5rem 0 0.9rem; }
 .sheet .row { display: flex; gap: 0.6rem; justify-content: flex-end; flex-wrap: wrap; }
 .sheet-actions {
@@ -172,7 +180,7 @@
   border-top: 1px solid var(--hairline); background: var(--surface-2);
 }
 /* min-width:0 lets flex/grid children shrink instead of overflowing the sheet */
-.sheet select, .sheet input { min-width: 0; max-width: 100%; }
+.sheet select, .sheet input, .sheet textarea { min-width: 0; max-width: 100%; }
 .sheet .f-pair { min-width: 0; }
 @media (min-width: 640px) {
   .sheet-backdrop { align-items: center; }
@@ -1010,6 +1018,7 @@ button.goal-card:hover { transform: translateY(-2px); }
   background: #fff; color: #2b2b2f; font-size: 0.72rem; line-height: 1.45;
   overflow: hidden; white-space: pre-wrap; text-align: left;
 }
+.sketch-thumb-text img { max-width: 100%; max-height: 60px; object-fit: cover; border-radius: 4px; }
 .sketch-thumb-text::after {
   content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 35%;
   background: linear-gradient(to bottom, transparent, #fff);
@@ -1072,7 +1081,6 @@ button.goal-card:hover { transform: translateY(-2px); }
   background: #fff; color: #1B1B1F;
   border-radius: 16px; border: 1px solid var(--hairline); box-shadow: 0 10px 30px rgba(0,0,0,0.12);
   padding: 1.3rem 1.5rem; font-size: 1rem; line-height: 1.65; font-family: inherit;
-  resize: vertical;
 }
 @media (max-width: 639px) {
   .sketch-text-editor { min-height: calc(100vh - 270px); min-height: calc(100dvh - 270px); font-size: 1.05rem; }
@@ -1080,8 +1088,29 @@ button.goal-card:hover { transform: translateY(-2px); }
 @media (min-width: 900px) {
   .sketch-text-editor { max-width: 900px; }
 }
-.sketch-text-editor::placeholder { color: #9a968f; }
+/* contentEditable has no native placeholder — fake one for the empty state.
+   Best-effort: some browsers leave a stray empty child behind after the
+   user clears all text, which stops :empty from matching again. */
+.sketch-text-editor:empty:before { content: attr(data-placeholder); color: #9a968f; }
 .sketch-text-editor:focus { outline: none; }
+.sketch-text-editor img { max-width: 100%; border-radius: 8px; display: block; margin: 0.4rem 0; }
+.sketch-text-editor ul { padding-left: 1.4rem; }
+
+.sketch-rich-toolbar { justify-content: flex-start; }
+
+.sketch-attachments { display: flex; flex-wrap: wrap; gap: 0.5rem; max-width: 820px; margin: 0.8rem auto 0; }
+@media (min-width: 900px) { .sketch-attachments { max-width: 900px; } }
+.sketch-attachment-chip {
+  display: flex; align-items: center; gap: 0.3rem; background: var(--glass); border: 1px solid var(--hairline);
+  border-radius: 999px; padding: 0.35rem 0.4rem 0.35rem 0.7rem; max-width: 100%;
+}
+.sketch-attachment-link { display: flex; align-items: center; gap: 0.4rem; min-width: 0; color: var(--text-1); text-decoration: none; }
+.sketch-attachment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; max-width: 180px; }
+.sketch-attachment-remove {
+  background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 1rem; line-height: 1;
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; padding: 0;
+}
+.sketch-attachment-remove:hover { background: var(--glass-strong); color: var(--text-1); }
 
 /* ---- Background picker (Settings) ---- */
 .bg-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }

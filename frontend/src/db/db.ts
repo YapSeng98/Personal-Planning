@@ -140,6 +140,14 @@ export interface Review {
     (the push/pull pipeline sends whole-record payloads with no chunking,
     and ServiceNow string fields cap out around 4000 chars; a canvas PNG
     dataUrl runs far larger, and typed notes could too). */
+export interface NoteAttachment {
+  id: string
+  name: string
+  /** MIME type, e.g. 'application/pdf' — used to pick the chip icon. */
+  type: string
+  dataUrl: string
+}
+
 export interface DrawingNote {
   id: string
   title: string
@@ -149,6 +157,15 @@ export interface DrawingNote {
   dataUrl?: string
   /** kind='text' */
   text?: string
+  /** kind='text' — 'html' means `text` is rich-editor HTML; missing means a
+      plain-text note saved before rich text existed. Content-sniffing to
+      tell them apart isn't safe: plain text can itself contain '<word>'
+      substrings (placeholders like <guid>, comparisons like a < b) that
+      would be mistaken for markup and silently dropped when rendered. */
+  format?: 'html'
+  /** kind='text' — non-image files attached to the note, shown as chips
+      below the editor. */
+  attachments?: NoteAttachment[]
   updatedAt: number
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db, uuid, notifyChange, CHANGED, type DrawingNote } from '../db/db'
 import { useLang } from '../lib/i18n'
+import { toEditorHtml } from '../lib/noteHtml'
 
 export default function Sketches() {
   const navigate = useNavigate()
@@ -59,7 +60,7 @@ export default function Sketches() {
             <div key={d.id} className="card sketch-card">
               <button type="button" className="sketch-thumb" onClick={() => navigate(`/sketches/${d.id}`)} aria-label={d.title || t('sketch.untitled')}>
                 {d.kind === 'text' ? (
-                  <div className="sketch-thumb-text">{d.text || ''}</div>
+                  <div className="sketch-thumb-text" dangerouslySetInnerHTML={{ __html: toEditorHtml(d.text || '', d.format === 'html') }} />
                 ) : (
                   <img src={d.dataUrl} alt="" />
                 )}

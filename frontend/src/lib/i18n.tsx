@@ -94,6 +94,8 @@ const en: Dict = {
   'sketch.deleteConfirm': 'Delete "{title}"? This can\'t be undone.',
   'sketch.clear': 'Clear', 'sketch.clearConfirm': 'Clear this drawing? This can\'t be undone.',
   'sketch.undo': 'Undo', 'sketch.eraser': 'Eraser', 'sketch.color': 'Color', 'sketch.size': 'Size',
+  'sketch.bold': 'Bold', 'sketch.italic': 'Italic', 'sketch.underline': 'Underline', 'sketch.bulletList': 'Bulleted list',
+  'sketch.addImage': 'Add image', 'sketch.addAttachment': 'Add attachment', 'sketch.removeAttachment': 'Remove attachment',
   // search
   'search.trigger': 'Search', 'search.placeholder': 'Search tasks, goals, sketches…',
   'search.hint': 'Type to search everything.', 'search.empty': 'No results.',
@@ -276,6 +278,8 @@ const zh: Dict = {
   'sketch.deleteConfirm': '删除"{title}"？此操作无法撤销。',
   'sketch.clear': '清空', 'sketch.clearConfirm': '清空这幅画？此操作无法撤销。',
   'sketch.undo': '撤销', 'sketch.eraser': '橡皮擦', 'sketch.color': '颜色', 'sketch.size': '粗细',
+  'sketch.bold': '粗体', 'sketch.italic': '斜体', 'sketch.underline': '下划线', 'sketch.bulletList': '项目符号列表',
+  'sketch.addImage': '添加图片', 'sketch.addAttachment': '添加附件', 'sketch.removeAttachment': '移除附件',
   // search
   'search.trigger': '搜索', 'search.placeholder': '搜索任务、目标、手绘…',
   'search.hint': '输入以搜索全部内容。', 'search.empty': '没有找到结果。',

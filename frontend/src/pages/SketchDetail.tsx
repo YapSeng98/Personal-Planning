@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { db, notifyChange, type DrawingNote } from '../db/db'
+import { db, uuid, notifyChange, type DrawingNote, type NoteAttachment } from '../db/db'
 import { useLang } from '../lib/i18n'
+import { toEditorHtml } from '../lib/noteHtml'
 
 const CANVAS_W = 900
 const CANVAS_H = 1200
@@ -27,8 +28,18 @@ export default function SketchDetail() {
   const lastPoint = useRef<{ x: number; y: number } | null>(null)
   const historyRef = useRef<string[]>([])
   const activePointerId = useRef<number | null>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
+  // Loaded once per note to seed the (uncontrolled) rich text editor's DOM —
+  // never updated on input, only on load, so it can't fight the editor for
+  // control of its own content while the user types.
   const [text, setText] = useState('')
+  // Read only by the DOM-seeding effect below, alongside `text` — see its
+  // comment for why this isn't state.
+  const wasHtmlRef = useRef(false)
+  const [attachments, setAttachments] = useState<NoteAttachment[]>([])
   // New notes pick their kind from the ?type= the gallery linked with;
   // existing notes always keep whatever they were saved as, ignoring the URL.
   const [kind, setKind] = useState<'draw' | 'text'>(searchParams.get('type') === 'text' ? 'text' : 'draw')
@@ -48,6 +59,8 @@ export default function SketchDetail() {
       setTitle(existing.title ?? '')
       setKind(existing.kind ?? 'draw')
       setText(existing.text ?? '')
+      wasHtmlRef.current = existing.format === 'html'
+      setAttachments(existing.attachments ?? [])
       if (existing.kind === 'text') return
       const canvas = canvasRef.current
       if (!canvas) return
@@ -62,6 +75,19 @@ export default function SketchDetail() {
     })()
     return () => { cancelled = true }
   }, [id])
+
+  // Seeds the editor's DOM from the loaded note. Runs on [id, kind] rather
+  // than [text]: `kind` only flips to 'text' (mounting the editor div) once
+  // the load above has already set `text` in the same batch, so this still
+  // sees the fresh value — and staying off `text` means it won't stomp the
+  // DOM (and the caret) on every keystroke.
+  useEffect(() => {
+    if (kind !== 'text') return
+    const el = editorRef.current
+    if (!el) return
+    el.innerHTML = toEditorHtml(text, wasHtmlRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, kind])
 
   function getPos(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current!
@@ -168,14 +194,62 @@ export default function SketchDetail() {
     notifyChange()
   }
 
-  async function autosaveText(nextText = text) {
+  async function autosaveText(nextText?: string, nextAttachments?: NoteAttachment[]) {
     if (!id) return
-    const record: DrawingNote = { id, title, kind: 'text', text: nextText, updatedAt: Date.now() }
+    const record: DrawingNote = {
+      id,
+      title,
+      kind: 'text',
+      text: nextText ?? editorRef.current?.innerHTML ?? text,
+      format: 'html',
+      attachments: nextAttachments ?? attachments,
+      updatedAt: Date.now(),
+    }
     await db.drawings.put(record)
+    wasHtmlRef.current = true
     notifyChange()
   }
 
   const autosave = kind === 'text' ? () => autosaveText() : autosaveDrawing
+
+  function exec(cmd: string) {
+    document.execCommand(cmd)
+  }
+
+  function readAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+  }
+
+  /** Appended at the end rather than at the caret: opening the native file
+      picker makes where the caret was unreliable to restore across browsers. */
+  async function addImage(file: File) {
+    const dataUrl = await readAsDataUrl(file)
+    const el = editorRef.current
+    if (!el) return
+    const img = document.createElement('img')
+    img.src = dataUrl
+    el.appendChild(img)
+    el.appendChild(document.createElement('br'))
+    await autosaveText(el.innerHTML)
+  }
+
+  async function addAttachment(file: File) {
+    const dataUrl = await readAsDataUrl(file)
+    const next = [...attachments, { id: uuid(), name: file.name, type: file.type, dataUrl }]
+    setAttachments(next)
+    await autosaveText(undefined, next)
+  }
+
+  async function removeAttachment(attId: string) {
+    const next = attachments.filter((a) => a.id !== attId)
+    setAttachments(next)
+    await autosaveText(undefined, next)
+  }
 
   async function remove() {
     if (!id) return
@@ -204,14 +278,53 @@ export default function SketchDetail() {
       </div>
 
       {kind === 'text' ? (
-        <textarea
-          className="sketch-text-editor"
-          value={text}
-          placeholder={t('sketch.typePh')}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => autosaveText()}
-          autoFocus
-        />
+        <>
+          <div className="card sketch-toolbar sketch-rich-toolbar">
+            <div className="sketch-tools">
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('bold')} aria-label={t('sketch.bold')}><b>B</b></button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('italic')} aria-label={t('sketch.italic')}><i>I</i></button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')} aria-label={t('sketch.underline')}><u>U</u></button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('insertUnorderedList')} aria-label={t('sketch.bulletList')}>☰</button>
+              <button type="button" className="sketch-tool-btn" onClick={() => imageInputRef.current?.click()} aria-label={t('sketch.addImage')}>🖼️</button>
+              <button type="button" className="sketch-tool-btn" onClick={() => fileInputRef.current?.click()} aria-label={t('sketch.addAttachment')}>📎</button>
+            </div>
+          </div>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) addImage(f); e.target.value = '' }}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            style={{ display: 'none' }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) addAttachment(f); e.target.value = '' }}
+          />
+          <div
+            ref={editorRef}
+            className="sketch-text-editor"
+            contentEditable
+            suppressContentEditableWarning
+            data-placeholder={t('sketch.typePh')}
+            onBlur={() => autosaveText()}
+            autoFocus
+          />
+          {attachments.length > 0 && (
+            <div className="sketch-attachments">
+              {attachments.map((a) => (
+                <div key={a.id} className="sketch-attachment-chip">
+                  <a className="sketch-attachment-link" href={a.dataUrl} download={a.name} target="_blank" rel="noopener noreferrer">
+                    <span className="sketch-attachment-icon">{a.type.startsWith('image/') ? '🖼️' : '📎'}</span>
+                    <span className="sketch-attachment-name">{a.name}</span>
+                  </a>
+                  <button type="button" className="sketch-attachment-remove" onClick={() => removeAttachment(a.id)} aria-label={t('sketch.removeAttachment')}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       ) : (
         <>
           <div className="card sketch-toolbar">
