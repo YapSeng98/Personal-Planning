@@ -1118,19 +1118,19 @@ button.goal-card:hover { transform: translateY(-2px); }
   /* video floats top-right; text keeps clear of it, and the % ring steps
      aside so the two never stack on the same corner */
   .hero-card.has-video .hero-video {
-    position: absolute; top: 1.2rem; right: 1.2rem; width: 260px; margin-top: 0;
+    position: absolute; top: 1.2rem; right: 1.2rem; width: 300px; margin-top: 0;
   }
   .hero-card.has-video .hero-hi,
   .hero-card.has-video .hero-dt,
-  .hero-card.has-video .hero-wm { margin-right: 280px; }
-  .hero-card.has-video .hero-brief { max-width: none; margin-right: 280px; }
+  .hero-card.has-video .hero-wm { margin-right: 320px; }
+  .hero-card.has-video .hero-brief { max-width: none; margin-right: 320px; }
   /* with a video present the % ring sits just left of it, bottom-aligned with
      the frame rather than floating at its middle */
   .hero-card.has-video.has-ring .hero-hi,
   .hero-card.has-video.has-ring .hero-dt,
   .hero-card.has-video.has-ring .hero-wm,
-  .hero-card.has-video.has-ring .hero-brief { margin-right: 366px; }
-  .hero-card.has-video.has-ring .hero-ring { right: 292px; bottom: auto; top: 107px; }
+  .hero-card.has-video.has-ring .hero-brief { margin-right: 406px; }
+  .hero-card.has-video.has-ring .hero-ring { right: 332px; bottom: auto; top: 130px; }
   .today-grid > .ga-tasks { grid-area: tasks; }
   .today-grid > .ga-tasks > .section-h:first-child { margin-top: 0; }
   .today-grid > .ga-side { grid-area: side; display: flex; flex-direction: column; gap: 1rem; }
