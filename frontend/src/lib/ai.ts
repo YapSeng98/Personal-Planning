@@ -32,3 +32,26 @@ export async function askAI(prompt: string, system?: string, signal?: AbortSigna
   }
   return data.text.trim()
 }
+
+/** Thrown by askAIJson when the model's reply couldn't be read as JSON (e.g. a
+    reasoning model padded its answer with chain-of-thought, or got cut off
+    before finishing). Callers should catch this specifically to show their
+    own translated "try again" message — any other error passes through with
+    its real message (bad key, rate limit, etc). */
+export const AI_FORMAT_ERROR = 'AI_FORMAT_ERROR'
+
+/** Like askAI, but extracts and parses a JSON object from the reply. `system`
+    should already tell the model to reply with nothing but that object (see
+    existing call sites for the phrasing) — this only handles a model padding
+    the reply with stray text around the braces, or failing outright. */
+export async function askAIJson<T = Record<string, unknown>>(prompt: string, system: string, signal?: AbortSignal): Promise<T> {
+  const text = await askAI(prompt, system, signal)
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start === -1 || end === -1 || end < start) throw new Error(AI_FORMAT_ERROR)
+  try {
+    return JSON.parse(text.slice(start, end + 1)) as T
+  } catch {
+    throw new Error(AI_FORMAT_ERROR)
+  }
+}

@@ -3,6 +3,7 @@ import { db, uuid, todayStr, writeAndQueue, rollUpGoal, nextCompletedAt, type Ta
 import { syncNow } from '../sync/engine'
 import Select from './Select'
 import { useLang } from '../lib/i18n'
+import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 
 // One form for BOTH adding and editing a task, so the two can never diverge.
 // task=null → create mode; task=existing → edit mode (adds Delete).
@@ -63,7 +64,9 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [submitting, setSubmitting] = useState(false)
-  const { t } = useLang()
+  const [aiParsing, setAiParsing] = useState(false)
+  const [aiParseErr, setAiParseErr] = useState('')
+  const { t, lang } = useLang()
 
   // A reminder N days before due never fires if that day has already
   // passed — cap how far back it can be set to what's actually left between
@@ -88,6 +91,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
 
   // While creating, typing natural language fills the structured fields live.
   function onTitle(v: string) {
+    setAiParseErr('')
     if (editing) {
       setTitle(v)
       return
@@ -104,6 +108,46 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
     if (time) setStart(time)
     if (h !== undefined) setHours(h)
     setTitle(time || h !== undefined ? cleaned : working)
+  }
+
+  /** The instant regex parse above only catches simple patterns (a time, an
+      "Nh" duration, today/tomorrow). This goes further for messier text —
+      relative dates ("next Friday"), and matching a mentioned project by
+      name — at the cost of a round trip, so it's opt-in via a button rather
+      than running on every keystroke. */
+  async function parseWithAI() {
+    if (!title.trim() || aiParsing) return
+    setAiParsing(true)
+    setAiParseErr('')
+    try {
+      const dateLabel = new Date().toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      const projectList = projects.map((p) => p.title).join(', ') || '(none)'
+      const prompt = `Today is ${dateLabel} (${todayStr()}).\n`
+        + `Quick-add task text: "${title.trim()}"\n`
+        + `Existing projects: ${projectList}\n`
+        + `Extract: a clean task title with any date/time/project mentions removed, `
+        + `the due date (YYYY-MM-DD, resolving relative terms like "tomorrow" or "next Friday" against today; empty string if none mentioned), `
+        + `a start time in 24h HH:MM if one is mentioned (empty string if none), `
+        + `an estimated duration in hours as a number if one is mentioned (0 if none), `
+        + `and, only if the text clearly refers to one of the existing projects, that project's name copied EXACTLY as listed (empty string otherwise).`
+      const system = lang === 'zh'
+        ? '你帮助把快速添加的任务文本解析成结构化字段。只返回一个 JSON 对象，键为 title、due、start、hours、project。不要输出任何思考过程或前言 — 第一个字符必须是 {，不要 markdown 代码块，不要多余文字。'
+        : "You parse quick-add task text into structured fields. Return ONLY a JSON object with keys title, due, start, hours, project. Do not include any reasoning, thinking, or preamble — the first character of your reply must be '{'. No markdown code fences, no extra text."
+      const j = await askAIJson<{ title?: string; due?: string; start?: string; hours?: number; project?: string }>(prompt, system)
+      if (j.title) setTitle(j.title)
+      if (j.due) setDue(j.due)
+      if (j.start) setStart(j.start)
+      if (typeof j.hours === 'number' && j.hours > 0) setHours(j.hours)
+      if (j.project) {
+        const match = projects.find((p) => p.title.toLowerCase() === j.project!.toLowerCase())
+        if (match) setProjectId(match.id)
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      setAiParseErr(msg === AI_FORMAT_ERROR ? t('task.aiParseErrFormat') : (msg || t('task.aiParseErr')))
+    } finally {
+      setAiParsing(false)
+    }
   }
 
   async function save() {
@@ -185,6 +229,14 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
             aria-label="Task title"
           />
+          {!editing && aiEnabled() && (
+            <>
+              <button type="button" className="btn ai-draft-btn" onClick={parseWithAI} disabled={!title.trim() || aiParsing}>
+                {aiParsing ? t('task.aiParsing') : t('task.aiParse')}
+              </button>
+              {aiParseErr && <div className="ai-status err">{aiParseErr}</div>}
+            </>
+          )}
           <div className="form-grid">
             <div className="f">
               <label className="fl">{t('task.due')}</label>

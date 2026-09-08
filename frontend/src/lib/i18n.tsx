@@ -55,6 +55,8 @@ const en: Dict = {
   'brief.next': 'Next block at {time}.',
   // task form
   'task.titlePh': 'Add a task… e.g. “gym 6am” or “report 2h”',
+  'task.aiParse': '✦ Parse with AI', 'task.aiParsing': 'Parsing…',
+  'task.aiParseErr': 'AI parse failed', 'task.aiParseErrFormat': "AI reply wasn't in the expected format — try again",
   'task.due': 'Due date', 'task.timeBlock': 'Time block (optional)', 'task.start': 'Start', 'task.end': 'End',
   'task.tapToSet': 'Tap to set', 'task.clearTime': 'Clear time block',
   'task.goal': 'Counts toward goal (optional)', 'task.noGoal': 'No goal link', 'task.mitFull': 'Most Important Task',
@@ -242,6 +244,8 @@ const zh: Dict = {
   'brief.mit': '你的首要任务：{title}。',
   'brief.next': '下一个时段：{time}。',
   'task.titlePh': '添加任务… 例如“健身 6am”或“报告 2h”',
+  'task.aiParse': '✦ 用 AI 解析', 'task.aiParsing': '解析中…',
+  'task.aiParseErr': 'AI 解析失败', 'task.aiParseErrFormat': 'AI 回复格式不正确 — 请重试',
   'task.due': '截止日期', 'task.timeBlock': '时间段（可选）', 'task.start': '开始', 'task.end': '结束',
   'task.tapToSet': '点击设置', 'task.clearTime': '清除时间段',
   'task.goal': '计入目标（可选）', 'task.noGoal': '不关联目标', 'task.mitFull': '首要任务',
