@@ -137,10 +137,20 @@ export default function Reviews() {
         + `Not finished: ${notDone.slice(0, 8).map((x) => x.title).join('; ') || '(none)'}\n`
         + `Draft my reflection.`
       const system = lang === 'zh'
-        ? '你帮助用户回顾一个时期。只返回一个 JSON 对象，键为 wins、failures、lesson、next。每项用第一人称（“我……”）写1-2句，贴合数据，诚实但鼓励。不要 markdown，不要多余文字。用中文。'
-        : "You help the user reflect on a period. Return ONLY a JSON object with keys wins, failures, lesson, next. Each 1-2 sentences in first person ('I ...'), specific to the data, honest but encouraging. No markdown, no extra text."
+        ? '你帮助用户回顾一个时期。只返回一个 JSON 对象，键为 wins、failures、lesson、next。每项用第一人称（“我……”）写1-2句，贴合数据，诚实但鼓励。不要输出任何思考过程、解释或前言 — 第一个字符必须是 {，不要 markdown 代码块，不要多余文字。用中文。'
+        : "You help the user reflect on a period. Return ONLY a JSON object with keys wins, failures, lesson, next. Each 1-2 sentences in first person ('I ...'), specific to the data, honest but encouraging. Do not include any reasoning, thinking, or preamble — the first character of your reply must be '{'. No markdown code fences, no extra text."
       const text = await askAI(prompt, system)
-      const j = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
+      const braceStart = text.indexOf('{')
+      const braceEnd = text.lastIndexOf('}')
+      if (braceStart === -1 || braceEnd === -1 || braceEnd < braceStart) {
+        throw new Error(t('rev.draftErrFormat'))
+      }
+      let j: { wins?: string; failures?: string; lesson?: string; next?: string }
+      try {
+        j = JSON.parse(text.slice(braceStart, braceEnd + 1))
+      } catch {
+        throw new Error(t('rev.draftErrFormat'))
+      }
       setForm((f) => ({
         ...f,
         wins: j.wins || f.wins,

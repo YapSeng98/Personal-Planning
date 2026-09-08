@@ -216,8 +216,8 @@ export default function Today() {
       const dateLabel = new Date().toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })
       const prompt = `Today is ${dateLabel}.\nMy tasks:\n${list || '(nothing planned yet)'}\nProgress: ${done.length} done, ${open.length} to go.${mit ? `\nMy most important task: "${mit.title}".` : ''}\nHabits I track: ${hs.map((h) => h.name).join(', ') || '(none)'}.\nWrite my briefing for today.`
       const system = lang === 'zh'
-        ? '你是用户简洁、温暖的每日规划教练。用2-3个短句：肯定进展，指出当下最重要的事，并给一个可执行的小建议。不要列表、不要标题、最多一个表情。直接用“你”称呼。用中文回复。'
-        : "You are the user's concise, warm daily planning coach. In 2-3 short sentences: acknowledge progress, point at what matters most right now, and give one practical nudge. No lists, no headings, at most one emoji. Speak directly to 'you'."
+        ? '你是用户简洁、温暖的每日规划教练。用2-3个短句：肯定进展，指出当下最重要的事，并给一个可执行的小建议。不要列表、不要标题、最多一个表情。直接用“你”称呼。不要输出任何思考过程或前言，直接给出最终的简报文字。用中文回复。'
+        : "You are the user's concise, warm daily planning coach. In 2-3 short sentences: acknowledge progress, point at what matters most right now, and give one practical nudge. No lists, no headings, at most one emoji. Speak directly to 'you'. Do not include any reasoning or preamble — output only the final briefing text."
       const text = await askAI(prompt, system)
       setAiBrief(text)
       localStorage.setItem(cacheKey, text)

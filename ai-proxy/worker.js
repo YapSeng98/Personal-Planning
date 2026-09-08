@@ -48,7 +48,7 @@ export default {
             { role: 'user', content: prompt },
           ],
           temperature: 0.7,
-          max_tokens: 600,
+          max_tokens: 1600,
         }),
       })
     } catch (e) {
