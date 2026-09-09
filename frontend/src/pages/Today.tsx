@@ -325,7 +325,7 @@ export default function Today() {
         )}
       </div>
 
-      <div className="hero-toprow">
+      <div className={`hero-toprow ${reminders.length === 0 ? 'links-only' : ''}`}>
         {reminders.length > 0 && (
           <div className="card reminder-banner">
             <div className="lbl"><span className="reminder-bell">🔔</span> {t('today.reminders')}</div>

@@ -849,6 +849,22 @@ button.goal-card:hover { background: var(--glass-strong); }
 }
 .ql-row:hover .ql-arrow { transform: translate(2px, -2px); }
 
+/* With no reminder banner beside it the panel would sit stranded on the right
+   with dead space to its left, so on laptop it stretches into a full-width
+   row of equal cards instead. */
+@media (min-width: 1000px) {
+  .hero-toprow.links-only .quicklink-panel {
+    flex-direction: row; width: 100%; margin: 0.6rem 0 0;
+  }
+  /* Equal thirds are far wider than the label, so centre each one as a unit
+     instead of letting flex:1 shove the arrow out to the far edge. */
+  .hero-toprow.links-only .ql-row {
+    flex: 1; min-width: 0; padding: 0.65rem 0.9rem 0.65rem 0.75rem; justify-content: center;
+  }
+  .hero-toprow.links-only .ql-label { flex: none; }
+  .hero-toprow.links-only .ql-row + .ql-row { border-top: none; border-left: 1px solid var(--hairline); }
+}
+
 /* On phones the panel becomes a row of tappable circles, matching the habit
    rings right below it, instead of a boxed list. */
 @media (max-width: 999px) {
