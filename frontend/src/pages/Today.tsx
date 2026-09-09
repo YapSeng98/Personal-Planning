@@ -29,6 +29,15 @@ function greeting(t: TFn): [string, string] {
   return [t('today.evening'), '🌙']
 }
 
+/** Today's list sinks finished work to the bottom so what's left to do stays
+    at the top; within each group the manual drag order still applies. */
+function byDoneThenOrder(a: Task, b: Task): number {
+  const ad = a.state === 'done' ? 1 : 0
+  const bd = b.state === 'done' ? 1 : 0
+  if (ad !== bd) return ad - bd
+  return byOrder(a, b)
+}
+
 /** Rule-based briefing (parameterized so it translates). */
 function briefingText(tasks: Task[], t: TFn): string {
   const open = tasks.filter((x) => x.state !== 'done' && x.state !== 'cancelled')
@@ -138,7 +147,7 @@ export default function Today() {
   )
 
   const load = useCallback(async () => {
-    const rows = (await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()).sort(byOrder)
+    const rows = (await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()).sort(byDoneThenOrder)
     setTasks(rows)
 
     // Reminders: any open task whose reminderDaysBefore matches exactly how
