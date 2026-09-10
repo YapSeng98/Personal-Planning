@@ -376,6 +376,16 @@ export default function Today() {
             <span className="ql-label">{t('today.gameLink')}</span>
             <span className="ql-arrow" aria-hidden>↗</span>
           </a>
+          <a
+            href="https://yapseng98.github.io/Knowledge_Management_System/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ql-row kms"
+          >
+            <span className="ql-ico">📚</span>
+            <span className="ql-label">{t('today.kmsLink')}</span>
+            <span className="ql-arrow" aria-hidden>↗</span>
+          </a>
         </div>
       </div>
     </div>
