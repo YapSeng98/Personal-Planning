@@ -737,7 +737,6 @@ button.goal-card:hover { background: var(--glass-strong); }
 
 .hero-toprow { display: flex; align-items: flex-start; gap: 0.7rem; flex-wrap: wrap; margin: 0.6rem 0 1.1rem; }
 .hero-toprow .reminder-banner { flex: 1 1 240px; margin: 0; min-width: 0; }
-.hero-toprow .ql-orbit { margin: 0.6rem 0 0 auto; }
 
 .reminder-banner {
   position: relative; padding: 0.8rem 1rem 0.25rem; margin: 0.6rem 0 1.1rem; overflow: hidden;
@@ -810,16 +809,25 @@ button.goal-card:hover { background: var(--glass-strong); }
 
 /* Quick-launch orbit: the four app shortcuts collapse into one gradient FAB.
    Tap/click (open, from React state), or focus (keyboard) fans them out along
-   an arc from the same 52px footprint. Mouse "hover" is deliberately NOT a
+   an arc from the same 44px footprint. Mouse "hover" is deliberately NOT a
    plain CSS :hover trigger — the fanned-out satellites sit visually far from
-   the 52px trigger box with empty page in between, so raw :hover drops the
+   the 44px trigger box with empty page in between, so raw :hover drops the
    instant the cursor crosses that gap, closing the menu before the pointer
    ever reaches a satellite. QuickLaunch (Today.tsx) instead tracks hover in
    JS with a short close-delay (mouseleave schedules close, mouseenter
    cancels it), so a normal mouse move through the gap doesn't kill it, and
-   adds the same 'open' class this CSS keys off. */
+   adds the same 'open' class this CSS keys off.
+
+   Pinned fixed, stacked directly above the Add Task FAB (same corner, same
+   70px = 56px fab height + 14px gap offset, centred on its 56px width) so
+   it's reachable from anywhere on the Today page, not just scrolled to top.
+   Mirrors .fab-float / .fab-desktop's own mobile/desktop offsets. */
 .ql-orbit {
-  position: relative; width: 52px; height: 52px; flex-shrink: 0;
+  position: fixed; z-index: 25; width: 44px; height: 44px;
+  right: calc(1.1rem + 6px); bottom: calc(4.8rem + 70px + env(safe-area-inset-bottom));
+}
+@media (min-width: 640px) {
+  .ql-orbit { right: calc(2rem + 6px); bottom: calc(2rem + 70px); }
 }
 .ql-fab {
   position: absolute; inset: 0; border-radius: 50%; border: none; cursor: pointer;

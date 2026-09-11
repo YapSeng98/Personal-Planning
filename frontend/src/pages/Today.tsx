@@ -427,7 +427,6 @@ export default function Today() {
             ))}
           </div>
         )}
-        <QuickLaunch t={t} />
       </div>
     </div>
 
@@ -532,6 +531,7 @@ export default function Today() {
     {editingHabit && (
       <HabitEdit habit={editingHabit === 'new' ? null : editingHabit} onClose={() => setEditingHabit(null)} />
     )}
+    <QuickLaunch t={t} />
     </div>
   )
 }
