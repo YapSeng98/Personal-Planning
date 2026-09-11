@@ -737,7 +737,7 @@ button.goal-card:hover { background: var(--glass-strong); }
 
 .hero-toprow { display: flex; align-items: flex-start; gap: 0.7rem; flex-wrap: wrap; margin: 0.6rem 0 1.1rem; }
 .hero-toprow .reminder-banner { flex: 1 1 240px; margin: 0; min-width: 0; }
-.hero-toprow .quicklink-panel { margin: 0 0 0 auto; }
+.hero-toprow .ql-orbit { margin: 0.6rem 0 0 auto; }
 
 .reminder-banner {
   position: relative; padding: 0.8rem 1rem 0.25rem; margin: 0.6rem 0 1.1rem; overflow: hidden;
@@ -808,88 +808,64 @@ button.goal-card:hover { background: var(--glass-strong); }
 .m-streak .big { font-size: 1.7rem; font-weight: 850; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1; }
 .m-streak .sl { font-size: 0.6rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
 
-/* Quick-links panel: a single bordered card that lists 1-N external
-   shortcuts as equal-width rows, so adding more links never needs new
-   width math — every row simply fills the panel's own natural width
-   (sized to the longest label). */
-.quicklink-panel {
-  display: flex; flex-direction: column; margin-top: 0.6rem;
-  align-self: flex-start; width: fit-content; max-width: 100%;
-  background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 12px;
-  overflow: hidden; box-shadow: var(--shadow-float);
+/* Quick-launch orbit: the four app shortcuts collapse into one gradient FAB.
+   Hover (mouse), tap (touch) or focus (keyboard) fans them out along an arc
+   from the same 52px footprint — no boxed list sitting open at all times. */
+.ql-orbit {
+  position: relative; width: 52px; height: 52px; flex-shrink: 0;
 }
-.ql-row {
+.ql-fab {
+  position: absolute; inset: 0; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--grad); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 10px 24px var(--accent-wash), var(--shadow-float);
+  transition: transform 200ms var(--ease-spring), filter 150ms var(--ease);
+}
+.ql-orbit:not(:hover):not(.open):not(:focus-within) .ql-fab { animation: ql-invite 2.8s ease-in-out infinite; }
+@keyframes ql-invite {
+  0%, 100% { box-shadow: 0 10px 24px var(--accent-wash), var(--shadow-float), 0 0 0 0 var(--accent-wash); }
+  50% { box-shadow: 0 10px 24px var(--accent-wash), var(--shadow-float), 0 0 0 7px var(--accent-wash); }
+}
+.ql-orbit:hover .ql-fab, .ql-orbit.open .ql-fab, .ql-orbit:focus-within .ql-fab {
+  transform: rotate(90deg) scale(1.05); filter: brightness(1.05);
+}
+.ql-fab-grid { display: grid; grid-template-columns: repeat(3, 5px); gap: 3px; pointer-events: none; }
+.ql-fab-grid span { width: 5px; height: 5px; border-radius: 50%; background: var(--on-grad); opacity: 0.85; }
+
+.ql-sat {
   --ql-accent: var(--project-blue);
-  display: flex; align-items: center; gap: 0.5rem;
-  text-decoration: none; cursor: pointer; position: relative;
-  padding: 0.5rem 0.75rem 0.5rem 0.6rem;
-  transition: background 150ms var(--ease);
+  position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.02rem;
+  text-decoration: none; z-index: 1; pointer-events: none;
+  background: color-mix(in srgb, var(--ql-accent) 22%, var(--surface-2));
+  border: 1.5px solid color-mix(in srgb, var(--ql-accent) 55%, transparent);
+  box-shadow: var(--shadow-float);
+  opacity: 0; transform: translate(0, 0) scale(0.4);
+  transition: transform 380ms var(--ease-spring), opacity 200ms var(--ease);
 }
-.ql-row + .ql-row { border-top: 1px solid var(--hairline); }
-.ql-row.game { --ql-accent: var(--project-purple); }
-.ql-row.money { --ql-accent: var(--project-teal); }
-.ql-row.kms { --ql-accent: var(--ok); }
-.ql-row::before {
-  /* left tab stripe — reads like a business-card / letterhead accent */
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--ql-accent);
+.ql-orbit:hover .ql-sat, .ql-orbit.open .ql-sat, .ql-orbit:focus-within .ql-sat {
+  opacity: 1; transform: translate(var(--tx), var(--ty)) scale(1); pointer-events: auto;
 }
-.ql-row:hover { background: color-mix(in srgb, var(--ql-accent) 9%, transparent); }
-.ql-ico {
-  width: 22px; height: 22px; border-radius: 6px;
-  background: color-mix(in srgb, var(--ql-accent) 16%, transparent);
-  display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0;
-}
-.ql-label {
-  font-size: 0.76rem; font-weight: 700; color: var(--text-1); line-height: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
-}
-.ql-arrow {
-  margin-left: 0.4rem; color: var(--ql-accent); font-size: 0.74rem; flex-shrink: 0; line-height: 1;
-  transition: transform 200ms var(--ease);
-}
-.ql-row:hover .ql-arrow { transform: translate(2px, -2px); }
+.ql-sat:active { transform: translate(var(--tx), var(--ty)) scale(0.9); }
+.ql-sat:nth-of-type(1) { transition-delay: 0ms; }
+.ql-sat:nth-of-type(2) { transition-delay: 45ms; }
+.ql-sat:nth-of-type(3) { transition-delay: 90ms; }
+.ql-sat:nth-of-type(4) { transition-delay: 135ms; }
 
-/* With no reminder banner beside it the panel would sit stranded on the right
-   with dead space to its left, so on laptop it stretches into a full-width
-   row of equal cards instead. */
-@media (min-width: 1000px) {
-  .hero-toprow.links-only .quicklink-panel {
-    flex-direction: row; width: 100%; margin: 0.6rem 0 0;
+/* Name tooltips are a mouse-only bonus — on touch the four emoji (already
+   the user's own, familiar apps) are identification enough, and a
+   hover-only tooltip has no reliable trigger on a touchscreen anyway. */
+@media (hover: hover) and (pointer: fine) {
+  .ql-tip {
+    position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px);
+    background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text-1);
+    font-size: 0.7rem; font-weight: 700; white-space: nowrap; padding: 0.3rem 0.6rem; border-radius: 8px;
+    opacity: 0; pointer-events: none; transition: opacity 160ms var(--ease), transform 160ms var(--ease);
+    box-shadow: var(--shadow-float);
   }
-  /* Equal thirds are far wider than the label, so centre each one as a unit
-     instead of letting flex:1 shove the arrow out to the far edge. */
-  .hero-toprow.links-only .ql-row {
-    flex: 1; min-width: 0; padding: 0.65rem 0.9rem 0.65rem 0.75rem; justify-content: center;
-  }
-  .hero-toprow.links-only .ql-label { flex: none; }
-  .hero-toprow.links-only .ql-row + .ql-row { border-top: none; border-left: 1px solid var(--hairline); }
+  .ql-sat:hover .ql-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
-
-/* On phones the panel becomes a row of tappable circles, matching the habit
-   rings right below it, instead of a boxed list. */
-@media (max-width: 999px) {
-  .hero-toprow .quicklink-panel {
-    margin: 0; width: 100%;
-    flex-direction: row; gap: 0.6rem; padding: 0.2rem 0;
-    background: none; border: none; border-radius: 0; box-shadow: none; overflow-x: auto;
-  }
-  .ql-row {
-    flex-direction: column; align-items: center; text-align: center; gap: 0.1rem;
-    min-width: 64px; padding: 0.3rem;
-  }
-  .ql-row + .ql-row { border-top: none; }
-  .ql-row::before { content: none; }
-  .ql-row:hover { background: none; }
-  .ql-ico {
-    width: 50px; height: 50px; border-radius: 50%; font-size: 1.15rem; margin-bottom: 0.3rem;
-    background: var(--glass-strong);
-    box-shadow: inset 0 0 0 2px var(--ql-accent);
-    transition: transform 150ms var(--ease);
-  }
-  .ql-row:active .ql-ico { transform: scale(1.06); }
-  .ql-label { font-size: 0.66rem; font-weight: 600; color: var(--text-2); flex: none; white-space: normal; }
-  .ql-arrow { display: none; }
+@media not all and (hover: hover) {
+  .ql-tip { display: none; }
 }
 
 /* elevated task cards */

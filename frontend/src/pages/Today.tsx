@@ -124,6 +124,64 @@ function TodayCard({ task, proj, onToggle, onEdit, t }: {
   )
 }
 
+const QUICK_APPS = [
+  { href: 'https://yapseng98.github.io/personal_business/#/', icon: '💼', color: 'var(--project-blue)', tx: '13px', ty: '-75px', labelKey: 'today.bizLink' as const },
+  { href: 'https://yapseng98.github.io/Personal-Money-Tracker/', icon: '💰', color: 'var(--project-teal)', tx: '-30px', ty: '-70px', labelKey: 'today.moneyLink' as const },
+  { href: 'https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776', icon: '🎮', color: 'var(--project-purple)', tx: '-64px', ty: '-41px', labelKey: 'today.gameLink' as const },
+  { href: 'https://yapseng98.github.io/Knowledge_Management_System/', icon: '📚', color: 'var(--ok)', tx: '-76px', ty: '0px', labelKey: 'today.kmsLink' as const },
+]
+
+function QuickLaunch({ t }: { t: TFn }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div className={`ql-orbit ${open ? 'open' : ''}`} ref={ref}>
+      <button
+        type="button"
+        className="ql-fab"
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label={t('today.quickApps')}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="ql-fab-grid" aria-hidden>
+          {Array.from({ length: 9 }).map((_, i) => <span key={i} />)}
+        </span>
+      </button>
+      {QUICK_APPS.map((a) => (
+        <a
+          key={a.href}
+          href={a.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ql-sat"
+          style={{ ['--ql-accent' as string]: a.color, ['--tx' as string]: a.tx, ['--ty' as string]: a.ty }}
+          onClick={() => setOpen(false)}
+          aria-label={t(a.labelKey)}
+        >
+          <span aria-hidden>{a.icon}</span>
+          <span className="ql-tip">{t(a.labelKey)}</span>
+        </a>
+      ))}
+    </div>
+  )
+}
+
 export default function Today() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [reminders, setReminders] = useState<Reminder[]>([])
@@ -325,7 +383,7 @@ export default function Today() {
         )}
       </div>
 
-      <div className={`hero-toprow ${reminders.length === 0 ? 'links-only' : ''}`}>
+      <div className="hero-toprow">
         {reminders.length > 0 && (
           <div className="card reminder-banner">
             <div className="lbl"><span className="reminder-bell">🔔</span> {t('today.reminders')}</div>
@@ -345,48 +403,7 @@ export default function Today() {
             ))}
           </div>
         )}
-        <div className="quicklink-panel">
-          <a
-            href="https://yapseng98.github.io/personal_business/#/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ql-row"
-          >
-            <span className="ql-ico">💼</span>
-            <span className="ql-label">{t('today.bizLink')}</span>
-            <span className="ql-arrow" aria-hidden>↗</span>
-          </a>
-          <a
-            href="https://yapseng98.github.io/Personal-Money-Tracker/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ql-row money"
-          >
-            <span className="ql-ico">💰</span>
-            <span className="ql-label">{t('today.moneyLink')}</span>
-            <span className="ql-arrow" aria-hidden>↗</span>
-          </a>
-          <a
-            href="https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ql-row game"
-          >
-            <span className="ql-ico">🎮</span>
-            <span className="ql-label">{t('today.gameLink')}</span>
-            <span className="ql-arrow" aria-hidden>↗</span>
-          </a>
-          <a
-            href="https://yapseng98.github.io/Knowledge_Management_System/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ql-row kms"
-          >
-            <span className="ql-ico">📚</span>
-            <span className="ql-label">{t('today.kmsLink')}</span>
-            <span className="ql-arrow" aria-hidden>↗</span>
-          </a>
-        </div>
+        <QuickLaunch t={t} />
       </div>
     </div>
 
