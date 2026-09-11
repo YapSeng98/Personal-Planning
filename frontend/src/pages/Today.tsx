@@ -133,12 +133,34 @@ const QUICK_APPS = [
 
 function QuickLaunch({ t }: { t: TFn }) {
   const [open, setOpen] = useState(false)
+  const [hovering, setHovering] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const closeTimer = useRef<number | null>(null)
+  const visible = open || hovering
+
+  const cancelClose = () => {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }
+  // Fanned-out satellites sit visually far from the 52px trigger with empty
+  // page between them — a plain CSS :hover drops the instant the mouse
+  // crosses that gap on the way to one, closing the menu before it's
+  // reachable. A short close-delay (cancelled if the pointer lands back
+  // inside, e.g. on a satellite) gives a normal mouse move enough time to
+  // cross that gap without the menu disappearing underneath it.
+  const onEnter = () => { cancelClose(); setHovering(true) }
+  const onLeave = () => { closeTimer.current = window.setTimeout(() => setHovering(false), 260) }
 
   useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+        setHovering(false)
+        cancelClose()
+      }
     }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
     document.addEventListener('mousedown', onDoc)
@@ -149,13 +171,15 @@ function QuickLaunch({ t }: { t: TFn }) {
     }
   }, [open])
 
+  useEffect(() => () => cancelClose(), [])
+
   return (
-    <div className={`ql-orbit ${open ? 'open' : ''}`} ref={ref}>
+    <div className={`ql-orbit ${visible ? 'open' : ''}`} ref={ref} onMouseEnter={onEnter} onMouseLeave={onLeave}>
       <button
         type="button"
         className="ql-fab"
         aria-haspopup="true"
-        aria-expanded={open}
+        aria-expanded={visible}
         aria-label={t('today.quickApps')}
         onClick={() => setOpen((o) => !o)}
       >
@@ -171,7 +195,7 @@ function QuickLaunch({ t }: { t: TFn }) {
           rel="noopener noreferrer"
           className="ql-sat"
           style={{ ['--ql-accent' as string]: a.color, ['--tx' as string]: a.tx, ['--ty' as string]: a.ty }}
-          onClick={() => setOpen(false)}
+          onClick={() => { setOpen(false); setHovering(false); cancelClose() }}
           aria-label={t(a.labelKey)}
         >
           <span aria-hidden>{a.icon}</span>

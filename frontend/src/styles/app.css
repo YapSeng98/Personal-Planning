@@ -809,8 +809,15 @@ button.goal-card:hover { background: var(--glass-strong); }
 .m-streak .sl { font-size: 0.6rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
 
 /* Quick-launch orbit: the four app shortcuts collapse into one gradient FAB.
-   Hover (mouse), tap (touch) or focus (keyboard) fans them out along an arc
-   from the same 52px footprint — no boxed list sitting open at all times. */
+   Tap/click (open, from React state), or focus (keyboard) fans them out along
+   an arc from the same 52px footprint. Mouse "hover" is deliberately NOT a
+   plain CSS :hover trigger — the fanned-out satellites sit visually far from
+   the 52px trigger box with empty page in between, so raw :hover drops the
+   instant the cursor crosses that gap, closing the menu before the pointer
+   ever reaches a satellite. QuickLaunch (Today.tsx) instead tracks hover in
+   JS with a short close-delay (mouseleave schedules close, mouseenter
+   cancels it), so a normal mouse move through the gap doesn't kill it, and
+   adds the same 'open' class this CSS keys off. */
 .ql-orbit {
   position: relative; width: 52px; height: 52px; flex-shrink: 0;
 }
@@ -820,12 +827,12 @@ button.goal-card:hover { background: var(--glass-strong); }
   box-shadow: 0 10px 24px var(--accent-wash), var(--shadow-float);
   transition: transform 200ms var(--ease-spring), filter 150ms var(--ease);
 }
-.ql-orbit:not(:hover):not(.open):not(:focus-within) .ql-fab { animation: ql-invite 2.8s ease-in-out infinite; }
+.ql-orbit:not(.open):not(:focus-within) .ql-fab { animation: ql-invite 2.8s ease-in-out infinite; }
 @keyframes ql-invite {
   0%, 100% { box-shadow: 0 10px 24px var(--accent-wash), var(--shadow-float), 0 0 0 0 var(--accent-wash); }
   50% { box-shadow: 0 10px 24px var(--accent-wash), var(--shadow-float), 0 0 0 7px var(--accent-wash); }
 }
-.ql-orbit:hover .ql-fab, .ql-orbit.open .ql-fab, .ql-orbit:focus-within .ql-fab {
+.ql-orbit.open .ql-fab, .ql-orbit:focus-within .ql-fab {
   transform: rotate(90deg) scale(1.05); filter: brightness(1.05);
 }
 .ql-fab-grid { display: grid; grid-template-columns: repeat(3, 5px); gap: 3px; pointer-events: none; }
@@ -842,7 +849,7 @@ button.goal-card:hover { background: var(--glass-strong); }
   opacity: 0; transform: translate(0, 0) scale(0.4);
   transition: transform 380ms var(--ease-spring), opacity 200ms var(--ease);
 }
-.ql-orbit:hover .ql-sat, .ql-orbit.open .ql-sat, .ql-orbit:focus-within .ql-sat {
+.ql-orbit.open .ql-sat, .ql-orbit:focus-within .ql-sat {
   opacity: 1; transform: translate(var(--tx), var(--ty)) scale(1); pointer-events: auto;
 }
 .ql-sat:active { transform: translate(var(--tx), var(--ty)) scale(0.9); }
