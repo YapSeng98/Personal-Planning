@@ -35,7 +35,32 @@ export function VideoProvider({ children }: { children: ReactNode }) {
   const [volume, setVolume] = useState(100)
   const [muted, setMuted] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const playStartRef = useRef<number | null>(null)
   const { t } = useLang()
+
+  const play = useCallback(() => {
+    playStartRef.current = Date.now()
+    setPlaying(true)
+  }, [])
+  const stop = useCallback(() => {
+    playStartRef.current = null
+    setPlaying(false)
+  }, [])
+
+  // A real background switch (leaving the app/browser entirely) can't be
+  // kept playing from here — that's the OS/browser's call, not ours, for a
+  // cross-origin embed. What we CAN do: a deliberate one-tap handoff to the
+  // real YouTube app/site, resuming at roughly the same spot, so leaving on
+  // purpose doesn't mean starting over. Wall-clock-since-play is an
+  // approximation (doesn't see the user scrubbing the embed's own seek bar),
+  // but for the passive background-video use case this player is for, that's
+  // close enough without wiring up the IFrame API's message-listening side.
+  const openInYoutube = useCallback(() => {
+    if (!videoId) return
+    const elapsed = playStartRef.current ? Math.round((Date.now() - playStartRef.current) / 1000) : 0
+    const ts = elapsed >= 3 ? `&t=${elapsed}s` : ''
+    window.open(`https://www.youtube.com/watch?v=${videoId}${ts}`, '_blank', 'noopener,noreferrer')
+  }, [videoId])
 
   // Reassert volume/mute once the (freshly mounted) player has loaded — the
   // iframe remounts every time playback (re)starts, which resets its state.
@@ -105,7 +130,7 @@ export function VideoProvider({ children }: { children: ReactNode }) {
     : undefined
 
   return (
-    <Ctx.Provider value={{ videoId, playing, play: () => setPlaying(true), stop: () => setPlaying(false), setSlot }}>
+    <Ctx.Provider value={{ videoId, playing, play, stop, setSlot }}>
       {children}
       {videoId && playing && (
         <div className={`hv-float ${docked ? 'docked' : 'mini'}`} style={style}>
@@ -117,7 +142,7 @@ export function VideoProvider({ children }: { children: ReactNode }) {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
-          <button className="hv-btn stop" onClick={() => setPlaying(false)} aria-label={t('today.videoStop')} title={t('today.videoStop')}>
+          <button className="hv-btn stop" onClick={stop} aria-label={t('today.videoStop')} title={t('today.videoStop')}>
             ⏹
           </button>
           <a
@@ -125,6 +150,7 @@ export function VideoProvider({ children }: { children: ReactNode }) {
             href={`https://www.youtube.com/watch?v=${videoId}`}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => { e.preventDefault(); openInYoutube() }}
             aria-label={t('today.videoOpen')}
             title={t('today.videoOpen')}
           >

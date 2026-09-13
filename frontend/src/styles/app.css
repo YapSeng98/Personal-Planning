@@ -657,6 +657,15 @@ button.goal-card:hover { background: var(--glass-strong); }
   background: conic-gradient(#2c1004 calc(var(--p, 0) * 1%), rgba(44,16,4,0.18) 0); }
 .hero-ring i { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(150deg, #FF9147, #FFB03A);
   display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 850; color: #2c1004; font-style: normal; font-variant-numeric: tabular-nums; }
+/* Below 1000px the hero stacks (video/text full-width, no side-by-side desktop
+   layout), so a tall card (long briefing + video) can push this card-anchored
+   ring down into the same screen corner the viewport-fixed quick-launch/add-
+   task buttons occupy. Move it to bottom-LEFT there instead — those buttons
+   only ever claim the right edge, so the ring can never collide with them
+   regardless of how tall the card gets. */
+@media (max-width: 999px) {
+  .hero-ring { right: auto; left: 1.2rem; }
+}
 
 /* Hero video: stacks under the greeting on phones, floats top-right on
    laptop where the hero has spare horizontal room. */
