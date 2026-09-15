@@ -8,6 +8,10 @@ those.
 
 ## 2026-09-15
 
+- Added `CLAUDE.md` (repo root) documenting current architecture, the
+  direct-to-main git workflow, and project-specific safety rules for future
+  Claude Code sessions. [`5216ad2`](https://github.com/YapSeng98/Personal-Planning/commit/5216ad2)
+- Added `CHANGELOG.md` (this file) to track shipped changes. [`95fdec4`](https://github.com/YapSeng98/Personal-Planning/commit/95fdec4)
 - **Design refresh** — distinctive display typeface for headings/hero/stat
   numbers, a custom line-icon set replacing emoji in nav and buttons, and a
   general polish pass (tactile button/input states, elevated login card,
