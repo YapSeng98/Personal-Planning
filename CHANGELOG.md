@@ -8,6 +8,9 @@ those.
 
 ## 2026-09-15
 
+- Rewrote `README.md` — it was still describing the old ServiceNow setup and
+  Phase-1 feature list. Now matches the current Supabase backend and full
+  feature set. [`501fbb6`](https://github.com/YapSeng98/Personal-Planning/commit/501fbb6)
 - Added `CLAUDE.md` (repo root) documenting current architecture, the
   direct-to-main git workflow, and project-specific safety rules for future
   Claude Code sessions. [`5216ad2`](https://github.com/YapSeng98/Personal-Planning/commit/5216ad2)
