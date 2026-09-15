@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { db, cleanupDuplicateRecurringTasks } from '../db/db'
-import { isAuthed, currentUser, clearTokens, serverLogout } from '../sync/api'
+import { isAuthed, currentUser, clearTokens, serverLogout, changePassword } from '../sync/api'
 import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
@@ -25,6 +25,8 @@ export default function Settings() {
   const [sync, setSync] = useState<SyncState>('idle')
   const [pending, setPending] = useState(0)
   const [cleanup, setCleanup] = useState<{ state: 'idle' | 'running' | 'done'; msg: string }>({ state: 'idle', msg: '' })
+  const [newPw, setNewPw] = useState('')
+  const [pwState, setPwState] = useState<{ state: 'idle' | 'saving' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const { t, lang, setLang } = useLang()
   const offlineMode = localStorage.getItem('offline_mode') === '1' && !isAuthed()
 
@@ -81,6 +83,21 @@ export default function Settings() {
       state: 'done',
       msg: removed === 0 ? t('set.cleanupNone') : t(removed === 1 ? 'set.cleanupRemoved' : 'set.cleanupRemovedPlural', { n: removed }),
     })
+  }
+
+  async function changePw() {
+    if (newPw.length < 6) {
+      setPwState({ state: 'err', msg: t('set.pwTooShort') })
+      return
+    }
+    setPwState({ state: 'saving', msg: '' })
+    try {
+      await changePassword(newPw)
+      setNewPw('')
+      setPwState({ state: 'ok', msg: t('set.pwChanged') })
+    } catch (e) {
+      setPwState({ state: 'err', msg: e instanceof Error ? e.message : t('set.pwFailed') })
+    }
   }
 
   async function logout() {
@@ -210,6 +227,30 @@ export default function Settings() {
           {offlineMode ? t('set.exitDemo') : t('set.logout')}
         </button>
       </div>
+
+      {!offlineMode && (
+        <>
+          <div className="section-h">{t('set.changePw')}</div>
+          <div className="card">
+            <div className="row-sub" style={{ marginBottom: '0.6rem' }}>{t('set.changePwHint')}</div>
+            <div className="ai-row">
+              <input
+                type="password"
+                autoComplete="new-password"
+                placeholder={t('set.newPw')}
+                value={newPw}
+                onChange={(e) => { setNewPw(e.target.value); setPwState({ state: 'idle', msg: '' }) }}
+                aria-label={t('set.newPw')}
+              />
+              <button className="btn" onClick={changePw} disabled={!newPw || pwState.state === 'saving'}>
+                {pwState.state === 'saving' ? t('set.pwSaving') : t('set.changePwBtn')}
+              </button>
+            </div>
+            {pwState.state === 'ok' && <div className="ai-status ok">✓ {pwState.msg}</div>}
+            {pwState.state === 'err' && <div className="ai-status err">✕ {pwState.msg}</div>}
+          </div>
+        </>
+      )}
 
       <div className="section-h">{t('set.sync')}</div>
       <div className="card settings-row">

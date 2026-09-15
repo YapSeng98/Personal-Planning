@@ -64,6 +64,16 @@ export function currentUser(): string | null {
   return localStorage.getItem('planner_user')
 }
 
+/** Works only while already signed in — no email involved at all, which is
+    the whole point: the login email is a fake, never-delivered placeholder
+    (see shadowEmail in ./supabase), so Supabase's own dashboard "send
+    password recovery" option can never reach the user. This is the one
+    real path to changing a password. */
+export async function changePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw new Error(error.message)
+}
+
 /** Best-effort server logout; local cleanup is the caller's job. */
 export async function serverLogout() {
   try {
