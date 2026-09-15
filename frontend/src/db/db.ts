@@ -136,10 +136,12 @@ export interface Review {
   updatedAt: number
 }
 
-/** A sketch note is either hand-drawn or typed. Local-only — never synced
-    (the push/pull pipeline sends whole-record payloads with no chunking,
-    and ServiceNow string fields cap out around 4000 chars; a canvas PNG
-    dataUrl runs far larger, and typed notes could too). */
+/** A sketch note is either hand-drawn or typed. Payloads can run large (a
+    canvas PNG dataUrl is 10-500KB of base64) — synced anyway, since Postgres
+    text/jsonb columns have no meaningful size ceiling (unlike ServiceNow's
+    ~4000-char field cap, which is why this was local-only before). The
+    push/pull pipeline still moves the WHOLE record on every change, same as
+    every other table — fine at personal-app scale. */
 export interface NoteAttachment {
   id: string
   name: string
@@ -148,8 +150,17 @@ export interface NoteAttachment {
   dataUrl: string
 }
 
+export interface SketchFolder {
+  id: string
+  sysId?: string
+  name: string
+  deleted: 0 | 1
+  updatedAt: number
+}
+
 export interface DrawingNote {
   id: string
+  sysId?: string
   title: string
   /** Missing on records saved before typed notes existed — treat as 'draw'. */
   kind?: 'draw' | 'text'
@@ -166,12 +177,16 @@ export interface DrawingNote {
   /** kind='text' — non-image files attached to the note, shown as chips
       below the editor. */
   attachments?: NoteAttachment[]
+  /** Groups this note under a SketchFolder; undefined = ungrouped. */
+  folderId?: string
+  /** Missing on records saved before soft-delete existed — treat as 0. */
+  deleted?: 0 | 1
   updatedAt: number
 }
 
 export interface OutboxEntry {
   seq?: number
-  table: 'task' | 'habit' | 'habit_log' | 'goal' | 'review' | 'project'
+  table: 'task' | 'habit' | 'habit_log' | 'goal' | 'review' | 'project' | 'drawing' | 'folder'
   recordId: string
   editedAt: number
 }
@@ -189,6 +204,7 @@ class PlannerDB extends Dexie {
   reviews!: Table<Review, string>
   projects!: Table<Project, string>
   drawings!: Table<DrawingNote, string>
+  folders!: Table<SketchFolder, string>
   outbox!: Table<OutboxEntry, number>
   meta!: Table<Meta, string>
 
@@ -210,10 +226,20 @@ class PlannerDB extends Dexie {
       tasks: 'id, due, state, projectId, goalId, updatedAt',
       projects: 'id, archived, updatedAt',
     })
-    // v3: adds DrawingNote (Sketches feature). Local-only — deliberately not
-    // in the outbox table set, so it never enters the sync pipeline.
+    // v3: adds DrawingNote (Sketches feature). Local-only at the time —
+    // deliberately not in the outbox table set, so it never entered the
+    // sync pipeline. Superseded by v4 below.
     this.version(3).stores({
       drawings: 'id, updatedAt',
+    })
+    // v4: Sketches gains sync (see DrawingNote's doc comment) and a folder
+    // view — SketchFolder is new, and drawings gains an indexed folderId
+    // for per-folder queries. No .upgrade() needed: existing drawings rows
+    // simply have folderId/deleted undefined, which reads as "ungrouped,
+    // not deleted" everywhere that matters.
+    this.version(4).stores({
+      drawings: 'id, folderId, updatedAt',
+      folders: 'id, updatedAt',
     })
   }
 }

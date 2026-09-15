@@ -239,6 +239,56 @@ create trigger set_updated_at before update on public.reviews
   for each row execute function public.set_updated_at();
 
 -- ------------------------------------------------------------
+-- sketch_folders (created before drawings: drawings.folder_id references it)
+-- ------------------------------------------------------------
+create table if not exists public.sketch_folders (
+  id uuid primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null default '',
+  deleted boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+alter table public.sketch_folders enable row level security;
+drop policy if exists "own rows" on public.sketch_folders;
+create policy "own rows" on public.sketch_folders for all
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop trigger if exists set_updated_at on public.sketch_folders;
+create trigger set_updated_at before update on public.sketch_folders
+  for each row execute function public.set_updated_at();
+
+-- ------------------------------------------------------------
+-- drawings (Sketches feature: hand-drawn or typed notes). Was local-only
+-- under ServiceNow because its string fields cap out around 4000 chars and
+-- a canvas PNG data URL runs far larger — Postgres text/jsonb columns have
+-- no meaningful size ceiling, so that constraint is gone. sync_push/
+-- sync_pull still move the WHOLE record on every change (no chunking),
+-- same as every other table here — fine at personal-app scale, worth
+-- knowing if sketches get much bigger.
+-- ------------------------------------------------------------
+create table if not exists public.drawings (
+  id uuid primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null default '',
+  kind text not null default 'draw',
+  data_url text,
+  text text,
+  format text,
+  attachments jsonb not null default '[]'::jsonb,
+  folder_id uuid references public.sketch_folders(id) on delete set null,
+  deleted boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+alter table public.drawings enable row level security;
+drop policy if exists "own rows" on public.drawings;
+create policy "own rows" on public.drawings for all
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop trigger if exists set_updated_at on public.drawings;
+create trigger set_updated_at before update on public.drawings
+  for each row execute function public.set_updated_at();
+create index if not exists drawings_user_updated_idx on public.drawings (user_id, updated_at);
+create index if not exists drawings_folder_idx on public.drawings (folder_id);
+
+-- ------------------------------------------------------------
 -- recalc_goal — ports recalcFromTasks / recalcFromChildren / setProgress
 -- from sync_push.js verbatim. Two distinct modes, not one uniform one:
 --   - the goal actually touched: recompute from ITS OWN linked tasks only.
@@ -500,6 +550,46 @@ begin
         where public.projects.user_id = auth.uid();
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
       end if;
+
+    elsif tbl = 'drawing' then
+      select updated_at into existing_updated from public.drawings where id = rid and user_id = auth.uid();
+      if found and existing_updated > edited_ts then
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
+      else
+        insert into public.drawings (id, user_id, title, kind, data_url, text, format, attachments, folder_id, deleted)
+        values (rid, auth.uid(),
+          coalesce(nullif(p->>'title', ''), ''),
+          coalesce(nullif(p->>'kind', ''), 'draw'),
+          nullif(p->>'dataUrl', ''),
+          nullif(p->>'text', ''),
+          nullif(p->>'format', ''),
+          case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end,
+          nullif(p->>'folderId', '')::uuid,
+          coalesce(nullif(p->>'deleted', '')::boolean, false)
+        )
+        on conflict (id) do update set
+          title = excluded.title, kind = excluded.kind, data_url = excluded.data_url,
+          text = excluded.text, format = excluded.format, attachments = excluded.attachments,
+          folder_id = excluded.folder_id, deleted = excluded.deleted
+        where public.drawings.user_id = auth.uid();
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
+      end if;
+
+    elsif tbl = 'folder' then
+      select updated_at into existing_updated from public.sketch_folders where id = rid and user_id = auth.uid();
+      if found and existing_updated > edited_ts then
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
+      else
+        insert into public.sketch_folders (id, user_id, name, deleted)
+        values (rid, auth.uid(),
+          coalesce(nullif(p->>'name', ''), ''),
+          coalesce(nullif(p->>'deleted', '')::boolean, false)
+        )
+        on conflict (id) do update set
+          name = excluded.name, deleted = excluded.deleted
+        where public.sketch_folders.user_id = auth.uid();
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
+      end if;
     end if;
   end loop;
 
@@ -591,6 +681,25 @@ as $$
       )
     )
     from public.projects where user_id = auth.uid() and updated_at > since
+    union all
+    select jsonb_build_object(
+      'table', 'drawing', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+      'data', jsonb_build_object(
+        'title', title, 'kind', kind, 'dataUrl', data_url, 'text', text,
+        'format', format, 'attachments', attachments, 'folderId', folder_id,
+        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+      )
+    )
+    from public.drawings where user_id = auth.uid() and updated_at > since
+    union all
+    select jsonb_build_object(
+      'table', 'folder', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+      'data', jsonb_build_object(
+        'name', name,
+        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+      )
+    )
+    from public.sketch_folders where user_id = auth.uid() and updated_at > since
   ) all_records;
 $$;
 
@@ -600,7 +709,8 @@ $$;
 -- ------------------------------------------------------------
 grant usage on schema public to authenticated;
 grant select, insert, update on public.profiles, public.tasks, public.goals,
-  public.habits, public.habit_logs, public.reviews, public.projects to authenticated;
+  public.habits, public.habit_logs, public.reviews, public.projects,
+  public.drawings, public.sketch_folders to authenticated;
 grant execute on function public.sync_push(jsonb) to authenticated;
 grant execute on function public.sync_pull(timestamptz) to authenticated;
 grant execute on function public.recalc_goal(uuid) to authenticated;

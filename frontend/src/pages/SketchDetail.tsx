@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { db, uuid, notifyChange, type DrawingNote, type NoteAttachment } from '../db/db'
+import { db, uuid, writeAndQueue, type DrawingNote, type NoteAttachment, type SketchFolder } from '../db/db'
+import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { toEditorHtml } from '../lib/noteHtml'
+import Select from '../components/Select'
 
 const CANVAS_W = 900
 const CANVAS_H = 1200
@@ -48,19 +50,29 @@ export default function SketchDetail() {
   const [sizeKey, setSizeKey] = useState<SizeKey>('md')
   const [canUndo, setCanUndo] = useState(false)
   const [penMode, setPenMode] = useState(() => localStorage.getItem(HAS_PEN_KEY) === '1')
+  const [folderId, setFolderId] = useState<string | undefined>(searchParams.get('folder') || undefined)
+  const [folders, setFolders] = useState<SketchFolder[]>([])
   const { t } = useLang()
+
+  useEffect(() => {
+    db.folders.filter((f) => !f.deleted).toArray().then((f) => {
+      f.sort((a, b) => a.name.localeCompare(b.name))
+      setFolders(f)
+    })
+  }, [])
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       if (!id) return
       const existing = await db.drawings.get(id)
-      if (cancelled || !existing) return
+      if (cancelled || !existing || existing.deleted) return
       setTitle(existing.title ?? '')
       setKind(existing.kind ?? 'draw')
       setText(existing.text ?? '')
       wasHtmlRef.current = existing.format === 'html'
       setAttachments(existing.attachments ?? [])
+      setFolderId(existing.folderId)
       if (existing.kind === 'text') return
       const canvas = canvasRef.current
       if (!canvas) return
@@ -180,7 +192,7 @@ export default function SketchDetail() {
     await autosaveDrawing()
   }
 
-  async function autosaveDrawing() {
+  async function autosaveDrawing(fid: string | undefined = folderId) {
     const canvas = canvasRef.current
     if (!canvas || !id) return
     const record: DrawingNote = {
@@ -188,13 +200,15 @@ export default function SketchDetail() {
       title,
       kind: 'draw',
       dataUrl: canvas.toDataURL('image/png'),
+      folderId: fid,
+      deleted: 0,
       updatedAt: Date.now(),
     }
-    await db.drawings.put(record)
-    notifyChange()
+    await writeAndQueue(db.drawings, 'drawing', record)
+    syncNow()
   }
 
-  async function autosaveText(nextText?: string, nextAttachments?: NoteAttachment[]) {
+  async function autosaveText(nextText?: string, nextAttachments?: NoteAttachment[], fid: string | undefined = folderId) {
     if (!id) return
     const record: DrawingNote = {
       id,
@@ -203,14 +217,25 @@ export default function SketchDetail() {
       text: nextText ?? editorRef.current?.innerHTML ?? text,
       format: 'html',
       attachments: nextAttachments ?? attachments,
+      folderId: fid,
+      deleted: 0,
       updatedAt: Date.now(),
     }
-    await db.drawings.put(record)
+    await writeAndQueue(db.drawings, 'drawing', record)
     wasHtmlRef.current = true
-    notifyChange()
+    syncNow()
   }
 
-  const autosave = kind === 'text' ? () => autosaveText() : autosaveDrawing
+  const autosave = () => (kind === 'text' ? autosaveText() : autosaveDrawing())
+
+  /** Folder changes save immediately (not on blur, like everything else
+      here) — there's no other natural commit point for a dropdown pick. */
+  async function changeFolder(newFolderId: string) {
+    const fid = newFolderId || undefined
+    setFolderId(fid)
+    if (kind === 'text') await autosaveText(undefined, undefined, fid)
+    else await autosaveDrawing(fid)
+  }
 
   function exec(cmd: string) {
     document.execCommand(cmd)
@@ -254,9 +279,12 @@ export default function SketchDetail() {
   async function remove() {
     if (!id) return
     if (!window.confirm(t('sketch.deleteConfirm', { title: title || t('sketch.untitled') }))) return
-    await db.drawings.delete(id)
-    notifyChange()
-    navigate('/sketches')
+    const existing = await db.drawings.get(id)
+    if (existing) {
+      await writeAndQueue(db.drawings, 'drawing', { ...existing, deleted: 1, updatedAt: Date.now() })
+      syncNow()
+    }
+    navigate(folderId ? `/sketches/folder/${folderId}` : '/sketches')
   }
 
   return (
@@ -264,7 +292,7 @@ export default function SketchDetail() {
       <div className="greet page-head">
         <div className="hd-title-wrap">
           <div className="hd-title-row">
-            <button className="hd-back" onClick={() => navigate('/sketches')} aria-label={t('common.cancel')}>‹</button>
+            <button className="hd-back" onClick={() => navigate(folderId ? `/sketches/folder/${folderId}` : '/sketches')} aria-label={t('common.cancel')}>‹</button>
             <input
               className="sketch-title-input"
               value={title}
@@ -274,7 +302,15 @@ export default function SketchDetail() {
             />
           </div>
         </div>
-        <button className="btn btn-danger-soft" onClick={remove}>{t('common.delete')}</button>
+        <div className="sketch-detail-actions">
+          <Select
+            ariaLabel={t('sketch.folder')}
+            value={folderId ?? ''}
+            onChange={changeFolder}
+            options={[{ value: '', label: t('sketch.noFolder') }, ...folders.map((f) => ({ value: f.id, label: f.name }))]}
+          />
+          <button className="btn btn-danger-soft" onClick={remove}>{t('common.delete')}</button>
+        </div>
       </div>
 
       {kind === 'text' ? (

@@ -1049,6 +1049,19 @@ button.goal-card:hover { transform: translateY(-2px); }
 .sketch-del { background: none; border: none; cursor: pointer; opacity: 0.5; font-size: 0.9rem; padding: 2px; flex-shrink: 0; }
 .sketch-del:hover { opacity: 1; }
 
+.sketch-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.7rem; margin: 0.6rem 0 1rem; }
+.sketch-folder-card { padding: 0; display: flex; align-items: center; gap: 0.3rem; }
+.sketch-folder-open {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.5rem; background: none; border: none;
+  cursor: pointer; padding: 0.7rem 0.8rem; text-align: left; font-family: inherit;
+}
+.sketch-folder-icon { font-size: 1.2rem; flex-shrink: 0; }
+.sketch-folder-name { flex: 1; min-width: 0; font-size: 0.88rem; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sketch-folder-count { flex-shrink: 0; font-size: 0.75rem; color: var(--text-3); }
+.sketch-folder-actions { display: flex; flex-direction: column; gap: 0.1rem; padding-right: 0.5rem; flex-shrink: 0; }
+
+.sketch-detail-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+
 .sketch-title-input {
   border: none; background: none; font-size: 1.3rem; font-weight: 800; color: var(--text-1);
   padding: 0; margin: 0; min-width: 0; flex: 1; font-family: inherit;

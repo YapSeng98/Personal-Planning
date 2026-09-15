@@ -51,6 +51,7 @@ export default function App() {
           <Route path="/habits/:id" element={<HabitDetail />} />
           <Route path="/reviews" element={<Reviews />} />
           <Route path="/sketches" element={<Sketches />} />
+          <Route path="/sketches/folder/:folderId" element={<Sketches />} />
           <Route path="/sketches/:id" element={<SketchDetail />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />

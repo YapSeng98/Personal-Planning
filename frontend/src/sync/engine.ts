@@ -31,6 +31,8 @@ const tableMap = {
   goal: db.goals,
   review: db.reviews,
   project: db.projects,
+  drawing: db.drawings,
+  folder: db.folders,
 } as const
 
 // Every syncable field per table (matches the ServiceNow FIELD_MAPS). We push
@@ -47,6 +49,8 @@ const SYNC_FIELDS: Record<keyof typeof tableMap, string[]> = {
   goal: ['title', 'type', 'parentId', 'lifeArea', 'whyItMatters', 'progress', 'status', 'targetDate', 'deleted'],
   review: ['type', 'periodStart', 'periodEnd', 'wins', 'failures', 'lesson', 'mood', 'energy', 'nextPriorities', 'deleted'],
   project: ['title', 'color', 'archived', 'deleted'],
+  drawing: ['title', 'kind', 'dataUrl', 'text', 'format', 'attachments', 'folderId', 'deleted'],
+  folder: ['name', 'deleted'],
 }
 
 function buildPayload(table: keyof typeof tableMap, rec: Record<string, unknown>): Record<string, unknown> {
