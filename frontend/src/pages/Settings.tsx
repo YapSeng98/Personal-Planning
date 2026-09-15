@@ -8,6 +8,14 @@ import { getAiUrl, setAiUrl, askAI } from '../lib/ai'
 import { getYoutubeUrl, setYoutubeUrl, extractYoutubeId } from '../lib/youtube'
 import { useLang, LANGS, type Lang } from '../lib/i18n'
 
+const supabaseHost = (() => {
+  try {
+    return new URL(import.meta.env.VITE_SUPABASE_URL as string).host
+  } catch {
+    return ''
+  }
+})()
+
 export default function Settings() {
   const [theme, setThemeState] = useState<Theme>(getTheme())
   const [bg, setBgState] = useState<Bg>(getBg())
@@ -194,7 +202,9 @@ export default function Settings() {
       <div className="card settings-row">
         <div>
           <b>{offlineMode ? t('set.offlineDemo') : currentUser() ?? '—'}</b>
-          <div className="row-sub">{offlineMode ? t('set.demoDesc') : t('set.signedInAs')}</div>
+          <div className="row-sub">
+            {offlineMode ? t('set.demoDesc') : t('set.signedInAs', { host: supabaseHost })}
+          </div>
         </div>
         <button className="btn btn-danger-soft" onClick={logout}>
           {offlineMode ? t('set.exitDemo') : t('set.logout')}
