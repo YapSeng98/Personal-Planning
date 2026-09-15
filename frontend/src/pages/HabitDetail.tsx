@@ -4,6 +4,7 @@ import { db, todayStr, uuid, writeAndQueue, cleanEmoji, habitStats, CHANGED, typ
 import { syncNow } from '../sync/engine'
 import { aiEnabled, askAI } from '../lib/ai'
 import HabitEdit from '../components/HabitEdit'
+import Icon from '../components/Icon'
 import { useLang } from '../lib/i18n'
 
 const DAY_ROW_LABELS = [1, 3, 5] // show Mon/Wed/Fri only, GitHub-style — reduces clutter
@@ -156,7 +157,7 @@ export default function HabitDetail() {
       <div className="greet page-head">
         <div className="hd-title-wrap">
           <div className="hd-title-row">
-            <button className="hd-back" onClick={() => navigate(-1)} aria-label={t('common.cancel')}>‹</button>
+            <button className="hd-back" onClick={() => navigate(-1)} aria-label={t('common.cancel')}><Icon name="chevronLeft" size={18} /></button>
             <h1>{cleanEmoji(habit.emoji, habit.name)} {habit.name}</h1>
           </div>
           <div className="sub">{t('habit.targetLine', { n: habit.targetPerDay })}</div>

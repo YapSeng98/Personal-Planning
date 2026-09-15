@@ -6,15 +6,16 @@ import { type Task } from '../db/db'
 import TaskForm from './TaskForm'
 import SearchModal from './SearchModal'
 import { VideoProvider } from './VideoPlayer'
+import Icon, { type IconName } from './Icon'
 
-const links = [
-  { to: '/', key: 'nav.today', ico: '☀️' },
-  { to: '/plan', key: 'nav.plan', ico: '🗓️' },
-  { to: '/board', key: 'nav.board', ico: '🗂️' },
-  { to: '/goals', key: 'nav.goals', ico: '🎯' },
-  { to: '/reviews', key: 'nav.reviews', ico: '✍️' },
-  { to: '/sketches', key: 'nav.sketches', ico: '🎨' },
-  { to: '/analytics', key: 'nav.stats', ico: '📊' },
+const links: { to: string; key: string; ico: IconName }[] = [
+  { to: '/', key: 'nav.today', ico: 'today' },
+  { to: '/plan', key: 'nav.plan', ico: 'plan' },
+  { to: '/board', key: 'nav.board', ico: 'board' },
+  { to: '/goals', key: 'nav.goals', ico: 'goals' },
+  { to: '/reviews', key: 'nav.reviews', ico: 'reviews' },
+  { to: '/sketches', key: 'nav.sketches', ico: 'sketches' },
+  { to: '/analytics', key: 'nav.stats', ico: 'stats' },
 ]
 
 /** Anywhere in the app can request the quick-add sheet. */
@@ -51,7 +52,7 @@ export default function Shell() {
   const nav = (cls: string) =>
     links.map((l) => (
       <NavLink key={l.to} to={l.to} end={l.to === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''} ${cls}`}>
-        <span className="ico" aria-hidden>{l.ico}</span>
+        <span className="ico" aria-hidden><Icon name={l.ico} /></span>
         <span>{t(l.key)}</span>
       </NavLink>
     ))
@@ -62,12 +63,12 @@ export default function Shell() {
       <nav className="nav-rail" aria-label="Main">
         <div className="nav-rail-top">
           <div className="brand grad-text">{t('brand')}</div>
-          <button className="nav-search-btn" onClick={() => setSearching(true)} aria-label={t('search.trigger')} title={t('search.trigger')}>🔍</button>
+          <button className="nav-search-btn" onClick={() => setSearching(true)} aria-label={t('search.trigger')} title={t('search.trigger')}><Icon name="search" size={16} /></button>
         </div>
         {nav('')}
         <div style={{ flex: 1 }} />
         <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-          <span className="ico" aria-hidden>⚙️</span>
+          <span className="ico" aria-hidden><Icon name="settings" /></span>
           <span>{t('nav.settings')}</span>
         </NavLink>
         <NavLink to="/settings" className="sync-link" title="Sync status — open settings">
@@ -80,10 +81,10 @@ export default function Shell() {
       <nav className="nav-bottom" aria-label="Main">
         {nav('')}
       </nav>
-      <button className="fab fab-desktop" aria-label="Add task" onClick={() => setAdding(true)}>+</button>
-      <button className="fab fab-float" aria-label="Add task" onClick={() => setAdding(true)}>+</button>
-      <NavLink to="/settings" className="gear-mobile" aria-label="Settings">⚙️</NavLink>
-      <button className="search-mobile" onClick={() => setSearching(true)} aria-label={t('search.trigger')}>🔍</button>
+      <button className="fab fab-desktop" aria-label="Add task" onClick={() => setAdding(true)}><Icon name="plus" size={24} strokeWidth={2.2} /></button>
+      <button className="fab fab-float" aria-label="Add task" onClick={() => setAdding(true)}><Icon name="plus" size={24} strokeWidth={2.2} /></button>
+      <NavLink to="/settings" className="gear-mobile" aria-label="Settings"><Icon name="settings" /></NavLink>
+      <button className="search-mobile" onClick={() => setSearching(true)} aria-label={t('search.trigger')}><Icon name="search" /></button>
       {adding && <TaskForm task={null} onClose={() => setAdding(false)} />}
       {searching && (
         <SearchModal

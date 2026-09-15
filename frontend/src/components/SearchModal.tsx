@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db, type Task, type Goal, type DrawingNote } from '../db/db'
 import { useLang } from '../lib/i18n'
+import Icon from './Icon'
 
 const RESULT_CAP = 6
 
@@ -75,7 +76,7 @@ export default function SearchModal({ onClose, onOpenTask }: Props) {
     <div className="search-backdrop" onClick={onClose}>
       <div className="search-modal" onClick={(e) => e.stopPropagation()}>
         <div className="search-input-row">
-          <span aria-hidden>🔍</span>
+          <span aria-hidden className="search-ico"><Icon name="search" size={18} /></span>
           <input
             ref={inputRef}
             type="text"

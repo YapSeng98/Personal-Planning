@@ -5,6 +5,7 @@ import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { toEditorHtml } from '../lib/noteHtml'
 import Select from '../components/Select'
+import Icon from '../components/Icon'
 
 const CANVAS_W = 900
 const CANVAS_H = 1200
@@ -292,7 +293,7 @@ export default function SketchDetail() {
       <div className="greet page-head">
         <div className="hd-title-wrap">
           <div className="hd-title-row">
-            <button className="hd-back" onClick={() => navigate(folderId ? `/sketches/folder/${folderId}` : '/sketches')} aria-label={t('common.cancel')}>‹</button>
+            <button className="hd-back" onClick={() => navigate(folderId ? `/sketches/folder/${folderId}` : '/sketches')} aria-label={t('common.cancel')}><Icon name="chevronLeft" size={18} /></button>
             <input
               className="sketch-title-input"
               value={title}

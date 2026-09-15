@@ -5,6 +5,7 @@ import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { toEditorHtml } from '../lib/noteHtml'
 import FolderForm from '../components/FolderForm'
+import Icon from '../components/Icon'
 
 export default function Sketches() {
   const { folderId } = useParams<{ folderId?: string }>()
@@ -72,9 +73,9 @@ export default function Sketches() {
 
   const newButtons = (
     <div className="sketch-new-row">
-      <button className="btn btn-primary" onClick={() => createNew('draw')}>✏️ {t('sketch.newDraw')}</button>
-      <button className="btn btn-primary" onClick={() => createNew('text')}>⌨️ {t('sketch.newType')}</button>
-      {!folderId && <button className="btn" onClick={() => setFolderSheet('new')}>📁 {t('sketch.newFolder')}</button>}
+      <button className="btn btn-primary" onClick={() => createNew('draw')}><Icon name="pencil" size={16} /> {t('sketch.newDraw')}</button>
+      <button className="btn btn-primary" onClick={() => createNew('text')}><Icon name="reviews" size={16} /> {t('sketch.newType')}</button>
+      {!folderId && <button className="btn" onClick={() => setFolderSheet('new')}><Icon name="folder" size={16} /> {t('sketch.newFolder')}</button>}
     </div>
   )
 
@@ -84,8 +85,8 @@ export default function Sketches() {
         {currentFolder ? (
           <div className="hd-title-wrap">
             <div className="hd-title-row">
-              <button className="hd-back" onClick={() => navigate('/sketches')} aria-label={t('common.cancel')}>‹</button>
-              <h1>📁 {currentFolder.name}</h1>
+              <button className="hd-back" onClick={() => navigate('/sketches')} aria-label={t('common.cancel')}><Icon name="chevronLeft" size={18} /></button>
+              <h1><Icon name="folder" size={22} className="hd-title-icon" /> {currentFolder.name}</h1>
             </div>
           </div>
         ) : (
@@ -102,13 +103,13 @@ export default function Sketches() {
           {folders.map((f) => (
             <div key={f.id} className="card sketch-folder-card">
               <button type="button" className="sketch-folder-open" onClick={() => navigate(`/sketches/folder/${f.id}`)}>
-                <span className="sketch-folder-icon">📁</span>
+                <span className="sketch-folder-icon"><Icon name="folder" size={17} /></span>
                 <span className="sketch-folder-name">{f.name}</span>
                 <span className="sketch-folder-count num">{counts[f.id] ?? 0}</span>
               </button>
               <div className="sketch-folder-actions">
-                <button type="button" className="sketch-del" onClick={() => setFolderSheet(f)} aria-label={t('sketch.renameFolder')}>✎</button>
-                <button type="button" className="sketch-del" onClick={(e) => removeFolder(f, e)} aria-label={t('common.delete')}>🗑</button>
+                <button type="button" className="sketch-del" onClick={() => setFolderSheet(f)} aria-label={t('sketch.renameFolder')}><Icon name="pencil" size={14} /></button>
+                <button type="button" className="sketch-del" onClick={(e) => removeFolder(f, e)} aria-label={t('common.delete')}><Icon name="trash" size={14} /></button>
               </div>
             </div>
           ))}
@@ -132,9 +133,9 @@ export default function Sketches() {
               </button>
               <div className="sketch-meta">
                 <button type="button" className="sketch-name" onClick={() => navigate(`/sketches/${d.id}`)}>
-                  {d.kind === 'text' ? '⌨️ ' : '✏️ '}{d.title || t('sketch.untitled')}
+                  <Icon name={d.kind === 'text' ? 'reviews' : 'pencil'} size={13} className="sketch-name-ico" /> {d.title || t('sketch.untitled')}
                 </button>
-                <button type="button" className="sketch-del" onClick={(e) => remove(d, e)} aria-label={t('common.delete')}>🗑</button>
+                <button type="button" className="sketch-del" onClick={(e) => remove(d, e)} aria-label={t('common.delete')}><Icon name="trash" size={14} /></button>
               </div>
             </div>
           ))}
