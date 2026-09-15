@@ -1,100 +1,62 @@
-// ServiceNow client — the Planner's own standalone auth (pattern borrowed
-// from the Money Tracker, but nothing shared): the Planner app's
-// /auth/login issues a session token; every call carries it as
-// X-Planner-Token. Endpoints set CORS headers in-script and have
-// "Requires authentication" = false, so no OAuth and no CORS rules.
-//
-// Dev: relative paths → Vite proxy. Prod: straight to the instance
-// (the endpoints send CORS headers themselves).
-const BASE =
-  import.meta.env.VITE_SN_BASE ??
-  (import.meta.env.DEV ? '' : 'https://dev405150.service-now.com')
-// The Planner app's scope on the instance (Studio shows it after the app
-// is created; override with VITE_SN_SCOPE if it differs).
-const SCOPE = import.meta.env.VITE_SN_SCOPE ?? 'x_887486_persona_0'
-const PLANNER = `/api/${SCOPE}/pps`
+// Supabase client — replaces the ServiceNow REST client this file used to
+// be. Every export below keeps its EXACT original name/signature (Login.tsx,
+// Settings.tsx, Today.tsx, App.tsx, sync/engine.ts all import from here and
+// none of them changed) — only the implementation underneath points at
+// Supabase instead of the SN instance now.
+import { supabase, shadowEmail } from './supabase'
 
-const TOKEN_KEY = 'planner_token'
+// supabase-js persists the session under a key it derives from the project
+// URL (`sb-<project-ref>-auth-token`) — reading that directly, the same way
+// the old code read its own `planner_token` key, is what keeps isAuthed()
+// synchronous. App.tsx's <Guard> calls it on every render; making this
+// async would mean restructuring Guard into loading/ready state instead of
+// a one-line check, which the rest of this migration deliberately avoids.
+const PROJECT_REF = (() => {
+  try {
+    return new URL(import.meta.env.VITE_SUPABASE_URL as string).hostname.split('.')[0]
+  } catch {
+    return ''
+  }
+})()
+const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
+export function isAuthed(): boolean {
+  return localStorage.getItem(STORAGE_KEY) !== null
 }
 
 export function clearTokens() {
-  localStorage.removeItem(TOKEN_KEY)
-}
-
-export function isAuthed(): boolean {
-  return getToken() !== null
-}
-
-/** Unwrap ServiceNow's {result:{…}} nesting (sometimes doubled). */
-function unwrap(json: unknown): Record<string, unknown> {
-  let data = json as Record<string, unknown>
-  if (data && typeof data === 'object' && 'result' in data) data = data.result as Record<string, unknown>
-  if (data && typeof data === 'object' && 'result' in data) data = data.result as Record<string, unknown>
-  return data
-}
-
-async function call(
-  base: string,
-  path: string,
-  method: 'GET' | 'POST',
-  body?: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'X-HTTP-Method': method,
-  }
-  const token = getToken()
-  if (token) headers['X-Planner-Token'] = token
-
-  let url = `${BASE}${base}${path}`
-  const init: RequestInit = { method, headers }
-  if (body) {
-    if (method === 'GET') {
-      const qs = Object.entries(body)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-        .join('&')
-      if (qs) url += (url.includes('?') ? '&' : '?') + qs
-    } else {
-      init.body = JSON.stringify(body)
-    }
-  }
-
-  const res = await fetch(url, init)
-  const json = await res.json().catch(() => ({}))
-  const data = unwrap(json)
-  if (!res.ok || (data && typeof data.error === 'string')) {
-    const msg =
-      (data && (data.error as string)) ||
-      (json?.error?.message as string) ||
-      `${method} ${path} → ${res.status}`
-    if (res.status === 401) clearTokens()
-    throw new Error(msg)
-  }
-  return data
+  localStorage.removeItem(STORAGE_KEY)
 }
 
 export async function login(username: string, password: string) {
-  const data = await call(PLANNER, '/auth/login', 'POST', { username, password })
-  const token = data.token as string | undefined
-  if (!token) throw new Error('Sign-in failed — no session token returned.')
-  localStorage.setItem(TOKEN_KEY, token)
-  localStorage.setItem('planner_user', String(data.username ?? username))
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: shadowEmail(username),
+    password,
+  })
+  if (error) {
+    throw new Error(
+      error.message === 'Invalid login credentials' ? 'Wrong username or password.' : error.message,
+    )
+  }
+  const display = (data.user?.user_metadata?.display_name as string | undefined) ?? username
+  localStorage.setItem('planner_user', display)
   return data
 }
 
-/** Registration also returns a session token, so new users land signed in. */
+/** Registration also returns a session token, so new users land signed in.
+    Supabase Auth's own unique-email constraint on the shadow email IS the
+    username-uniqueness check — no separate lookup needed. */
 export async function register(username: string, password: string, displayName?: string) {
-  const data = await call(PLANNER, '/auth/register', 'POST', {
-    username,
+  const { data, error } = await supabase.auth.signUp({
+    email: shadowEmail(username),
     password,
-    display_name: displayName ?? username,
+    options: { data: { display_name: displayName ?? username } },
   })
-  const token = data.token as string | undefined
-  if (token) localStorage.setItem(TOKEN_KEY, token)
-  localStorage.setItem('planner_user', String(data.username ?? username))
+  if (error) {
+    const taken = error.status === 422 || /already/i.test(error.message)
+    throw new Error(taken ? 'That username is taken.' : error.message)
+  }
+  localStorage.setItem('planner_user', displayName ?? username)
   return data
 }
 
@@ -105,13 +67,13 @@ export function currentUser(): string | null {
 /** Best-effort server logout; local cleanup is the caller's job. */
 export async function serverLogout() {
   try {
-    await call(PLANNER, '/auth/logout', 'POST', {})
+    await supabase.auth.signOut()
   } catch {
-    // token already dead or offline — fine, we're leaving anyway
+    // offline or already dead — fine, we're leaving anyway
   }
 }
 
-// ---- Planner sync endpoints (servicenow/scripted-rest/) ----
+// ---- Planner sync (Postgres functions in supabase/schema.sql) ----
 
 export interface PushItem {
   table: string
@@ -124,8 +86,10 @@ export interface PushResult {
   results: { client_uuid: string; sys_id: string; outcome: 'applied' | 'server_won' }[]
 }
 
-export function syncPush(items: PushItem[]): Promise<PushResult> {
-  return call(PLANNER, '/sync/push', 'POST', { items }) as Promise<unknown> as Promise<PushResult>
+export async function syncPush(items: PushItem[]): Promise<PushResult> {
+  const { data, error } = await supabase.rpc('sync_push', { items })
+  if (error) throw new Error(error.message)
+  return data as PushResult
 }
 
 export interface PullResponse {
@@ -133,11 +97,8 @@ export interface PullResponse {
   records: { table: string; client_uuid: string; sys_id: string; deleted: boolean; data: Record<string, unknown> }[]
 }
 
-export function syncPull(cursor: string): Promise<PullResponse> {
-  return call(PLANNER, '/sync/pull', 'GET', { since: cursor }) as Promise<unknown> as Promise<PullResponse>
-}
-
-export function fetchTodayDashboard(localDate: string) {
-  // The server has no idea what timezone the user is in — send our "today".
-  return call(PLANNER, '/dashboard/today', 'GET', { date: localDate })
+export async function syncPull(cursor: string): Promise<PullResponse> {
+  const { data, error } = await supabase.rpc('sync_pull', { since: cursor })
+  if (error) throw new Error(error.message)
+  return data as PullResponse
 }
