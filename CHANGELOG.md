@@ -6,6 +6,13 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-09-17
+
+- Fixed two layout bugs on **Today** on phones: the % progress ring no longer
+  covers the start of the briefing text, and a long habit name (e.g. "Learning
+  more than 15 min") now wraps onto two lines inside an evenly sized cell instead
+  of stretching the whole habits row. [`a097408`](https://github.com/YapSeng98/Personal-Planning/commit/a097408)
+
 ## 2026-09-15
 
 - Rewrote `README.md` — it was still describing the old ServiceNow setup and
