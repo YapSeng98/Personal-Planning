@@ -114,7 +114,10 @@
 .check.on { background: var(--ok); border-color: var(--ok); color: #fff; }
 
 .habit-row { display: flex; gap: 0.6rem; overflow-x: auto; padding: 0.2rem 0; }
-.habit-cell { text-align: center; min-width: 64px; padding: 0.3rem; border-radius: 12px;
+/* Fixed-width cells, so every habit sits on the same rhythm. With only a
+   min-width, one long habit name stretched its cell to more than twice the
+   others and threw the whole row out of line. */
+.habit-cell { text-align: center; width: 84px; flex: 0 0 84px; padding: 0.3rem 0.15rem; border-radius: 12px;
   display: flex; flex-direction: column; align-items: center; gap: 0.1rem; }
 .ring-btn { background: none; border: none; cursor: pointer; padding: 0; border-radius: 50%; }
 .ring-btn:hover .ring { transform: scale(1.06); }
@@ -122,7 +125,10 @@
 .habit-name-btn { background: none; border: none; padding: 0.05rem 0; cursor: pointer;
   font-size: 0.66rem; color: var(--text-2); font-weight: 600; font-family: inherit;
   text-decoration: underline dotted; text-underline-offset: 2px;
-  text-decoration-color: var(--text-3); }
+  text-decoration-color: var(--text-3);
+  /* a long name wraps inside its cell, up to two lines, then ellipsis */
+  max-width: 100%; line-height: 1.25; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .habit-name-btn:hover { color: var(--accent-bright); text-decoration-color: var(--accent-bright); }
 .ring.add { border: 2px dashed var(--text-3); color: var(--text-3); font-size: 1.3rem; font-weight: 400; }
 .ring.add::before { content: none; }
@@ -682,6 +688,10 @@ button.goal-card:hover { background: var(--glass-strong); }
    regardless of how tall the card gets. */
 @media (max-width: 999px) {
   .hero-ring { right: auto; left: 1.2rem; }
+  /* The gap the briefing leaves for the ring has to move with the ring. It
+     kept reserving room on the RIGHT while the ring sat on the LEFT, so on a
+     phone the ring landed on the start of the briefing and hid its first words. */
+  .hero-card.has-ring .hero-brief { margin-right: 0; margin-left: 4.7rem; }
 }
 
 /* Hero video: stacks under the greeting on phones, floats top-right on
