@@ -8,6 +8,10 @@ those.
 
 ## 2026-09-24
 
+- Cleared 6 Supabase security-advisor warnings: pinned `search_path` on the
+  sync and trigger functions, and blocked direct calls to the signup trigger
+  function. No behaviour change — signup, sync and goal roll-up re-tested.
+  [`ef8ca8e`](https://github.com/YapSeng98/Personal-Planning/commit/ef8ca8e)
 - Goals are **no longer marked completed automatically** when their tasks
   hit 100% — more tasks may still be added. Progress % still updates; you mark
   a goal Completed yourself, and statuses you set (Completed, At risk,
