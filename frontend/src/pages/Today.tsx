@@ -20,6 +20,8 @@ import { useLang, type TFn } from '../lib/i18n'
 interface HabitView extends Habit {
   doneToday: number
   streak: number
+  /** Last 7 days, oldest → today: did the log reach the daily target? */
+  week: boolean[]
 }
 
 function greeting(t: TFn): [string, string] {
@@ -121,6 +123,42 @@ function TodayCard({ task, proj, onToggle, onEdit, t }: {
           : t('today.anytime')}
       </span>
     </div>
+  )
+}
+
+/** Live HH:MM:SS readout for the hero HUD. Its own component so the
+    once-a-second tick re-renders only this, not the whole Today page. */
+function HudClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+  return <span className="hud-clock num">{now.toTimeString().slice(0, 8)}</span>
+}
+
+/** Types the briefing out a few characters at a time, like a terminal.
+    Reduced-motion users get the full text at once. */
+function Typewriter({ text }: { text: string }) {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setN(text.length); return }
+    setN(0)
+    const step = Math.max(1, Math.ceil(text.length / 90))
+    const id = window.setInterval(() => {
+      setN((c) => {
+        if (c + step >= text.length) { window.clearInterval(id); return text.length }
+        return c + step
+      })
+    }, 18)
+    return () => window.clearInterval(id)
+  }, [text])
+  const typing = n < text.length
+  return (
+    <>
+      <span className="sr-only">{text}</span>
+      <span aria-hidden>{text.slice(0, n)}<span className={`tw-caret ${typing ? 'on' : ''}`} /></span>
+    </>
   )
 }
 
@@ -249,10 +287,19 @@ export default function Today() {
     setProjects(Object.fromEntries(projRows.map((p) => [p.id, p])))
 
     const hs = await db.habits.where('active').equals(1).and((x) => !x.deleted).toArray()
+    const weekDates = Array.from({ length: 7 }, (_, i) => todayStr(new Date(Date.now() - (6 - i) * 86400_000)))
     const views: HabitView[] = []
     for (const h of hs) {
-      const log = await db.habitLogs.where('[habitId+date]').equals([h.id, today]).first()
-      views.push({ ...h, doneToday: log?.count ?? 0, streak: await habitStreak(h.id) })
+      const logs = await db.habitLogs
+        .where('[habitId+date]').between([h.id, weekDates[0]], [h.id, today], true, true)
+        .and((l) => !l.deleted).toArray()
+      const byDate = new Map(logs.map((l) => [l.date, l.count]))
+      views.push({
+        ...h,
+        doneToday: byDate.get(today) ?? 0,
+        streak: await habitStreak(h.id),
+        week: weekDates.map((d) => (byDate.get(d) ?? 0) >= h.targetPerDay),
+      })
     }
     setHabits(views)
 
@@ -379,7 +426,13 @@ export default function Today() {
     <div className="ga-hero">
       {/* ---- sunrise hero ---- */}
       <div className={`hero-card ${tasks.length > 0 ? 'has-ring' : ''} ${videoId ? 'has-video' : ''}`}>
-        <div className="hero-wm">{t('brand')}</div>
+        <div className="hero-grid" aria-hidden />
+        <div className="hero-scan" aria-hidden />
+        <i className="hud-c tl" aria-hidden /><i className="hud-c tr" aria-hidden />
+        <i className="hud-c bl" aria-hidden /><i className="hud-c br" aria-hidden />
+        <div className="hero-wm">
+          <span className="hud-dot" aria-hidden />{t('today.online')} · {t('brand')} · <HudClock />
+        </div>
         <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
         <div className="hero-dt">{dateLabel}</div>
         <HeroVideoSlot />
@@ -398,10 +451,11 @@ export default function Today() {
               </button>
             )}
           </div>
-          <div className="bt">{aiBrief ?? briefingText(tasks, t)}</div>
+          <div className="bt"><Typewriter text={aiBrief ?? briefingText(tasks, t)} /></div>
         </div>
         {tasks.length > 0 && (
           <div className="hero-ring" style={{ ['--p' as string]: pct }} aria-label={`${pct}% of today done`}>
+            <span className="hero-orbit" aria-hidden />
             <i>{pct}%</i>
           </div>
         )}
@@ -430,6 +484,47 @@ export default function Today() {
       </div>
     </div>
 
+    {/* Habit tiles — tap the ring to log; seven lights show the last 7
+        days (today last, blinking until done). One full-width row: tiles
+        share the width and shrink, never wrap or scroll. */}
+    <div className="ga-habits">
+      <div className="section-h">{t('today.habits')}</div>
+      <div className="hx-row">
+        {habits.map((h, i) => {
+          const hp = Math.min(100, (h.doneToday / h.targetPerDay) * 100)
+          const done = h.doneToday >= h.targetPerDay
+          return (
+            <div key={h.id} className={`hx ${done ? 'done' : ''}`} style={{ ['--i' as string]: i }}>
+              <button
+                className="hx-ring"
+                style={{ ['--p' as string]: hp }}
+                onClick={() => tickHabit(h)}
+                aria-label={`${h.name}: ${h.doneToday} of ${h.targetPerDay} today. Tap to log.`}
+              >
+                <span>{cleanEmoji(h.emoji, h.name)}</span>
+              </button>
+              <button className="hx-name" onClick={() => navigate(`/habits/${h.id}`)} title={t('habit.viewDetail')}>
+                {h.name}
+              </button>
+              <div className="hx-week" aria-label={`${h.week.filter(Boolean).length} of the last 7 days`}>
+                {h.week.map((on, d) => (
+                  <i key={d} className={`${on ? 'on' : ''} ${d === 6 ? 'today' : ''}`} />
+                ))}
+              </div>
+              <div className="hx-meta num">
+                <span>🔥 <b>{h.streak}</b></span>
+                <span className="cnt">{h.doneToday}/{h.targetPerDay}</span>
+              </div>
+            </div>
+          )
+        })}
+        <button className="hx hx-add" style={{ ['--i' as string]: habits.length }} onClick={() => setEditingHabit('new')} aria-label="Add a habit">
+          <span className="plus" aria-hidden />
+          <span className="hx-add-l">{habits.length === 0 ? t('today.addFirstHabit') : t('today.newHabit')}</span>
+        </button>
+      </div>
+    </div>
+
     <div className="ga-side">
       <div className="section-h">{t('today.overview')}</div>
       {/* ---- momentum ---- */}
@@ -445,7 +540,8 @@ export default function Today() {
               </linearGradient>
             </defs>
             <path d={spark.area} fill="url(#spark)" />
-            <path d={spark.line} fill="none" stroke="var(--accent-bright)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            <path className="spark-line" pathLength={1} d={spark.line} fill="none" stroke="var(--accent-bright)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            <circle className="spark-ping" cx={spark.last[0]} cy={spark.last[1]} r="3.4" fill="none" stroke="var(--amber)" strokeWidth="1.5" />
             <circle cx={spark.last[0]} cy={spark.last[1]} r="3.4" fill="var(--amber)" stroke="var(--surface)" strokeWidth="2" />
           </svg>
         </div>
@@ -465,38 +561,6 @@ export default function Today() {
 
       <Insights />
 
-      <div className="section-h">{t('today.habits')}</div>
-      <div className="habit-row">
-        {habits.map((h) => {
-          const hp = Math.min(100, (h.doneToday / h.targetPerDay) * 100)
-          return (
-            <div key={h.id} className="habit-cell">
-              <button
-                className="ring-btn"
-                style={{ ['--p' as string]: hp }}
-                onClick={() => tickHabit(h)}
-                aria-label={`${h.name}: ${h.doneToday} of ${h.targetPerDay} today. Tap to log.`}
-              >
-                <span className="ring">{cleanEmoji(h.emoji, h.name)}</span>
-              </button>
-              <button className="habit-name-btn" onClick={() => navigate(`/habits/${h.id}`)} title={t('habit.viewDetail')}>
-                {h.name}
-              </button>
-              <span className="streak num">
-                {h.targetPerDay > 1 ? `${h.doneToday}/${h.targetPerDay}` : h.streak > 0 ? `${h.streak}d 🔥` : '—'}
-              </span>
-            </div>
-          )
-        })}
-        <div className="habit-cell">
-          <button className="ring-btn" onClick={() => setEditingHabit('new')} aria-label="Add a habit">
-            <span className="ring add">＋</span>
-          </button>
-          <span className="habit-name-btn" style={{ cursor: 'default' }}>
-            {habits.length === 0 ? t('today.addFirstHabit') : t('today.add')}
-          </span>
-        </div>
-      </div>
     </div>
 
     <div className="ga-tasks">

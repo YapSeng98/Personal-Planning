@@ -92,6 +92,10 @@
 }
 
 * { box-sizing: border-box; }
+/* No visible scrollbars anywhere — areas still scroll (wheel, touch,
+   keyboard), the bar itself is just never drawn. */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
 html { color-scheme: light dark; }
 body {
   margin: 0;

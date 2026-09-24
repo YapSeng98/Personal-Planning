@@ -113,44 +113,10 @@
 }
 .check.on { background: var(--ok); border-color: var(--ok); color: #fff; }
 
-.habit-row { display: flex; gap: 0.6rem; overflow-x: auto; padding: 0.2rem 0; }
-/* Fixed-width cells, so every habit sits on the same rhythm. With only a
-   min-width, one long habit name stretched its cell to more than twice the
-   others and threw the whole row out of line. */
-.habit-cell { text-align: center; width: 84px; flex: 0 0 84px; padding: 0.3rem 0.15rem; border-radius: 12px;
-  display: flex; flex-direction: column; align-items: center; gap: 0.1rem; }
-.ring-btn { background: none; border: none; cursor: pointer; padding: 0; border-radius: 50%; }
-.ring-btn:hover .ring { transform: scale(1.06); }
-.habit-cell .ring { transition: transform 150ms var(--ease); }
-.habit-name-btn { background: none; border: none; padding: 0.05rem 0; cursor: pointer;
-  font-size: 0.66rem; color: var(--text-2); font-weight: 600; font-family: inherit;
-  text-decoration: underline dotted; text-underline-offset: 2px;
-  text-decoration-color: var(--text-3);
-  /* a long name wraps inside its cell, up to two lines, then ellipsis */
-  max-width: 100%; line-height: 1.25; overflow-wrap: anywhere;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.habit-name-btn:hover { color: var(--accent-bright); text-decoration-color: var(--accent-bright); }
-.ring.add { border: 2px dashed var(--text-3); color: var(--text-3); font-size: 1.3rem; font-weight: 400; }
-.ring.add::before { content: none; }
 .emoji-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .emoji-btn { font-size: 1.15rem; background: var(--glass); border: 1px solid var(--hairline);
   border-radius: 10px; padding: 0.3rem 0.45rem; cursor: pointer; opacity: 0.6; }
 .emoji-btn.on { opacity: 1; border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright); }
-.habit-cell .ring {
-  position: relative;
-  width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 0.3rem;
-  display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
-}
-.habit-cell .ring::before {
-  content: ''; position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(var(--ok) calc(var(--p, 0) * 1%), var(--glass-strong) 0);
-  -webkit-mask: radial-gradient(closest-side, transparent 70%, #000 71%);
-  mask: radial-gradient(closest-side, transparent 70%, #000 71%);
-  transition: background 200ms var(--ease);
-}
-.habit-cell .name { font-size: 0.66rem; color: var(--text-2); font-weight: 600; }
-.habit-cell .streak { font-size: 0.62rem; color: var(--text-3); }
-
 .section-h { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-3); font-weight: 800; margin: 1.4rem 0 0.6rem; }
 
 /* ---- Bottom-sheet (add/edit) — flexible for phone + laptop ---- */
@@ -324,7 +290,7 @@
 
 /* ---- Motion (killed by the reduced-motion rule in tokens.css) ---- */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.stack .card, .habit-row, .insights .card, .day-card, .goal-card {
+.stack .card, .insights .card, .day-card, .goal-card {
   animation: fadeUp 0.4s var(--ease) both;
 }
 .stack .card:nth-child(2), .day-card:nth-child(2), .goal-card:nth-child(2) { animation-delay: 0.05s; }
@@ -1209,8 +1175,10 @@ button.goal-card:hover { transform: translateY(-2px); }
 @media (min-width: 1000px) {
   .today-grid { display: grid; align-items: start; gap: 1.1rem 1.5rem;
     grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr);
-    grid-template-areas: "hero hero" "tasks side" "tasks side"; }
+    grid-template-areas: "hero hero" "habits habits" "tasks side" "tasks side"; }
   .today-grid > .ga-hero { grid-area: hero; }
+  .today-grid > .ga-habits { grid-area: habits; }
+  .today-grid > .ga-habits > .section-h { margin-top: 0; }
   .today-grid > .ga-hero .hero-card { margin-bottom: 0; }
   /* video floats top-right; text keeps clear of it, and the % ring steps
      aside so the two never stack on the same corner */
@@ -1293,4 +1261,215 @@ button.goal-card:hover { transform: translateY(-2px); }
 /* Board: let the three columns breathe on wide screens (already grid) */
 @media (min-width: 1000px) {
   .board-cols { gap: 1.4rem; }
+}
+
+/* ======================================================================
+   Today — "HUD" layer. A sci-fi pass scoped to the Today page: the hero
+   becomes a dark holo panel (a fixed focal point in both themes, as the
+   old bright sunrise panel was), plus scanlines, corner brackets, a
+   live clock, a typed-out briefing, animated stats and habit "decks".
+   Still Sunrise: coral + amber glow; data marks stay coral/green.
+   Every animation here is killed by the reduced-motion rule in tokens.css.
+   ====================================================================== */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* faint drifting grid behind the whole page */
+.today-grid { position: relative; }
+.today-grid::before {
+  content: ''; position: fixed; inset: -40px; z-index: -1; pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--accent-bright) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-bright) 7%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask: radial-gradient(ellipse 80% 60% at 60% 0%, #000 10%, transparent 75%);
+  mask: radial-gradient(ellipse 80% 60% at 60% 0%, #000 10%, transparent 75%);
+  animation: hud-drift 24s linear infinite;
+}
+@keyframes hud-drift { to { transform: translate(40px, 40px); } }
+
+/* ---- hero: holo panel ---- */
+.hero-card {
+  --holo-edge: conic-gradient(from var(--holo-a, 0deg), #FF7A59, #FFB03A, #7a3cff00 30%, #FF7A59 55%, #FFB03A 70%, #7a3cff00 85%, #FF7A59);
+  background:
+    radial-gradient(420px 260px at 88% -10%, rgba(255,122,89,0.32), transparent 70%),
+    radial-gradient(360px 260px at 0% 110%, rgba(255,176,58,0.18), transparent 70%),
+    linear-gradient(160deg, #10121F, #0A0B14 60%, #120C12) padding-box,
+    var(--holo-edge) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 0 0 1px rgba(255,122,89,0.08), 0 24px 60px -24px rgba(255,110,70,0.55), inset 0 0 60px rgba(255,122,89,0.06);
+  animation: holo-spin 8s linear infinite;
+}
+@property --holo-a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes holo-spin { to { --holo-a: 360deg; } }
+.hero-card::before { /* pulsing core glow */
+  width: 280px; height: 280px; right: -90px; top: -120px;
+  background: radial-gradient(circle, rgba(255,140,90,0.45), transparent 62%);
+  animation: core-pulse 4.5s ease-in-out infinite;
+}
+@keyframes core-pulse { 50% { opacity: 0.55; transform: scale(1.12); } }
+.hero-card::after { box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+.hero-card > .hero-grid, .hero-card > .hero-scan, .hero-card > .hud-c { position: absolute; pointer-events: none; }
+.hero-grid {
+  inset: 0; border-radius: inherit; opacity: 0.55;
+  background-image:
+    linear-gradient(rgba(255,160,110,0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,160,110,0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask: linear-gradient(100deg, #000, transparent 70%);
+  mask: linear-gradient(100deg, #000, transparent 70%);
+}
+.hero-scan {
+  left: 0; right: 0; top: 0; height: 38%;
+  background: linear-gradient(180deg, transparent, rgba(255,150,100,0.10) 85%, rgba(255,190,120,0.35) 100%);
+  animation: scan 5.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes scan { 0% { transform: translateY(-100%); opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { transform: translateY(290%); opacity: 0; } }
+.hud-c { width: 14px; height: 14px; border: 0 solid rgba(255,176,58,0.8); }
+.hud-c.tl { top: 9px; left: 9px; border-top-width: 2px; border-left-width: 2px; border-top-left-radius: 4px; }
+.hud-c.tr { top: 9px; right: 9px; border-top-width: 2px; border-right-width: 2px; border-top-right-radius: 4px; }
+.hud-c.bl { bottom: 9px; left: 9px; border-bottom-width: 2px; border-left-width: 2px; border-bottom-left-radius: 4px; }
+.hud-c.br { bottom: 9px; right: 9px; border-bottom-width: 2px; border-right-width: 2px; border-bottom-right-radius: 4px; }
+
+.hero-wm { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; color: #FFB888; opacity: 0.9;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: 0.14em; }
+.hud-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: blink 1.6s steps(2, jump-none) infinite; }
+@keyframes blink { 50% { opacity: 0.25; } }
+.hud-clock { color: #FFE2C4; letter-spacing: 0.08em; }
+.hero-hi {
+  color: #FFF4EA;
+  background: linear-gradient(100deg, #FFF4EA 0%, #FFF4EA 40%, #FFB03A 50%, #FF7A59 55%, #FFF4EA 65%, #FFF4EA 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: shimmer 6s ease-in-out infinite, hero-in 700ms var(--ease) both;
+}
+@keyframes shimmer { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0% 0; } }
+@keyframes hero-in { from { opacity: 0; filter: blur(8px); letter-spacing: 0.08em; } to { opacity: 1; filter: none; } }
+.hero-dt { color: #C9B6AA; animation: hero-in 700ms 120ms var(--ease) both; }
+.hero-brief {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,150,100,0.28);
+  box-shadow: inset 0 0 24px rgba(255,122,89,0.08);
+  animation: hero-in 700ms 220ms var(--ease) both;
+}
+.hero-brief .bl { color: #FFB03A; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+.hero-brief .bl::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(255,176,58,0.5), transparent); }
+.brief-refresh { color: #FFB03A; }
+.hero-brief .bt { color: #EDE3DC; min-height: 1.5em; }
+.tw-caret { display: inline-block; width: 0.5em; height: 1em; margin-left: 2px; vertical-align: -0.15em;
+  background: #FFB03A; animation: blink 1s steps(2, jump-none) infinite; }
+.tw-caret:not(.on) { opacity: 0; animation: caret-out 2.4s steps(2, jump-none) 3; }
+@keyframes caret-out { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.hero-ring { background: conic-gradient(#FF7A59, #FFB03A calc(var(--p, 0) * 1%), rgba(255,255,255,0.08) 0);
+  box-shadow: 0 0 22px rgba(255,122,89,0.35); }
+.hero-ring i { background: #0D0F1A; color: #FFE2C4; position: relative; z-index: 1; }
+.hero-orbit { position: absolute; inset: -7px; border-radius: 50%; border: 1px dashed rgba(255,176,58,0.55);
+  animation: orbit 12s linear infinite; }
+.hero-orbit::after { content: ''; position: absolute; top: -3px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px;
+  border-radius: 50%; background: #FFB03A; box-shadow: 0 0 8px #FFB03A; }
+@keyframes orbit { to { transform: rotate(360deg); } }
+
+/* ---- section headings: HUD labels with a travelling glint ---- */
+.today-grid .section-h { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: 0.16em; }
+.today-grid .section-h::before { width: 7px; height: 7px; border-radius: 1px; transform: rotate(45deg);
+  box-shadow: 0 0 8px var(--accent-bright); animation: blink 2.4s ease-in-out infinite; }
+.today-grid .section-h::after { content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-bright) 45%, transparent), transparent) 0 0 / 100% 100% no-repeat,
+    linear-gradient(90deg, transparent, var(--amber), transparent) -30% 0 / 30% 100% no-repeat;
+  animation: glint 4s ease-in-out infinite; }
+@keyframes glint { 0% { background-position: 0 0, -30% 0; } 60%, 100% { background-position: 0 0, 130% 0; } }
+
+/* ---- tasks: staggered boot-in, glowing hover sweep ----
+   Animates `translate`/opacity, never `transform` — dnd-kit drives
+   transform inline while dragging and an animation would override it. */
+.today-grid .tcard { animation: boot-in 480ms var(--ease) backwards;
+  transition: border-color 200ms var(--ease), box-shadow 200ms var(--ease), translate 200ms var(--ease); }
+.today-grid .tcard:nth-child(2) { animation-delay: 60ms; }
+.today-grid .tcard:nth-child(3) { animation-delay: 120ms; }
+.today-grid .tcard:nth-child(4) { animation-delay: 180ms; }
+.today-grid .tcard:nth-child(n+5) { animation-delay: 240ms; }
+@keyframes boot-in { from { opacity: 0; translate: -14px 0; filter: blur(4px); } }
+.today-grid .tcard::after { content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 35%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--accent-bright) 16%, transparent), transparent);
+  transform: skewX(-20deg); opacity: 0; }
+@media (hover: hover) {
+  .today-grid .tcard:hover { border-color: color-mix(in srgb, var(--accent-bright) 45%, var(--hairline));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-bright) 18%, transparent), 0 10px 30px -14px var(--accent-bright); translate: 2px 0; }
+  .today-grid .tcard:hover::after { animation: sweep 700ms var(--ease); }
+}
+@keyframes sweep { 0% { left: -40%; opacity: 1; } 100% { left: 110%; opacity: 1; } }
+.today-grid .tcard .acc { box-shadow: 0 0 10px currentColor; }
+
+/* ---- momentum: line draws itself in, last point pings ---- */
+.today-grid .m-card { position: relative; animation: boot-in 480ms var(--ease) backwards; }
+.today-grid .m-card + .m-card { animation-delay: 100ms; }
+.today-grid .m-card::before { content: ''; position: absolute; inset: 6px; pointer-events: none; border-radius: 12px;
+  --c: color-mix(in srgb, var(--accent-bright) 55%, transparent);
+  background:
+    linear-gradient(var(--c), var(--c)) top left / 10px 1.5px, linear-gradient(var(--c), var(--c)) top left / 1.5px 10px,
+    linear-gradient(var(--c), var(--c)) bottom right / 10px 1.5px, linear-gradient(var(--c), var(--c)) bottom right / 1.5px 10px;
+  background-repeat: no-repeat; }
+.spark-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.4s 200ms var(--ease) forwards;
+  filter: drop-shadow(0 0 4px var(--accent-bright)); }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.spark-ping { transform-box: fill-box; transform-origin: center; animation: ping 2s ease-out infinite; }
+@keyframes ping { from { transform: scale(1); opacity: 0.9; } to { transform: scale(3.2); opacity: 0; } }
+.today-grid .m-streak .big { animation: flicker 5s linear infinite; }
+@keyframes flicker { 0%, 92%, 100% { opacity: 1; } 93% { opacity: 0.4; } 95% { opacity: 1; } 96% { opacity: 0.6; } }
+
+/* ---- habit tiles ----
+   Ring (tap to log) + name + seven "week lights" (last 7 days, today last)
+   + streak. One row, always: tiles share the width and shrink, so there's
+   never a second row or a scrollbar; a container query drops detail as a
+   tile gets narrow (phones with many habits). */
+.ga-habits { min-width: 0; }
+.hx-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 170px); gap: 0.7rem; }
+@media (max-width: 640px) { .hx-row { grid-auto-columns: minmax(0, 1fr); gap: 0.4rem; } }
+.hx { container-type: inline-size; min-width: 0; position: relative; border-radius: 16px;
+  border: 1px solid var(--hairline); background: var(--glass); padding: 0.75rem 0.5rem 0.65rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.45rem;
+  transition: translate 240ms var(--ease-spring), border-color 200ms var(--ease), box-shadow 200ms var(--ease);
+  animation: hx-in 500ms var(--ease-spring) backwards; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes hx-in { from { opacity: 0; translate: 0 14px; } }
+@media (hover: hover) {
+  .hx:hover { translate: 0 -3px; border-color: color-mix(in srgb, var(--accent-bright) 45%, var(--hairline));
+    box-shadow: 0 14px 30px -18px var(--accent-bright); }
+}
+.hx.done { border-color: color-mix(in srgb, var(--ok) 45%, var(--hairline));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ok) 10%, var(--glass)), var(--glass)); }
+.hx-ring { width: min(54px, 80cqi); aspect-ratio: 1; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  position: relative; display: grid; place-items: center;
+  background: conic-gradient(var(--ok) calc(var(--p, 0) * 1%), color-mix(in srgb, var(--text-3) 25%, transparent) 0);
+  transition: transform 200ms var(--ease-spring), box-shadow 300ms var(--ease), background 300ms var(--ease); }
+.hx-ring::before { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--surface-2); }
+.hx-ring span { position: relative; font-size: clamp(0.95rem, 22cqi, 1.35rem); line-height: 1; }
+.hx-ring:hover { transform: scale(1.07); }
+.hx-ring:active { transform: scale(0.93); }
+.hx.done .hx-ring { box-shadow: 0 0 16px -2px color-mix(in srgb, var(--ok) 70%, transparent); }
+.hx.done .hx-ring span { animation: pop 0.35s var(--ease); }
+.hx-name { font-size: 0.74rem; font-weight: 650; color: var(--text-1); text-align: center; line-height: 1.25;
+  background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+  max-width: 100%; min-height: 2.5em; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.hx-name:hover { color: var(--accent-bright); }
+.hx-week { display: flex; gap: clamp(2px, 2.5cqi, 5px); }
+.hx-week i { width: clamp(4px, 6cqi, 8px); aspect-ratio: 1; border-radius: 2px;
+  background: color-mix(in srgb, var(--text-3) 30%, transparent); transition: background 250ms var(--ease); }
+.hx-week i.on { background: var(--ok); box-shadow: 0 0 6px color-mix(in srgb, var(--ok) 70%, transparent); }
+.hx-week i.today { outline: 1.5px solid var(--accent-bright); outline-offset: 1.5px; }
+.hx-week i.today:not(.on) { animation: blink 1.6s ease-in-out infinite; }
+.hx-meta { font-size: 0.68rem; color: var(--text-2); font-weight: 650; display: flex; gap: 0.45rem; justify-content: center; }
+.hx-meta b { color: var(--text-1); }
+.hx.done .hx-meta b { color: var(--ok); }
+.hx-add { border-style: dashed; background: transparent; justify-content: center; cursor: pointer;
+  color: var(--text-3); font: inherit; }
+.hx-add .plus { width: 40px; height: 40px; border-radius: 50%; border: 1.5px dashed currentColor; position: relative;
+  transition: transform 300ms var(--ease-spring); }
+.hx-add .plus::before, .hx-add .plus::after { content: ''; position: absolute; left: 50%; top: 50%; width: 14px; height: 2px;
+  margin: -1px 0 0 -7px; background: currentColor; border-radius: 2px; }
+.hx-add .plus::after { transform: rotate(90deg); }
+.hx-add:hover { color: var(--accent-bright); }
+.hx-add:hover .plus { transform: rotate(90deg); }
+.hx-add-l { font-size: 0.72rem; font-weight: 650; text-align: center; }
+@container (max-width: 84px) {
+  .hx-name { font-size: 0.6rem; }
+  .hx-meta .cnt, .hx-add-l { display: none; }
 }
