@@ -295,8 +295,10 @@ create index if not exists drawings_folder_idx on public.drawings (folder_id);
 -- average of its parts: each non-deleted child goal is one part, and all
 -- its directly linked (non-deleted, non-cancelled) tasks together are one
 -- more part (done / total). A goal with no parts keeps its manually set
--- progress — no tasks never means done. Status: completed only at 100%; a
--- completed goal that drops below goes back to in_progress / not_started.
+-- progress — no tasks never means done. The only automatic status change is
+-- not_started -> in_progress once there's progress. Completed (and at_risk /
+-- abandoned) are the user's call and never touched: 100% only means every
+-- task added so far is done, and more may come.
 -- ------------------------------------------------------------
 create or replace function public.recalc_goal(p_goal_id uuid)
 returns void
@@ -339,12 +341,7 @@ begin
       v_pct := round(v_sum / v_parts);
       update public.goals set
         progress = v_pct,
-        status = case
-          when v_pct >= 100 then 'completed'
-          when status = 'completed' then case when v_pct > 0 then 'in_progress' else 'not_started' end
-          when v_pct > 0 and status = 'not_started' then 'in_progress'
-          else status
-        end
+        status = case when v_pct > 0 and status = 'not_started' then 'in_progress' else status end
       where id = v_id;
     end if;
 

@@ -491,9 +491,11 @@ export function startRecurringLoop() {
  * tasks linked directly, so a goal's progress is the average of its parts:
  * each child goal is one part, and all its directly linked tasks together
  * are one more part (done / total). A goal with no parts keeps its manually
- * set progress — no tasks never means done. Status follows: completed only
- * at 100%, and a completed goal that drops below 100% goes back to
- * in_progress (or not_started at 0%). Mirrors recalc_goal in schema.sql —
+ * set progress — no tasks never means done. The only automatic status
+ * change is not_started → in_progress once there's progress. Completed (and
+ * at_risk / abandoned) are the user's call and never touched: 100% only
+ * means every task added *so far* is done, and more may come. Mirrors
+ * recalc_goal in schema.sql —
  * keep the two in step, the server's result wins on the next pull.
  */
 export async function rollUpGoal(goalId: string) {
@@ -511,11 +513,7 @@ export async function rollUpGoal(goalId: string) {
     if (tasks.length > 0) parts.push((tasks.filter((t) => t.state === 'done').length / tasks.length) * 100)
     if (parts.length > 0) {
       const pct = Math.round(parts.reduce((s, n) => s + n, 0) / parts.length)
-      const status: Goal['status'] =
-        pct >= 100 ? 'completed'
-        : g.status === 'completed' ? (pct > 0 ? 'in_progress' : 'not_started')
-        : pct > 0 && g.status === 'not_started' ? 'in_progress'
-        : g.status
+      const status: Goal['status'] = pct > 0 && g.status === 'not_started' ? 'in_progress' : g.status
       if (pct !== g.progress || status !== g.status) {
         await db.goals.put({ ...g, progress: pct, status, updatedAt: Date.now() })
       }
