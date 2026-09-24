@@ -1473,3 +1473,15 @@ button.goal-card:hover { transform: translateY(-2px); }
   .hx-name { font-size: 0.6rem; }
   .hx-meta .cnt, .hx-add-l { display: none; }
 }
+
+/* Phones/tablets: the % ring moves to the hero's top-right, beside the
+   greeting, so the briefing gets the full width (bottom-right would collide
+   with the fixed FABs; bottom-left squeezed the briefing into a narrow
+   column). It sits below the status line, which spans the full width. */
+@media (max-width: 999px) {
+  .hero-ring { left: auto; right: 1.2rem; top: 2.7rem; bottom: auto; }
+  .hero-card.has-ring .hero-brief { margin-left: 0; margin-right: 0; }
+  .hero-card.has-ring .hero-hi, .hero-card.has-ring .hero-dt { margin-right: 4.6rem; }
+}
+/* no reminders → the empty row shouldn't leave a gap under the hero */
+.hero-toprow:empty { display: none; }
