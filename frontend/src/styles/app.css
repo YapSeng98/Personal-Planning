@@ -1485,3 +1485,27 @@ button.goal-card:hover { transform: translateY(-2px); }
 }
 /* no reminders → the empty row shouldn't leave a gap under the hero */
 .hero-toprow:empty { display: none; }
+
+/* Habits as a macOS-style dock: a centred frosted shelf sized to its tiles,
+   hover magnification that spills onto the neighbours, and a glowing
+   "running" dot under each habit that's done today. On phones the shelf
+   simply fills the width (tiles share it, as before). */
+.hx-row { width: fit-content; max-width: 100%; margin: 0 auto; grid-auto-columns: minmax(0, 150px);
+  padding: 0.6rem 0.6rem 0.95rem; border-radius: 24px;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-1) 12%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 40px -20px rgba(0,0,0,0.7),
+    0 0 0 1px color-mix(in srgb, var(--accent-bright) 8%, transparent);
+  backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5); }
+@media (max-width: 640px) {
+  .hx-row { width: auto; grid-auto-columns: minmax(0, 1fr); padding: 0.45rem 0.45rem 0.8rem; border-radius: 20px; }
+}
+.hx { transform-origin: 50% 100%;
+  transition: scale 260ms var(--ease-spring), translate 260ms var(--ease-spring), border-color 200ms var(--ease), box-shadow 200ms var(--ease); }
+@media (hover: hover) {
+  .hx:hover { z-index: 2; scale: 1.12; translate: 0 -6px; }
+  .hx:has(+ .hx:hover), .hx:hover + .hx { z-index: 1; scale: 1.05; translate: 0 -2px; }
+}
+.hx.done::after { content: ''; position: absolute; left: 50%; bottom: -0.6rem; width: 5px; height: 5px; margin-left: -2.5px;
+  border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+@media (max-width: 640px) { .hx.done::after { bottom: -0.5rem; } }
