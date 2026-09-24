@@ -8,6 +8,9 @@ those.
 
 ## 2026-09-24
 
+- Habits on Today now sit in a centred, Mac-style **dock**: tiles grow when
+  you hover (neighbours grow a little too) and a glowing dot marks each habit
+  done today. [`8caae85`](https://github.com/YapSeng98/Personal-Planning/commit/8caae85)
 - Phone polish for the new Today: the % ring moved to the top-right of the
   panel so the briefing uses the full width, and the empty gap under the panel
   is gone. [`deabfc8`](https://github.com/YapSeng98/Personal-Planning/commit/deabfc8)
