@@ -8,6 +8,11 @@ those.
 
 ## 2026-09-24
 
+- Goals are **no longer marked completed automatically** when their tasks
+  hit 100% — more tasks may still be added. Progress % still updates; you mark
+  a goal Completed yourself, and statuses you set (Completed, At risk,
+  Abandoned) are never changed by the app. Needs the updated `recalc_goal` in
+  Supabase (applied). [`9c55a88`](https://github.com/YapSeng98/Personal-Planning/commit/9c55a88)
 - Fixed: once a goal's only task was done, the goal completed and disappeared
   from the task goal picker, so no other task could link to it. Completed goals
   now stay in the list, marked ✓. [`1788820`](https://github.com/YapSeng98/Personal-Planning/commit/1788820)
