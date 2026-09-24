@@ -8,6 +8,9 @@ those.
 
 ## 2026-09-24
 
+- Fixed: once a goal's only task was done, the goal completed and disappeared
+  from the task goal picker, so no other task could link to it. Completed goals
+  now stay in the list, marked ✓. [`1788820`](https://github.com/YapSeng98/Personal-Planning/commit/1788820)
 - **Tasks can link to any goal** (Vision → Week), with the level shown in the
   picker. Goal progress is now the average of its parts — each child goal plus
   its directly linked tasks as one more part — so one finished task on a Year
