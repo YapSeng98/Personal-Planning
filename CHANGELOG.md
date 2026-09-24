@@ -8,6 +8,13 @@ those.
 
 ## 2026-09-24
 
+- **Tasks can link to any goal** (Vision → Week), with the level shown in the
+  picker. Goal progress is now the average of its parts — each child goal plus
+  its directly linked tasks as one more part — so one finished task on a Year
+  goal no longer marks it 100% done while its Quarter goals sit at 0. Goals with
+  no tasks keep their manual %, and a completed goal goes back to "in progress"
+  if it drops below 100%. Needs the updated `recalc_goal` in Supabase (applied).
+  [`c6b227d`](https://github.com/YapSeng98/Personal-Planning/commit/c6b227d)
 - Habits on Today now sit in a centred, Mac-style **dock**: tiles grow when
   you hover (neighbours grow a little too) and a glowing dot marks each habit
   done today. [`8caae85`](https://github.com/YapSeng98/Personal-Planning/commit/8caae85)
