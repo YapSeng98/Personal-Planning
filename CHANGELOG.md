@@ -6,6 +6,15 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-09-24
+
+- **Today redesign: sci-fi look + new habit tiles.** The top panel is now a
+  dark "HUD" panel with a live clock, a briefing that types itself out and an
+  orbiting progress ring; tasks, stats and headings animate in and glow on
+  hover. Habits move to one full-width row of tiles: tap the ring to log, seven
+  lights show the last 7 days, streak underneath. Scrollbars are hidden across
+  the app (areas still scroll). [`f4b64f1`](https://github.com/YapSeng98/Personal-Planning/commit/f4b64f1)
+
 ## 2026-09-17
 
 - Fixed two layout bugs on **Today** on phones: the % progress ring no longer
