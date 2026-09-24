@@ -486,40 +486,41 @@ export function startRecurringLoop() {
     progress comes from its tasks; each ancestor is the average of its
     children. Runs offline so bars move immediately; the server recomputes
     authoritatively after sync, so these writes skip the outbox. */
+/**
+ * Recompute a goal's progress, then every ancestor's. Any level can have
+ * tasks linked directly, so a goal's progress is the average of its parts:
+ * each child goal is one part, and all its directly linked tasks together
+ * are one more part (done / total). A goal with no parts keeps its manually
+ * set progress — no tasks never means done. Status follows: completed only
+ * at 100%, and a completed goal that drops below 100% goes back to
+ * in_progress (or not_started at 0%). Mirrors recalc_goal in schema.sql —
+ * keep the two in step, the server's result wins on the next pull.
+ */
 export async function rollUpGoal(goalId: string) {
-  const leaf = await db.goals.get(goalId)
-  if (!leaf) return
-
-  const setProgress = async (g: Goal, pct: number) => {
-    const status =
-      pct >= 100 ? 'completed' : pct > 0 && g.status === 'not_started' ? 'in_progress' : g.status
-    await db.goals.put({ ...g, progress: pct, status, updatedAt: Date.now() })
-  }
-
-  const tasks = await db.tasks
-    .where('goalId')
-    .equals(goalId)
-    .and((t) => !t.deleted && t.state !== 'cancelled')
-    .toArray()
-  if (tasks.length > 0) {
-    const pct = Math.round((tasks.filter((t) => t.state === 'done').length / tasks.length) * 100)
-    await setProgress(leaf, pct)
-  }
-
-  let parentId = leaf.parentId
+  let id: string | undefined = goalId
   let depth = 0
-  while (parentId && depth++ < 10) {
-    const parent = await db.goals.get(parentId)
-    if (!parent) break
-    const children = await db.goals
-      .where('parentId')
-      .equals(parentId)
-      .and((c) => !c.deleted)
+  while (id && depth++ < 11) {
+    const g: Goal | undefined = await db.goals.get(id)
+    if (!g) break
+    const children = await db.goals.where('parentId').equals(id).and((c) => !c.deleted).toArray()
+    const tasks = await db.tasks
+      .where('goalId').equals(id)
+      .and((t) => !t.deleted && t.state !== 'cancelled')
       .toArray()
-    if (children.length === 0) break
-    const avg = Math.round(children.reduce((s, c) => s + c.progress, 0) / children.length)
-    await setProgress(parent, avg)
-    parentId = parent.parentId
+    const parts = children.map((c) => c.progress)
+    if (tasks.length > 0) parts.push((tasks.filter((t) => t.state === 'done').length / tasks.length) * 100)
+    if (parts.length > 0) {
+      const pct = Math.round(parts.reduce((s, n) => s + n, 0) / parts.length)
+      const status: Goal['status'] =
+        pct >= 100 ? 'completed'
+        : g.status === 'completed' ? (pct > 0 ? 'in_progress' : 'not_started')
+        : pct > 0 && g.status === 'not_started' ? 'in_progress'
+        : g.status
+      if (pct !== g.progress || status !== g.status) {
+        await db.goals.put({ ...g, progress: pct, status, updatedAt: Date.now() })
+      }
+    }
+    id = g.parentId
   }
   notifyChange()
 }

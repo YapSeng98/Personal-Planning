@@ -289,14 +289,14 @@ create index if not exists drawings_user_updated_idx on public.drawings (user_id
 create index if not exists drawings_folder_idx on public.drawings (folder_id);
 
 -- ------------------------------------------------------------
--- recalc_goal — ports recalcFromTasks / recalcFromChildren / setProgress
--- from sync_push.js verbatim. Two distinct modes, not one uniform one:
---   - the goal actually touched: recompute from ITS OWN linked tasks only.
---     No linked tasks -> its progress is left exactly as-is (manual value
---     kept), only cascading continues upward.
---   - every ancestor above it: recompute as the average of ITS children's
---     progress — never from tasks, even if an ancestor happens to have
---     tasks linked directly (matches the original's behaviour exactly).
+-- recalc_goal — recompute a goal's progress, then every ancestor's.
+-- Mirrors rollUpGoal in frontend/src/db/db.ts; keep the two in step.
+-- Any level can have tasks linked directly, so a goal's progress is the
+-- average of its parts: each non-deleted child goal is one part, and all
+-- its directly linked (non-deleted, non-cancelled) tasks together are one
+-- more part (done / total). A goal with no parts keeps its manually set
+-- progress — no tasks never means done. Status: completed only at 100%; a
+-- completed goal that drops below goes back to in_progress / not_started.
 -- ------------------------------------------------------------
 create or replace function public.recalc_goal(p_goal_id uuid)
 returns void
@@ -305,52 +305,50 @@ security invoker
 as $$
 declare
   v_owner uuid;
-  v_parent uuid;
+  v_id uuid;
+  v_sum numeric;
+  v_parts int;
   v_total int;
   v_done int;
   v_pct int;
   depth int := 0;
 begin
-  select user_id, parent_id into v_owner, v_parent from public.goals where id = p_goal_id;
+  select user_id into v_owner from public.goals where id = p_goal_id;
   if v_owner is null or v_owner <> auth.uid() then
     return;
   end if;
 
-  select count(*), count(*) filter (where state = 'done')
-    into v_total, v_done
-    from public.tasks
-    where goal_id = p_goal_id and deleted = false and state <> 'cancelled';
-
-  if v_total > 0 then
-    v_pct := round(v_done::numeric / v_total * 100);
-    update public.goals set
-      progress = v_pct,
-      status = case
-        when v_pct >= 100 then 'completed'
-        when v_pct > 0 and status = 'not_started' then 'in_progress'
-        else status
-      end
-    where id = p_goal_id;
-  end if;
-
-  while v_parent is not null and depth < 10 loop
-    select round(avg(progress)), count(*)
-      into v_pct, v_total
+  v_id := p_goal_id;
+  while v_id is not null and depth < 11 loop
+    select coalesce(sum(progress), 0), count(*)
+      into v_sum, v_parts
       from public.goals
-      where parent_id = v_parent and deleted = false;
+      where parent_id = v_id and deleted = false;
 
-    exit when v_total = 0;
+    select count(*), count(*) filter (where state = 'done')
+      into v_total, v_done
+      from public.tasks
+      where goal_id = v_id and deleted = false and state <> 'cancelled';
 
-    update public.goals set
-      progress = v_pct,
-      status = case
-        when v_pct >= 100 then 'completed'
-        when v_pct > 0 and status = 'not_started' then 'in_progress'
-        else status
-      end
-    where id = v_parent;
+    if v_total > 0 then
+      v_sum := v_sum + v_done::numeric / v_total * 100;
+      v_parts := v_parts + 1;
+    end if;
 
-    select parent_id into v_parent from public.goals where id = v_parent;
+    if v_parts > 0 then
+      v_pct := round(v_sum / v_parts);
+      update public.goals set
+        progress = v_pct,
+        status = case
+          when v_pct >= 100 then 'completed'
+          when status = 'completed' then case when v_pct > 0 then 'in_progress' else 'not_started' end
+          when v_pct > 0 and status = 'not_started' then 'in_progress'
+          else status
+        end
+      where id = v_id;
+    end if;
+
+    select parent_id into v_id from public.goals where id = v_id;
     depth := depth + 1;
   end loop;
 end;

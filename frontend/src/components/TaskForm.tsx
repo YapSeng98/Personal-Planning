@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { db, uuid, todayStr, writeAndQueue, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState, type GoalType } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
 import { useLang } from '../lib/i18n'
@@ -38,6 +38,9 @@ function daysBetween(from: string, to: string): number {
 
 const REMINDER_MAX_DAYS = 3
 const REMINDER_LABELS = ['task.reminderOnDueDay', 'task.reminder1Day', 'task.reminder2Days', 'task.reminder3Days']
+
+
+const GOAL_LEVELS: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
 
 export default function TaskForm({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const editing = task !== null
@@ -82,10 +85,12 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   }, [maxReminderDays])
 
   useEffect(() => {
+    // Any level can take tasks. Completed goals are hidden — except the one
+    // this task already links to, so its current value still shows.
     db.goals
-      .filter((g) => !g.deleted && g.status !== 'completed' && (g.type === 'week' || g.type === 'month'))
+      .filter((g) => !g.deleted && (g.status !== 'completed' || g.id === task?.goalId))
       .toArray()
-      .then(setGoals)
+      .then((gs) => setGoals(gs.sort((a, b) => GOAL_LEVELS.indexOf(a.type) - GOAL_LEVELS.indexOf(b.type) || a.title.localeCompare(b.title))))
     db.projects.filter((p) => !p.deleted && !p.archived).toArray().then(setProjects)
   }, [])
 
@@ -268,7 +273,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                   ariaLabel={t('task.goal')}
                   value={goalId}
                   onChange={setGoalId}
-                  options={[{ value: '', label: t('task.noGoal') }, ...goals.map((g) => ({ value: g.id, label: `🎯 ${g.title}` }))]}
+                  options={[{ value: '', label: t('task.noGoal') }, ...goals.map((g) => ({ value: g.id, label: `🎯 ${g.title} · ${t(`gtype.${g.type}`)}` }))]}
                 />
               </div>
             )}
