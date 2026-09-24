@@ -85,10 +85,12 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   }, [maxReminderDays])
 
   useEffect(() => {
-    // Any level can take tasks. Completed goals are hidden — except the one
-    // this task already links to, so its current value still shows.
+    // Any level can take tasks, completed goals included: a goal whose only
+    // task is done hits 100% and completes, and hiding it would stop any
+    // other task from linking to it. Linking a new open task just pulls it
+    // back to in progress.
     db.goals
-      .filter((g) => !g.deleted && (g.status !== 'completed' || g.id === task?.goalId))
+      .filter((g) => !g.deleted)
       .toArray()
       .then((gs) => setGoals(gs.sort((a, b) => GOAL_LEVELS.indexOf(a.type) - GOAL_LEVELS.indexOf(b.type) || a.title.localeCompare(b.title))))
     db.projects.filter((p) => !p.deleted && !p.archived).toArray().then(setProjects)
@@ -273,7 +275,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                   ariaLabel={t('task.goal')}
                   value={goalId}
                   onChange={setGoalId}
-                  options={[{ value: '', label: t('task.noGoal') }, ...goals.map((g) => ({ value: g.id, label: `🎯 ${g.title} · ${t(`gtype.${g.type}`)}` }))]}
+                  options={[{ value: '', label: t('task.noGoal') }, ...goals.map((g) => ({ value: g.id, label: `🎯 ${g.title} · ${t(`gtype.${g.type}`)}${g.status === 'completed' ? ' ✓' : ''}` }))]}
                 />
               </div>
             )}
