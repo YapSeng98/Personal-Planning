@@ -8,6 +8,9 @@ those.
 
 ## 2026-09-24
 
+- Phone polish for the new Today: the % ring moved to the top-right of the
+  panel so the briefing uses the full width, and the empty gap under the panel
+  is gone. [`deabfc8`](https://github.com/YapSeng98/Personal-Planning/commit/deabfc8)
 - **Today redesign: sci-fi look + new habit tiles.** The top panel is now a
   dark "HUD" panel with a live clock, a briefing that types itself out and an
   orbiting progress ring; tasks, stats and headings animate in and glow on
