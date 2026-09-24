@@ -709,3 +709,18 @@ grant select, insert, update on public.profiles, public.tasks, public.goals,
 grant execute on function public.sync_push(jsonb) to authenticated;
 grant execute on function public.sync_pull(timestamptz) to authenticated;
 grant execute on function public.recalc_goal(uuid) to authenticated;
+
+-- ------------------------------------------------------------
+-- Security advisor hardening (idempotent).
+-- Pin search_path on the sync/trigger functions so they can't be steered
+-- to look-alike objects in another schema. handle_new_user is a SECURITY
+-- DEFINER trigger function — it only ever needs to fire from its trigger,
+-- so no role gets to call it directly. citext stays in public on purpose:
+-- profiles.username is typed citext and moving the extension breaks it.
+-- ------------------------------------------------------------
+alter function public.sync_push(jsonb) set search_path = public;
+alter function public.sync_pull(timestamptz) set search_path = public;
+alter function public.recalc_goal(uuid) set search_path = public;
+alter function public.set_updated_at() set search_path = public;
+
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
