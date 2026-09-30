@@ -6,6 +6,15 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-09-30
+
+- **Today's hero can show what's playing in a YouTube / YouTube Music tab**
+  on your computer — cover, title, artist, live progress; tap it to jump to
+  that tab. Needs the new optional Chrome extension in `extension/` (load
+  unpacked once, see its README). No YouTube tab, or on phone → the hero uses
+  the video link from Settings as before.
+  [`d0fdf4e`](https://github.com/YapSeng98/Personal-Planning/commit/d0fdf4e)
+
 ## 2026-09-24
 
 - Cleared 6 Supabase security-advisor warnings: pinned `search_path` on the
