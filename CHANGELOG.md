@@ -14,6 +14,10 @@ those.
   unpacked once, see its README). No YouTube tab, or on phone → the hero uses
   the video link from Settings as before.
   [`d0fdf4e`](https://github.com/YapSeng98/Personal-Planning/commit/d0fdf4e)
+- The now-playing card now shows the **moving video**, muted (sound stays in
+  your YouTube tab) and kept in step with it — play, pause and skipping all
+  follow. Falls back to the still cover if a video can't be embedded.
+  [`9615b6a`](https://github.com/YapSeng98/Personal-Planning/commit/9615b6a)
 
 ## 2026-09-24
 
