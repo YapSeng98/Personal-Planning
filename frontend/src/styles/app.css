@@ -739,10 +739,17 @@ button.goal-card:hover { background: var(--glass-strong); }
 
 /* Mirror of a YouTube / YouTube Music tab (via the browser extension):
    cover art with a scrim, live badge top-left, title + progress at the foot. */
-.hv-tab { overflow: hidden; border-radius: inherit; background: #000; text-align: left; color: #fff; }
-.hv-tab img { transition: transform 600ms var(--ease), filter 300ms var(--ease); }
-.hv-tab:hover img { transform: scale(1.04); }
-.hv-tab.is-paused img { filter: grayscale(0.5) brightness(0.8); }
+.hv-tab-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: inherit; background: #000; container-type: size; }
+.hv-tab-wrap > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+/* iframes ignore object-fit — size the 16:9 player to cover the box, centred */
+.hv-tab-wrap > iframe {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 0; pointer-events: none;
+  width: max(100cqw, calc(100cqh * 16 / 9)); height: max(100cqh, calc(100cqw * 9 / 16));
+}
+.hv-tab-wrap > img { transition: transform 600ms var(--ease), filter 300ms var(--ease); }
+.hv-tab-wrap:hover > img { transform: scale(1.04); }
+.hv-tab-wrap.is-paused > img, .hv-tab-wrap.is-paused > iframe { filter: grayscale(0.5) brightness(0.8); }
+.hv-tab { position: absolute; inset: 0; background: transparent; text-align: left; color: #fff; }
 .hv-tab::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, transparent 35%, transparent 45%, rgba(0,0,0,0.82) 100%);

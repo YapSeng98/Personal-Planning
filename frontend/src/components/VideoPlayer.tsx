@@ -1,5 +1,5 @@
 import {
-  createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState,
   type ReactNode,
 } from 'react'
 import { getYoutubeUrl, extractYoutubeId, postYoutubeCommand, YOUTUBE_CHANGED } from '../lib/youtube'
@@ -245,11 +245,18 @@ function fmt(sec: number) {
   return `${h ? `${h}:` : ''}${mm}:${String(r).padStart(2, '0')}`
 }
 
-/** Mirror of what's playing in another tab. Tapping switches to that tab —
-    playing it here too would double the audio. */
+/** Mirror of what's playing in another tab: the same video, muted (the tab
+    has the sound) and kept in step with it. Tapping switches to that tab.
+    Falls back to the still cover if the video can't be embedded. */
 function TabNowPlaying({ np, onFocus }: { np: NowPlaying; onFocus: () => void }) {
   const { t } = useLang()
   const [now, setNow] = useState(() => Date.now())
+  const [failed, setFailed] = useState(false)
+  const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const readyRef = useRef(false)
+  const embedTimeRef = useRef<number | null>(null)
+  const npRef = useRef(np)
+  npRef.current = np
 
   useEffect(() => {
     if (!np.playing) return
@@ -257,32 +264,93 @@ function TabNowPlaying({ np, onFocus }: { np: NowPlaying; onFocus: () => void })
     return () => clearInterval(id)
   }, [np.playing])
 
+  // New video → fresh embed, starting where the tab is now.
+  const src = useMemo(() => {
+    const start = Math.floor(livePosition(np, Date.now()))
+    return `https://www.youtube.com/embed/${np.videoId}?autoplay=1&mute=1&controls=0&disablekb=1&playsinline=1&rel=0&iv_load_policy=3&cc_load_policy=0&start=${start}&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [np.videoId])
+  useEffect(() => { setFailed(false); readyRef.current = false; embedTimeRef.current = null }, [np.videoId])
+
+  // Bring the embed in line with the tab: play/pause, and seek only when it
+  // has drifted (seeking on every report would stutter).
+  const sync = useCallback(() => {
+    const f = iframeRef.current
+    const cur = npRef.current
+    if (!f || !readyRef.current) return
+    const target = livePosition(cur, Date.now())
+    const at = embedTimeRef.current
+    if (at == null || Math.abs(at - target) > 2) postYoutubeCommand(f, 'seekTo', [target, true])
+    postYoutubeCommand(f, cur.playing ? 'playVideo' : 'pauseVideo')
+  }, [])
+  useEffect(sync, [np.at, np.playing, sync])
+
+  // Listen to the embed's own events: readiness, its current time, errors
+  // (e.g. the uploader disabled embedding → show the cover instead).
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== 'https://www.youtube.com' || e.source !== iframeRef.current?.contentWindow) return
+      let d: { event?: string; info?: { currentTime?: number } | number }
+      try { d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data } catch { return }
+      if (d?.event === 'onReady' || d?.event === 'initialDelivery') {
+        readyRef.current = true
+        postYoutubeCommand(iframeRef.current, 'mute')
+        sync()
+      } else if (d?.event === 'infoDelivery' && typeof d.info === 'object' && typeof d.info?.currentTime === 'number') {
+        embedTimeRef.current = d.info.currentTime
+      } else if (d?.event === 'onError') {
+        setFailed(true)
+      }
+    }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [sync])
+
+  // The IFrame API only sends events after this handshake.
+  const onLoad = () => {
+    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), 'https://www.youtube.com')
+  }
+
   const pos = livePosition(np, np.playing ? now : np.at)
   const pct = np.duration ? (pos / np.duration) * 100 : 0
   const label = np.source === 'music' ? 'YouTube Music' : 'YouTube'
 
   return (
-    <button
-      className={`hv-poster hv-tab ${np.playing ? 'is-playing' : 'is-paused'}`}
-      onClick={onFocus}
-      aria-label={t('today.tabGoTo', { src: label })}
-      title={t('today.tabGoTo', { src: label })}
-    >
+    <div className={`hv-tab-wrap ${np.playing ? 'is-playing' : 'is-paused'}`}>
       <img src={np.artwork} alt="" />
-      <span className="hv-tab-badge">
-        {np.playing ? <span className="hv-eq" aria-hidden><i /><i /><i /></span> : <span aria-hidden>❚❚</span>}
-        <span>{np.playing ? t('today.tabPlaying') : t('today.tabPaused')} · {label}</span>
-      </span>
-      <span className="hv-tab-meta">
-        <span className="hv-tab-title">{np.title}</span>
-        {np.artist && <span className="hv-tab-artist">{np.artist}</span>}
-        {np.duration > 0 && (
-          <span className="hv-tab-prog">
-            <span className="hv-tab-bar"><span style={{ width: `${pct}%` }} /></span>
-            <span className="hv-tab-time">{fmt(pos)} / {fmt(np.duration)}</span>
-          </span>
-        )}
-      </span>
-    </button>
+      {!failed && (
+        <iframe
+          key={np.videoId}
+          ref={iframeRef}
+          src={src}
+          onLoad={onLoad}
+          title="YouTube"
+          tabIndex={-1}
+          aria-hidden
+          allow="autoplay; encrypted-media"
+        />
+      )}
+      <button
+        className="hv-poster hv-tab"
+        onClick={onFocus}
+        aria-label={t('today.tabGoTo', { src: label })}
+        title={t('today.tabGoTo', { src: label })}
+      >
+        <span className="hv-tab-badge">
+          {np.playing ? <span className="hv-eq" aria-hidden><i /><i /><i /></span> : <span aria-hidden>❚❚</span>}
+          <span>{np.playing ? t('today.tabPlaying') : t('today.tabPaused')} · {label}</span>
+        </span>
+        <span className="hv-tab-meta">
+          <span className="hv-tab-title">{np.title}</span>
+          {np.artist && <span className="hv-tab-artist">{np.artist}</span>}
+          {np.duration > 0 && (
+            <span className="hv-tab-prog">
+              <span className="hv-tab-bar"><span style={{ width: `${pct}%` }} /></span>
+              <span className="hv-tab-time">{fmt(pos)} / {fmt(np.duration)}</span>
+            </span>
+          )}
+        </span>
+      </button>
+    </div>
   )
 }
