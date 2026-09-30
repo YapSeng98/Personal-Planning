@@ -252,7 +252,7 @@ export default function Today() {
   const [mom, setMom] = useState<Momentum>({ series: [0, 0, 0, 0, 0, 0, 0], weekDone: 0, streak: 0 })
   const [editing, setEditing] = useState<Task | null>(null)
   const [editingHabit, setEditingHabit] = useState<Habit | 'new' | null>(null)
-  const { videoId } = useVideo()
+  const { videoId, nowPlaying } = useVideo()
   const [aiBrief, setAiBrief] = useState<string | null>(null)
   const [briefState, setBriefState] = useState<'idle' | 'loading' | 'err'>('idle')
   const briefAuto = useRef(false)
@@ -425,7 +425,7 @@ export default function Today() {
     <div className="today-grid">
     <div className="ga-hero">
       {/* ---- sunrise hero ---- */}
-      <div className={`hero-card ${tasks.length > 0 ? 'has-ring' : ''} ${videoId ? 'has-video' : ''}`}>
+      <div className={`hero-card ${tasks.length > 0 ? 'has-ring' : ''} ${videoId || nowPlaying ? 'has-video' : ''}`}>
         <div className="hero-grid" aria-hidden />
         <div className="hero-scan" aria-hidden />
         <i className="hud-c tl" aria-hidden /><i className="hud-c tr" aria-hidden />

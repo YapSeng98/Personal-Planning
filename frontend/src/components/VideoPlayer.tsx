@@ -4,6 +4,7 @@ import {
 } from 'react'
 import { getYoutubeUrl, extractYoutubeId, postYoutubeCommand, YOUTUBE_CHANGED } from '../lib/youtube'
 import { useLang } from '../lib/i18n'
+import { useNowPlaying, livePosition, type NowPlaying } from '../lib/nowPlaying'
 
 /* The player lives in the Shell (outside <Outlet/>) so navigating between
    pages never unmounts it — reparenting an <iframe> reloads it, which would
@@ -17,10 +18,14 @@ interface VideoCtx {
   play: () => void
   stop: () => void
   setSlot: (el: HTMLElement | null) => void
+  /** A YouTube / YouTube Music tab reported by the browser extension. */
+  nowPlaying: NowPlaying | null
+  focusTab: () => void
 }
 
 const Ctx = createContext<VideoCtx>({
   videoId: null, playing: false, play: () => {}, stop: () => {}, setSlot: () => {},
+  nowPlaying: null, focusTab: () => {},
 })
 
 export const useVideo = () => useContext(Ctx)
@@ -37,6 +42,7 @@ export function VideoProvider({ children }: { children: ReactNode }) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const playStartRef = useRef<number | null>(null)
   const { t } = useLang()
+  const { nowPlaying, focusTab } = useNowPlaying()
 
   const play = useCallback(() => {
     playStartRef.current = Date.now()
@@ -130,7 +136,7 @@ export function VideoProvider({ children }: { children: ReactNode }) {
     : undefined
 
   return (
-    <Ctx.Provider value={{ videoId, playing, play, stop, setSlot }}>
+    <Ctx.Provider value={{ videoId, playing, play, stop, setSlot, nowPlaying, focusTab }}>
       {children}
       {videoId && playing && (
         <div className={`hv-float ${docked ? 'docked' : 'mini'}`} style={style}>
@@ -187,7 +193,7 @@ export function VideoProvider({ children }: { children: ReactNode }) {
 /** The in-hero placeholder on Today: reserves the space and shows the poster
     until playback starts, after which the floating player covers it. */
 export function HeroVideoSlot() {
-  const { videoId, playing, play, setSlot } = useVideo()
+  const { videoId, playing, play, setSlot, nowPlaying, focusTab } = useVideo()
   const ref = useRef<HTMLDivElement | null>(null)
   const { t } = useLang()
 
@@ -195,6 +201,16 @@ export function HeroVideoSlot() {
     setSlot(ref.current)
     return () => setSlot(null)
   }, [setSlot, videoId])
+
+  // An open YouTube tab wins over the Settings link — unless the embed is
+  // already playing, which must not be yanked away mid-video.
+  if (nowPlaying && !playing) {
+    return (
+      <div className="hero-video" ref={ref}>
+        <TabNowPlaying np={nowPlaying} onFocus={focusTab} />
+      </div>
+    )
+  }
 
   if (!videoId) return null
 
@@ -219,5 +235,54 @@ export function HeroVideoSlot() {
         </>
       )}
     </div>
+  )
+}
+
+function fmt(sec: number) {
+  const s = Math.max(0, Math.floor(sec))
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60
+  const mm = h ? String(m).padStart(2, '0') : String(m)
+  return `${h ? `${h}:` : ''}${mm}:${String(r).padStart(2, '0')}`
+}
+
+/** Mirror of what's playing in another tab. Tapping switches to that tab —
+    playing it here too would double the audio. */
+function TabNowPlaying({ np, onFocus }: { np: NowPlaying; onFocus: () => void }) {
+  const { t } = useLang()
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!np.playing) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [np.playing])
+
+  const pos = livePosition(np, np.playing ? now : np.at)
+  const pct = np.duration ? (pos / np.duration) * 100 : 0
+  const label = np.source === 'music' ? 'YouTube Music' : 'YouTube'
+
+  return (
+    <button
+      className={`hv-poster hv-tab ${np.playing ? 'is-playing' : 'is-paused'}`}
+      onClick={onFocus}
+      aria-label={t('today.tabGoTo', { src: label })}
+      title={t('today.tabGoTo', { src: label })}
+    >
+      <img src={np.artwork} alt="" />
+      <span className="hv-tab-badge">
+        {np.playing ? <span className="hv-eq" aria-hidden><i /><i /><i /></span> : <span aria-hidden>❚❚</span>}
+        <span>{np.playing ? t('today.tabPlaying') : t('today.tabPaused')} · {label}</span>
+      </span>
+      <span className="hv-tab-meta">
+        <span className="hv-tab-title">{np.title}</span>
+        {np.artist && <span className="hv-tab-artist">{np.artist}</span>}
+        {np.duration > 0 && (
+          <span className="hv-tab-prog">
+            <span className="hv-tab-bar"><span style={{ width: `${pct}%` }} /></span>
+            <span className="hv-tab-time">{fmt(pos)} / {fmt(np.duration)}</span>
+          </span>
+        )}
+      </span>
+    </button>
   )
 }

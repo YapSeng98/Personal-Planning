@@ -22,6 +22,7 @@ only — it is not live and should not be treated as current architecture.
 | `frontend/` | React + TypeScript PWA (Vite). `src/db/db.ts` (Dexie schema + outbox), `src/sync/engine.ts` (push/pull orchestration, field maps, LWW), `src/sync/api.ts`+`supabase.ts` (Supabase client/auth), `src/styles/tokens.css`+`app.css` (design system), `src/components/Icon.tsx` (icon set). |
 | `supabase/schema.sql` | Full Postgres schema: tables, RLS policies, `sync_push`/`sync_pull`/`recalc_goal` functions. Idempotent — safe to paste and re-run whole. This is the source of truth for the backend; there is no migration tool, just re-running this file in the Supabase SQL Editor. |
 | `deploy/publish.sh` | Builds the frontend and publishes it — see Deploy below. |
+| `extension/` | Optional Chrome extension ("Planner Now Playing") — mirrors what's playing in a YouTube / YouTube Music tab onto the Today hero via `postMessage`; the page reads it in `src/lib/nowPlaying.ts`. Desktop only; without it the hero uses the Settings video link. Load unpacked, see its README. |
 | `servicenow/` | Legacy — the pre-Supabase backend. Not live, kept for history. |
 | `CHANGELOG.md` | Human-readable history of what shipped, newest first. |
 
