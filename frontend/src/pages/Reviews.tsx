@@ -3,6 +3,7 @@ import { db, uuid, todayStr, writeAndQueue, CHANGED, type Review } from '../db/d
 import { syncNow } from '../sync/engine'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 import { useLang } from '../lib/i18n'
+import AutoTextarea from '../components/AutoTextarea'
 
 type RType = Review['type']
 const TYPES: RType[] = ['daily', 'weekly', 'monthly', 'yearly']
@@ -240,15 +241,15 @@ export default function Reviews() {
 
         <div>
           <div className="section-h">{t('rev.wins')}</div>
-          <textarea className="field" value={form.wins} onChange={(e) => setForm({ ...form, wins: e.target.value })} placeholder={t('rev.winsPh')} />
+          <AutoTextarea className="field" value={form.wins} onChange={(e) => setForm({ ...form, wins: e.target.value })} placeholder={t('rev.winsPh')} />
         </div>
         <div>
           <div className="section-h">{t('rev.fails')}</div>
-          <textarea className="field" value={form.failures} onChange={(e) => setForm({ ...form, failures: e.target.value })} placeholder={t('rev.failsPh')} />
+          <AutoTextarea className="field" value={form.failures} onChange={(e) => setForm({ ...form, failures: e.target.value })} placeholder={t('rev.failsPh')} />
         </div>
         <div>
           <div className="section-h">{t('rev.lesson')}</div>
-          <textarea className="field" value={form.lesson} onChange={(e) => setForm({ ...form, lesson: e.target.value })} placeholder={t('rev.lessonPh')} />
+          <AutoTextarea className="field" value={form.lesson} onChange={(e) => setForm({ ...form, lesson: e.target.value })} placeholder={t('rev.lessonPh')} />
         </div>
 
         <div>
@@ -269,7 +270,7 @@ export default function Reviews() {
 
         <div>
           <div className="section-h">{type === 'daily' ? t('rev.nextDaily') : t('rev.nextOther')}</div>
-          <textarea className="field" value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} placeholder={t('rev.nextPh')} />
+          <AutoTextarea className="field" value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} placeholder={t('rev.nextPh')} />
         </div>
 
         <div className="row" style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
