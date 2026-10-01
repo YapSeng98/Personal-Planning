@@ -6,6 +6,12 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-02
+
+- **Review text boxes grow to fit what you write** — Wins, Failures, Biggest
+  lesson and Next no longer need dragging the corner to see a long entry.
+  ([ebfc92c](https://github.com/YapSeng98/Personal-Planning/commit/ebfc92c))
+
 ## 2026-09-30
 
 - **Today's hero can show what's playing in a YouTube / YouTube Music tab**
