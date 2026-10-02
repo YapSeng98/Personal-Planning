@@ -8,6 +8,10 @@ those.
 
 ## 2026-10-02
 
+- **Pasting a copied note or web page into a review now attaches its
+  images** — e.g. select a Sketches note with a chart in it, copy, paste into
+  a review: the text goes into the field, the chart becomes an attachment.
+  ([5b9b620](https://github.com/YapSeng98/Personal-Planning/commit/5b9b620))
 - **Reviews can hold screenshots and files** — a new "Screenshots & files"
   section: tap Add, paste a screenshot (Ctrl/⌘+V, even while typing), or drag
   files in. Images show as thumbnails (tap for full size) and are shrunk to
