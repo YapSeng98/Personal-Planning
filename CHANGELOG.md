@@ -8,6 +8,12 @@ those.
 
 ## 2026-10-02
 
+- **Reviews can hold screenshots and files** — a new "Screenshots & files"
+  section: tap Add, paste a screenshot (Ctrl/⌘+V, even while typing), or drag
+  files in. Images show as thumbnails (tap for full size) and are shrunk to
+  1920px so syncing stays quick; other files up to 5 MB show as chips. Needs
+  the updated `supabase/schema.sql` run once to sync across devices.
+  ([0411f5f](https://github.com/YapSeng98/Personal-Planning/commit/0411f5f))
 - **Review text boxes grow to fit what you write** — Wins, Failures, Biggest
   lesson and Next no longer need dragging the corner to see a long entry.
   ([ebfc92c](https://github.com/YapSeng98/Personal-Planning/commit/ebfc92c))
