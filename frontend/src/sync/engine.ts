@@ -47,7 +47,7 @@ const SYNC_FIELDS: Record<keyof typeof tableMap, string[]> = {
   habit: ['name', 'emoji', 'frequency', 'targetPerDay', 'active', 'deleted'],
   habit_log: ['habitId', 'date', 'count', 'deleted'],
   goal: ['title', 'type', 'parentId', 'lifeArea', 'whyItMatters', 'progress', 'status', 'targetDate', 'deleted'],
-  review: ['type', 'periodStart', 'periodEnd', 'wins', 'failures', 'lesson', 'mood', 'energy', 'nextPriorities', 'deleted'],
+  review: ['type', 'periodStart', 'periodEnd', 'wins', 'failures', 'lesson', 'mood', 'energy', 'nextPriorities', 'attachments', 'deleted'],
   project: ['title', 'color', 'archived', 'deleted'],
   drawing: ['title', 'kind', 'dataUrl', 'text', 'format', 'attachments', 'folderId', 'deleted'],
   folder: ['name', 'deleted'],
@@ -116,6 +116,12 @@ export async function syncNow(): Promise<void> {
           const v = data[k]
           data[k] = v === '' || v == null ? undefined : Number(v)
         }
+      }
+      if (r.table === 'review' && !('attachments' in data)) {
+        // Server predates review attachments (schema.sql not re-run yet) —
+        // don't let its copy wipe the ones saved locally.
+        const localAtt = (local as { attachments?: unknown } | undefined)?.attachments
+        if (localAtt) data.attachments = localAtt
       }
       if (r.deleted) {
         await table.delete(r.client_uuid)

@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { db, uuid, todayStr, writeAndQueue, CHANGED, type Review } from '../db/db'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { db, uuid, todayStr, writeAndQueue, CHANGED, type Review, type NoteAttachment } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 import { useLang } from '../lib/i18n'
 import AutoTextarea from '../components/AutoTextarea'
+import { readAsDataUrl, shrinkImage, MAX_FILE_BYTES } from '../lib/attach'
 
 type RType = Review['type']
 const TYPES: RType[] = ['daily', 'weekly', 'monthly', 'yearly']
@@ -37,7 +38,7 @@ function periodFor(type: RType, anchor: Date = new Date()): { start: string; end
   return { start: `${anchor.getFullYear()}-01-01`, end: `${anchor.getFullYear()}-12-31` }
 }
 
-const blank = { wins: '', failures: '', lesson: '', next: '', mood: undefined as Review['mood'], energy: 0 }
+const blank = { wins: '', failures: '', lesson: '', next: '', mood: undefined as Review['mood'], energy: 0, attachments: [] as NoteAttachment[] }
 
 export default function Reviews() {
   const [type, setType] = useState<RType>('daily')
@@ -53,6 +54,10 @@ export default function Reviews() {
   const [submitting, setSubmitting] = useState(false)
   const [drafting, setDrafting] = useState(false)
   const [draftErr, setDraftErr] = useState('')
+  const [attachErr, setAttachErr] = useState('')
+  const [dragOver, setDragOver] = useState(false)
+  const [viewing, setViewing] = useState<NoteAttachment | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { t, lang } = useLang()
 
   const period = useMemo(
@@ -90,6 +95,7 @@ export default function Reviews() {
             next: existing.nextPriorities ?? '',
             mood: existing.mood,
             energy: existing.energy ?? 0,
+            attachments: existing.attachments ?? [],
           }
         : { ...blank },
     )
@@ -104,6 +110,53 @@ export default function Reviews() {
     window.addEventListener(CHANGED, load)
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
+
+  async function addFiles(files: File[]) {
+    setAttachErr('')
+    const added: NoteAttachment[] = []
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        const img = await shrinkImage(file)
+        // Clipboard images all arrive named "image.png" — give them a
+        // name that says when they were taken instead.
+        const name = /^image\.\w+$/.test(file.name)
+          ? `screenshot-${new Date().toTimeString().slice(0, 8).replace(/:/g, '')}.${img.name.split('.').pop()}`
+          : img.name
+        added.push({ id: uuid(), ...img, name })
+      } else if (file.size > MAX_FILE_BYTES) {
+        setAttachErr(t('rev.attachTooBig', { name: file.name }))
+      } else {
+        added.push({ id: uuid(), name: file.name, type: file.type, dataUrl: await readAsDataUrl(file) })
+      }
+    }
+    if (added.length) setForm((f) => ({ ...f, attachments: [...f.attachments, ...added] }))
+  }
+
+  function removeAttachment(id: string) {
+    setForm((f) => ({ ...f, attachments: f.attachments.filter((a) => a.id !== id) }))
+  }
+
+  // Paste a screenshot anywhere on the page (incl. while typing in a field).
+  // Only file pastes are intercepted — pasting text behaves as normal.
+  const addFilesRef = useRef(addFiles)
+  addFilesRef.current = addFiles
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const files = Array.from(e.clipboardData?.files ?? [])
+      if (!files.length) return
+      e.preventDefault()
+      addFilesRef.current(files)
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [])
+
+  useEffect(() => {
+    if (!viewing) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setViewing(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [viewing])
 
   function openPast(r: Review) {
     setType(r.type)
@@ -177,6 +230,7 @@ export default function Reviews() {
         nextPriorities: form.next || undefined,
         mood: form.mood,
         energy: form.energy || undefined,
+        attachments: form.attachments.length ? form.attachments : undefined,
         deleted: 0,
         updatedAt: Date.now(),
       })
@@ -253,6 +307,54 @@ export default function Reviews() {
         </div>
 
         <div>
+          <div className="section-h">{t('rev.attachments')}</div>
+          <div
+            className={`card rev-attach ${dragOver ? 'drag' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(Array.from(e.dataTransfer.files)) }}
+          >
+            {form.attachments.some((a) => a.type.startsWith('image/')) && (
+              <div className="rev-thumbs">
+                {form.attachments.filter((a) => a.type.startsWith('image/')).map((a) => (
+                  <div key={a.id} className="rev-thumb">
+                    <button type="button" className="rev-thumb-img" onClick={() => setViewing(a)} aria-label={a.name}>
+                      <img src={a.dataUrl} alt={a.name} />
+                    </button>
+                    <button type="button" className="rev-thumb-remove" onClick={() => removeAttachment(a.id)} aria-label={t('sketch.removeAttachment')}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {form.attachments.some((a) => !a.type.startsWith('image/')) && (
+              <div className="sketch-attachments rev-files">
+                {form.attachments.filter((a) => !a.type.startsWith('image/')).map((a) => (
+                  <div key={a.id} className="sketch-attachment-chip">
+                    <a className="sketch-attachment-link" href={a.dataUrl} download={a.name} target="_blank" rel="noopener noreferrer">
+                      <span className="sketch-attachment-icon">📎</span>
+                      <span className="sketch-attachment-name">{a.name}</span>
+                    </a>
+                    <button type="button" className="sketch-attachment-remove" onClick={() => removeAttachment(a.id)} aria-label={t('sketch.removeAttachment')}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="rev-attach-bar">
+              <button type="button" className="btn" onClick={() => fileInputRef.current?.click()}>＋ {t('rev.attachAdd')}</button>
+              <span className="rev-attach-hint">{t('rev.attachHint')}</span>
+            </div>
+            {attachErr && <div className="ai-status err">{attachErr}</div>}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = '' }}
+            />
+          </div>
+        </div>
+
+        <div>
           <div className="section-h">{t('rev.moodEnergy')}</div>
           <div className="card mood-row">
             {MOODS.map(([m, emoji]) => (
@@ -292,6 +394,7 @@ export default function Reviews() {
                 >
                   <b>{t('rev.' + r.type)}</b> · {r.periodStart}
                   {r.mood ? ` · ${MOODS.find(([m]) => m === r.mood)?.[1]}` : ''}
+                  {r.attachments?.length ? ` · 📎${r.attachments.length}` : ''}
                   {r.wins ? ` — ${r.wins.slice(0, 60)}${r.wins.length > 60 ? '…' : ''}` : ''}
                 </button>
               ))}
@@ -299,6 +402,12 @@ export default function Reviews() {
           </div>
         )}
       </div>
+
+      {viewing && (
+        <div className="rev-lightbox" onClick={() => setViewing(null)} role="dialog" aria-label={viewing.name}>
+          <img src={viewing.dataUrl} alt={viewing.name} />
+        </div>
+      )}
     </div>
   )
 }

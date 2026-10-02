@@ -237,6 +237,10 @@ create policy "own rows" on public.reviews for all
 drop trigger if exists set_updated_at on public.reviews;
 create trigger set_updated_at before update on public.reviews
   for each row execute function public.set_updated_at();
+-- Screenshots/files attached to a review — same inline [{id,name,type,dataUrl}]
+-- shape as drawings.attachments. Added after the table existed, hence the
+-- separate idempotent ALTER instead of a column in the CREATE above.
+alter table public.reviews add column if not exists attachments jsonb not null default '[]'::jsonb;
 
 -- ------------------------------------------------------------
 -- sketch_folders (created before drawings: drawings.folder_id references it)
@@ -506,7 +510,7 @@ begin
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
         insert into public.reviews (id, user_id, type, period_start, period_end, wins,
-          failures, lesson, mood, energy, next_priorities, deleted)
+          failures, lesson, mood, energy, next_priorities, attachments, deleted)
         values (rid, auth.uid(),
           coalesce(nullif(p->>'type', ''), 'daily'),
           nullif(p->>'periodStart', '')::date,
@@ -517,13 +521,14 @@ begin
           nullif(p->>'mood', ''),
           nullif(p->>'energy', '')::int,
           nullif(p->>'nextPriorities', ''),
+          case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end,
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
           type = excluded.type, period_start = excluded.period_start, period_end = excluded.period_end,
           wins = excluded.wins, failures = excluded.failures, lesson = excluded.lesson,
           mood = excluded.mood, energy = excluded.energy, next_priorities = excluded.next_priorities,
-          deleted = excluded.deleted
+          attachments = excluded.attachments, deleted = excluded.deleted
         where public.reviews.user_id = auth.uid();
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
       end if;
@@ -662,7 +667,7 @@ as $$
       'data', jsonb_build_object(
         'type', type, 'periodStart', period_start, 'periodEnd', period_end,
         'wins', wins, 'failures', failures, 'lesson', lesson, 'mood', mood,
-        'energy', energy, 'nextPriorities', next_priorities,
+        'energy', energy, 'nextPriorities', next_priorities, 'attachments', attachments,
         'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
       )
     )

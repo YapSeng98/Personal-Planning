@@ -132,6 +132,8 @@ export interface Review {
   mood?: 'great' | 'good' | 'okay' | 'bad'
   energy?: number
   nextPriorities?: string
+  /** Screenshots/files — same inline shape as a sketch note's attachments. */
+  attachments?: NoteAttachment[]
   deleted: 0 | 1
   updatedAt: number
 }
