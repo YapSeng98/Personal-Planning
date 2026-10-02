@@ -8,6 +8,12 @@ those.
 
 ## 2026-10-02
 
+- **Reviews save automatically as you type** — no more losing a half-written
+  review by switching tabs or closing the app. "Auto-saved ✓" shows next to
+  the button; the button still works to save + sync right away. Also made
+  syncing safer: edits made while a sync is running are no longer dropped,
+  and a record edited many times uploads once.
+  ([3feb3bf](https://github.com/YapSeng98/Personal-Planning/commit/3feb3bf))
 - **Pasting a copied note or web page into a review now attaches its
   images** — e.g. select a Sketches note with a chart in it, copy, paste into
   a review: the text goes into the field, the chart becomes an attachment.
