@@ -74,7 +74,13 @@ export async function syncNow(): Promise<void> {
     const entries = await db.outbox.orderBy('seq').toArray()
     if (entries.length > 0) {
       const items: PushItem[] = []
-      for (const e of entries) {
+      // One push per record: an auto-saving form queues an entry per pause
+      // in typing, and each would otherwise re-send the whole record
+      // (attachments included). The record itself is read fresh below, so
+      // only the latest entry's editedAt matters.
+      const latest = new Map<string, (typeof entries)[number]>()
+      for (const e of entries) latest.set(`${e.table}:${e.recordId}`, e)
+      for (const e of latest.values()) {
         const rec = await tableMap[e.table].get(e.recordId)
         if (rec) {
           items.push({
@@ -94,15 +100,20 @@ export async function syncNow(): Promise<void> {
           { sysId: r.sys_id } as never,
         )
       }
-      await db.outbox.clear()
+      // Only the entries just pushed — an edit queued mid-push stays for next time.
+      await db.outbox.bulkDelete(entries.map((e) => e.seq!))
     }
 
     // 2. Pull: apply everything changed since our cursor.
     const cursorMeta = await db.meta.get('syncCursor')
     const pull = await syncPull(cursorMeta?.value ?? '1970-01-01 00:00:00')
+    // Records edited locally since the push above (still queued) are newer
+    // than anything the server has — their next push will carry them.
+    const pending = new Set((await db.outbox.toArray()).map((e) => `${e.table}:${e.recordId}`))
     for (const r of pull.records) {
       const table = tableMap[r.table as keyof typeof tableMap]
       if (!table) continue
+      if (pending.has(`${r.table}:${r.client_uuid}`)) continue
       // Client-side LWW guard: never let an older server copy clobber a
       // newer local one (e.g. a local goal roll-up racing a pull). The
       // server wins later once its copy is genuinely newer.

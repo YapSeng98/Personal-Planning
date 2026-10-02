@@ -39,6 +39,16 @@ function periodFor(type: RType, anchor: Date = new Date()): { start: string; end
 }
 
 const blank = { wins: '', failures: '', lesson: '', next: '', mood: undefined as Review['mood'], energy: 0, attachments: [] as NoteAttachment[] }
+type Form = typeof blank
+
+// Cheap equality key for "has the form changed since it was last saved?" —
+// attachments by id, so multi-MB data URLs aren't re-serialised per keystroke.
+const formKey = (f: Form) =>
+  JSON.stringify([f.wins, f.failures, f.lesson, f.next, f.mood ?? '', f.energy, f.attachments.map((a) => a.id)])
+const isEmpty = (f: Form) => formKey(f) === formKey(blank)
+
+const AUTOSAVE_MS = 800
+const AUTOSYNC_MS = 5000
 
 export default function Reviews() {
   const [type, setType] = useState<RType>('daily')
@@ -59,6 +69,15 @@ export default function Reviews() {
   const [viewing, setViewing] = useState<NoteAttachment | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { t, lang } = useLang()
+
+  // Auto-save bookkeeping. Refs, not state: the flush on period switch /
+  // unmount runs in an effect cleanup and must see the values being left.
+  const formRef = useRef(form)
+  formRef.current = form
+  const savedKeyRef = useRef(formKey(blank)) // form as last loaded/saved
+  const idRef = useRef<string | null>(null)
+  const loadedPeriodRef = useRef('')
+  const syncTimer = useRef<number | undefined>(undefined)
 
   const period = useMemo(
     () => periodFor(type, anchorDate ? new Date(anchorDate + 'T00:00') : new Date()),
@@ -85,9 +104,13 @@ export default function Reviews() {
     const existing = await db.reviews
       .filter((r) => !r.deleted && r.type === type && r.periodStart === start)
       .first()
-    setExistingId(existing?.id ?? null)
-    setForm(
-      existing
+    const periodKey = `${type}:${start}`
+    // Same period, and the user has typed since the last save: keep their
+    // edits rather than resetting the form to what's stored (this reload is
+    // usually just our own auto-save echoing back).
+    const editing = loadedPeriodRef.current === periodKey && formKey(formRef.current) !== savedKeyRef.current
+    if (!editing) {
+      const next: Form = existing
         ? {
             wins: existing.wins ?? '',
             failures: existing.failures ?? '',
@@ -97,8 +120,15 @@ export default function Reviews() {
             energy: existing.energy ?? 0,
             attachments: existing.attachments ?? [],
           }
-        : { ...blank },
-    )
+        : { ...blank }
+      if (loadedPeriodRef.current !== periodKey) setFlash('')
+      loadedPeriodRef.current = periodKey
+      savedKeyRef.current = formKey(next)
+      formRef.current = next
+      idRef.current = existing?.id ?? null
+      setExistingId(idRef.current)
+      setForm(next)
+    }
 
     const all = await db.reviews.filter((r) => !r.deleted).toArray()
     all.sort((a, b) => b.periodStart.localeCompare(a.periodStart))
@@ -194,6 +224,12 @@ export default function Reviews() {
     const r = await db.reviews.get(existingId)
     if (!r) return
     if (!window.confirm(t('rev.deleteConfirm', { period: periodLabel }))) return
+    // Make sure the flush on leaving this period doesn't re-create it.
+    idRef.current = null
+    formRef.current = { ...blank }
+    savedKeyRef.current = formKey(blank)
+    setForm({ ...blank })
+    setExistingId(null)
     const tombstone: Review = { ...r, deleted: 1, updatedAt: Date.now() }
     await writeAndQueue(db.reviews, 'review', tombstone)
     setAnchorDate(null)
@@ -235,32 +271,77 @@ export default function Reviews() {
     }
   }
 
+  /** Writes the form locally if it changed since the last save. Reads
+      everything from refs up front, so it saves the period being left even
+      when called from an effect cleanup mid-switch. */
+  const persist = useCallback(async (p: { type: RType; start: string; end: string }) => {
+    const f = formRef.current
+    const k = formKey(f)
+    if (k === savedKeyRef.current) return false
+    if (!idRef.current && isEmpty(f)) return false
+    // Resolve the id once and remember it — a second save racing the
+    // CHANGED-triggered reload would otherwise create a duplicate review
+    // for the same period instead of updating the first.
+    const id = idRef.current ?? uuid()
+    idRef.current = id
+    savedKeyRef.current = k
+    await writeAndQueue(db.reviews, 'review', {
+      id,
+      type: p.type,
+      periodStart: p.start,
+      periodEnd: p.end,
+      wins: f.wins || undefined,
+      failures: f.failures || undefined,
+      lesson: f.lesson || undefined,
+      nextPriorities: f.next || undefined,
+      mood: f.mood,
+      energy: f.energy || undefined,
+      attachments: f.attachments.length ? f.attachments : undefined,
+      deleted: 0,
+      updatedAt: Date.now(),
+    })
+    return true
+  }, [])
+
+  // Auto-save: a short pause after any change writes it locally; syncing to
+  // the server waits for a longer pause so typing doesn't spam uploads.
+  const curPeriod = useMemo(() => ({ type, start: period.start, end: period.end }), [type, period])
+  useEffect(() => {
+    if (formKey(form) === savedKeyRef.current) return
+    const timer = window.setTimeout(async () => {
+      if (!(await persist(curPeriod))) return
+      setExistingId(idRef.current)
+      setFlash(t('rev.autoSaved'))
+      window.clearTimeout(syncTimer.current)
+      syncTimer.current = window.setTimeout(syncNow, AUTOSYNC_MS)
+    }, AUTOSAVE_MS)
+    return () => window.clearTimeout(timer)
+  }, [form, curPeriod, persist, t])
+
+  // Leaving a period (tab, date, past card) or the page: save what's pending
+  // right away instead of waiting out the debounce.
+  useEffect(() => {
+    return () => {
+      persist(curPeriod).then((saved) => { if (saved) syncNow() })
+    }
+  }, [curPeriod, persist])
+
+  // App backgrounded / tab closed: save and push now.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') persist(curPeriod).finally(() => syncNow())
+    }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [curPeriod, persist])
+
   async function save() {
     if (submitting) return
     setSubmitting(true)
     try {
-      const { start, end } = period
-      // Resolve the id once and remember it locally — existingId otherwise
-      // only updates via the CHANGED-triggered reload, which lags behind a
-      // fast second save enough to generate a second review for the same
-      // period instead of updating the first.
-      const id = existingId ?? uuid()
-      await writeAndQueue(db.reviews, 'review', {
-        id,
-        type,
-        periodStart: start,
-        periodEnd: end,
-        wins: form.wins || undefined,
-        failures: form.failures || undefined,
-        lesson: form.lesson || undefined,
-        nextPriorities: form.next || undefined,
-        mood: form.mood,
-        energy: form.energy || undefined,
-        attachments: form.attachments.length ? form.attachments : undefined,
-        deleted: 0,
-        updatedAt: Date.now(),
-      })
-      setExistingId(id)
+      await persist(curPeriod)
+      setExistingId(idRef.current)
+      window.clearTimeout(syncTimer.current)
       syncNow()
       setFlash(t('rev.saved'))
       setTimeout(() => setFlash(''), 2000)
