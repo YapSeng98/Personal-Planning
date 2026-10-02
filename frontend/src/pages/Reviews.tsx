@@ -142,14 +142,40 @@ export default function Reviews() {
   addFilesRef.current = addFiles
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
-      const files = Array.from(e.clipboardData?.files ?? [])
-      if (!files.length) return
-      e.preventDefault()
-      addFilesRef.current(files)
+      const cd = e.clipboardData
+      if (!cd) return
+      const files = Array.from(cd.files)
+      if (files.length) {
+        e.preventDefault()
+        addFilesRef.current(files)
+        return
+      }
+      // Copying a selection that contains images (a Sketches note, a web
+      // page) puts them on the clipboard as <img> tags in HTML, not as
+      // files. Attach those; any text in the selection still pastes as usual.
+      const html = cd.getData('text/html')
+      if (!html.includes('<img')) return
+      const srcs = Array.from(new DOMParser().parseFromString(html, 'text/html').images, (i) => i.src)
+        .filter((src) => /^(data:image\/|https?:)/.test(src))
+      if (!srcs.length) return
+      if (!cd.getData('text/plain').trim()) e.preventDefault()
+      Promise.all(srcs.map(async (src) => {
+        try {
+          const blob = await (await fetch(src)).blob()
+          if (!blob.type.startsWith('image/')) return null
+          return new File([blob], `image.${blob.type.split('/')[1] || 'png'}`, { type: blob.type })
+        } catch {
+          return null // remote image the site won't let us download (CORS)
+        }
+      })).then((got) => {
+        const ok = got.filter((f): f is File => f !== null)
+        if (ok.length) addFilesRef.current(ok)
+        else setAttachErr(t('rev.attachPasteFail'))
+      })
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (!viewing) return
