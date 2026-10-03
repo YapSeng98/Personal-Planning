@@ -8,6 +8,11 @@ those.
 
 ## 2026-10-04
 
+- **Fixed: photo-heavy notes still "too large to sync"** — notes with many
+  photos now shrink step by step until they fit (a 23.7 MB, 11-photo test
+  note synced at 5.0 MB with every photo kept). The note toolbar also fits
+  on phones now instead of being cut off at the edge.
+  ([0d5c0e7](https://github.com/YapSeng98/Personal-Planning/commit/0d5c0e7))
 - **Undo / Redo** — typed notes get ↶ ↷ buttons (and ⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z)
   that also cover inserted drawings, image resizes and removed images; drawing
   notes and the drawing pad get Redo next to Undo.
