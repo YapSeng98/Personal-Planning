@@ -16,7 +16,9 @@ export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: str
   const [color, setColor] = useState(COLORS[0])
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen')
   const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
   const history = useRef<ImageData[]>([])
+  const future = useRef<ImageData[]>([])
   const active = useRef<number | null>(null)
   const last = useRef<{ x: number; y: number } | null>(null)
   const penSeen = useRef(false)
@@ -60,6 +62,8 @@ export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: str
     history.current.push(c.getContext('2d')!.getImageData(0, 0, c.width, c.height))
     if (history.current.length > 30) history.current.shift()
     setCanUndo(true)
+    future.current = []
+    setCanRedo(false)
     last.current = pos(e)
     // A tap with no movement still leaves a dot.
     move(e, true)
@@ -89,8 +93,20 @@ export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: str
   function undo() {
     const prev = history.current.pop()
     if (!prev) return
-    canvasRef.current!.getContext('2d')!.putImageData(prev, 0, 0)
+    const c = canvasRef.current!, ctx = c.getContext('2d')!
+    future.current.push(ctx.getImageData(0, 0, c.width, c.height))
+    ctx.putImageData(prev, 0, 0)
     setCanUndo(history.current.length > 0)
+    setCanRedo(true)
+  }
+  function redo() {
+    const next = future.current.pop()
+    if (!next) return
+    const c = canvasRef.current!, ctx = c.getContext('2d')!
+    history.current.push(ctx.getImageData(0, 0, c.width, c.height))
+    ctx.putImageData(next, 0, 0)
+    setCanUndo(true)
+    setCanRedo(future.current.length > 0)
   }
   function clear() {
     const c = canvasRef.current!
@@ -144,6 +160,7 @@ export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: str
           </div>
           <button type="button" className={`sketch-tool-btn ${tool === 'eraser' ? 'on' : ''}`} onClick={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}>{t('sketch.eraser')}</button>
           <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo}>{t('sketch.undo')}</button>
+          <button type="button" className="sketch-tool-btn" onClick={redo} disabled={!canRedo}>{t('sketch.redo')}</button>
           <button type="button" className="sketch-tool-btn" onClick={clear}>{t('sketch.clear')}</button>
           <button type="button" className="fv-close" style={{ marginLeft: 'auto' }} onClick={onClose} aria-label={t('common.close')}><Icon name="close" size={18} /></button>
         </div>

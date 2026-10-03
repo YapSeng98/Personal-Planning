@@ -35,6 +35,7 @@ export default function SketchDetail() {
   const drawingRef = useRef(false)
   const lastPoint = useRef<{ x: number; y: number } | null>(null)
   const historyRef = useRef<string[]>([])
+  const futureRef = useRef<string[]>([]) // undone canvas states, for redo
   const activePointerId = useRef<number | null>(null)
   const editorRef = useRef<HTMLDivElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -68,6 +69,15 @@ export default function SketchDetail() {
   // Image tapped in the note — gets a small resize toolbar.
   const [imgSel, setImgSel] = useState<{ img: HTMLImageElement; top: number; left: number; width: number; height: number } | null>(null)
   const editorWrapRef = useRef<HTMLDivElement>(null)
+  // Undo/redo for typed notes. The browser's own undo misses changes made
+  // in code (inserted drawings, image resize/remove, dropped files) and has
+  // no button on phones — so keep snapshots of the note's HTML: one per
+  // typing pause, one per such change.
+  const pastRef = useRef<string[]>([])
+  const textFutureRef = useRef<string[]>([])
+  const snapRef = useRef<string | null>(null) // the state undo returns *from*
+  const snapTimer = useRef<number | undefined>(undefined)
+  const [textHist, setTextHist] = useState({ undo: false, redo: false })
   // Where the caret was in the note when the draw pad opened — the pad
   // takes focus, so this is how the drawing lands where you were typing.
   const savedRange = useRef<Range | null>(null)
@@ -79,6 +89,7 @@ export default function SketchDetail() {
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen')
   const [sizeKey, setSizeKey] = useState<SizeKey>('md')
   const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
   const [penMode, setPenMode] = useState(() => localStorage.getItem(HAS_PEN_KEY) === '1')
   const [folderId, setFolderId] = useState<string | undefined>(searchParams.get('folder') || undefined)
   const [folders, setFolders] = useState<SketchFolder[]>([])
@@ -147,6 +158,7 @@ export default function SketchDetail() {
       if (rec.kind === 'text' && el && rec.text !== undefined && rec.text !== el.innerHTML && el.innerHTML === savedHtmlRef.current) {
         el.innerHTML = toEditorHtml(rec.text, rec.format === 'html')
         savedHtmlRef.current = lastHtmlRef.current = el.innerHTML
+        snapshotRef.current() // another device's change is one undoable step here
       }
       const canvas = canvasRef.current
       if (rec.kind !== 'text' && canvas && !canvasDirtyRef.current && rec.dataUrl && rec.dataUrl !== savedDataUrlRef.current) {
@@ -176,8 +188,51 @@ export default function SketchDetail() {
     if (!el) return
     el.innerHTML = toEditorHtml(text, wasHtmlRef.current)
     savedHtmlRef.current = lastHtmlRef.current = el.innerHTML
+    resetTextHistory(el.innerHTML)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, kind, loaded])
+
+  function resetTextHistory(html: string) {
+    pastRef.current = []
+    textFutureRef.current = []
+    snapRef.current = html
+    setTextHist({ undo: false, redo: false })
+  }
+  /** Record the note's current HTML as a step, if it changed. */
+  function snapshot() {
+    window.clearTimeout(snapTimer.current)
+    snapTimer.current = undefined
+    const html = editorRef.current?.innerHTML
+    if (html === undefined || html === snapRef.current) return
+    if (snapRef.current !== null) pastRef.current.push(snapRef.current)
+    if (pastRef.current.length > 100) pastRef.current.shift()
+    snapRef.current = html
+    textFutureRef.current = []
+    setTextHist({ undo: pastRef.current.length > 0, redo: false })
+  }
+  async function stepText(dir: 'undo' | 'redo') {
+    snapshot() // bank any typing not yet recorded
+    const from = dir === 'undo' ? pastRef.current : textFutureRef.current
+    const to = dir === 'undo' ? textFutureRef.current : pastRef.current
+    const html = from.pop()
+    const el = editorRef.current
+    if (html === undefined || !el || snapRef.current === null) return
+    to.push(snapRef.current)
+    snapRef.current = html
+    el.innerHTML = html
+    lastHtmlRef.current = html
+    setImgSel(null)
+    setTextHist({ undo: pastRef.current.length > 0, redo: textFutureRef.current.length > 0 })
+    await autosaveText(html)
+  }
+  function onEditorKey(e: React.KeyboardEvent) {
+    if (!(e.metaKey || e.ctrlKey)) return
+    const k = e.key.toLowerCase()
+    if (k === 'z' || k === 'y') {
+      e.preventDefault()
+      stepText(k === 'y' || e.shiftKey ? 'redo' : 'undo')
+    }
+  }
 
   function getPos(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current!
@@ -194,6 +249,9 @@ export default function SketchDetail() {
     historyRef.current.push(canvas.toDataURL('image/png'))
     if (historyRef.current.length > HISTORY_CAP) historyRef.current.shift()
     setCanUndo(true)
+    // A new stroke after undoing starts a new branch — nothing left to redo.
+    futureRef.current = []
+    setCanRedo(false)
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -249,11 +307,9 @@ export default function SketchDetail() {
     scheduleSave()
   }
 
-  async function undo() {
+  function paintCanvas(dataUrl: string) {
     const canvas = canvasRef.current
-    const prev = historyRef.current.pop()
-    if (!canvas || !prev) return
-    setCanUndo(historyRef.current.length > 0)
+    if (!canvas) return
     const ctx = canvas.getContext('2d')!
     const img = new Image()
     img.onload = async () => {
@@ -261,7 +317,27 @@ export default function SketchDetail() {
       ctx.drawImage(img, 0, 0)
       await autosaveDrawing()
     }
-    img.src = prev
+    img.src = dataUrl
+  }
+
+  function undo() {
+    const canvas = canvasRef.current
+    const prev = historyRef.current.pop()
+    if (!canvas || !prev) return
+    futureRef.current.push(canvas.toDataURL('image/png'))
+    setCanUndo(historyRef.current.length > 0)
+    setCanRedo(true)
+    paintCanvas(prev)
+  }
+
+  function redo() {
+    const canvas = canvasRef.current
+    const next = futureRef.current.pop()
+    if (!canvas || !next) return
+    historyRef.current.push(canvas.toDataURL('image/png'))
+    setCanUndo(true)
+    setCanRedo(futureRef.current.length > 0)
+    paintCanvas(next)
   }
 
   async function clearCanvas() {
@@ -295,6 +371,7 @@ export default function SketchDetail() {
 
   async function autosaveText(nextText?: string, nextAttachments?: NoteAttachment[], fid: string | undefined = folderId) {
     if (!id) return
+    if (nextText !== undefined) snapshot() // an edit made in code: one undo step
     const record: DrawingNote = {
       id,
       title: titleRef.current,
@@ -334,6 +411,8 @@ export default function SketchDetail() {
   // Switching apps, closing the tab or leaving the page: save what's pending.
   const autosaveRef = useRef(autosave)
   autosaveRef.current = autosave
+  const snapshotRef = useRef(() => {})
+  snapshotRef.current = snapshot
   useEffect(() => {
     const onHide = () => { if (document.visibilityState === 'hidden') autosaveRef.current() }
     document.addEventListener('visibilitychange', onHide)
@@ -548,6 +627,8 @@ export default function SketchDetail() {
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('italic')} aria-label={t('sketch.italic')}><i>I</i></button>
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')} aria-label={t('sketch.underline')}><u>U</u></button>
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('insertUnorderedList')} aria-label={t('sketch.bulletList')}>☰</button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => stepText('undo')} disabled={!textHist.undo} aria-label={t('sketch.undo')} title={t('sketch.undo')}>↶</button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => stepText('redo')} disabled={!textHist.redo} aria-label={t('sketch.redo')} title={t('sketch.redo')}>↷</button>
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={openDrawPad} aria-label={t('sketch.drawInNote')} title={t('sketch.drawInNote')}>✏️</button>
               <button type="button" className="sketch-tool-btn" onClick={() => imageInputRef.current?.click()} aria-label={t('sketch.addImage')}>🖼️</button>
               <button type="button" className="sketch-tool-btn" onClick={() => fileInputRef.current?.click()} aria-label={t('sketch.addAttachment')} title={t('sketch.addAttachment')}>📎</button>
@@ -576,7 +657,14 @@ export default function SketchDetail() {
               suppressContentEditableWarning
               data-placeholder={t('sketch.typePh')}
               onBlur={autosave}
-              onInput={() => { lastHtmlRef.current = editorRef.current?.innerHTML ?? null; setImgSel(null); scheduleSave() }}
+              onInput={() => {
+                lastHtmlRef.current = editorRef.current?.innerHTML ?? null
+                setImgSel(null)
+                scheduleSave()
+                window.clearTimeout(snapTimer.current)
+                snapTimer.current = window.setTimeout(snapshot, 600)
+              }}
+              onKeyDown={onEditorKey}
               onClick={(e) => selectImage(e.target as HTMLElement)}
               autoFocus
             />
@@ -632,7 +720,8 @@ export default function SketchDetail() {
             </div>
             <div className="sketch-tools">
               <button type="button" className={`sketch-tool-btn ${tool === 'eraser' ? 'on' : ''}`} onClick={() => setTool('eraser')} aria-label={t('sketch.eraser')}>🧽</button>
-              <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo} aria-label={t('sketch.undo')}>↺</button>
+              <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo} aria-label={t('sketch.undo')} title={t('sketch.undo')}>↺</button>
+              <button type="button" className="sketch-tool-btn" onClick={redo} disabled={!canRedo} aria-label={t('sketch.redo')} title={t('sketch.redo')}>↻</button>
               <button type="button" className="sketch-tool-btn" onClick={clearCanvas}>{t('sketch.clear')}</button>
             </div>
           </div>
