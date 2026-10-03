@@ -8,6 +8,10 @@ those.
 
 ## 2026-10-03
 
+- **Bigger items sync now** — the server's per-request time limit went from
+  8s to 60s, so a review or note can carry up to 8 MB (was ~2.5 MB) and a
+  single attachment up to 5 MB (was 2 MB).
+  ([62dd0d2](https://github.com/YapSeng98/Personal-Planning/commit/62dd0d2))
 - **Fixed: "Sync error" that never cleared** — a Sketches note with
   full-size pasted screenshots was too big for the server, and because all
   changes went up together it blocked everything. Changes now sync in small
