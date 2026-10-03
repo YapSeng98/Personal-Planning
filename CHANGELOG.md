@@ -8,6 +8,13 @@ those.
 
 ## 2026-10-03
 
+- **Fixed: "Sync error" that never cleared** — a Sketches note with
+  full-size pasted screenshots was too big for the server, and because all
+  changes went up together it blocked everything. Changes now sync in small
+  groups (one bad item can't block the rest), images in notes are shrunk
+  (including ones already saved), anything still too big is named in
+  Settings → Sync, and the attachment limit is 2 MB.
+  ([375a1c3](https://github.com/YapSeng98/Personal-Planning/commit/375a1c3))
 - **Fixed: tasks without a reminder reopened as "remind on the due day"**
   after syncing (and saving them made it a real reminder). Existing records
   are cleaned up automatically on update.
