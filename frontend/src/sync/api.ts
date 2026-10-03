@@ -107,8 +107,15 @@ export interface PullResponse {
   records: { table: string; client_uuid: string; sys_id: string; deleted: boolean; data: Record<string, unknown> }[]
 }
 
-export async function syncPull(cursor: string): Promise<PullResponse> {
-  const { data, error } = await supabase.rpc('sync_pull', { since: cursor })
+/** `skip`: "<id>:<edited_at ms>" of records this device just pushed, so the
+    server doesn't send them straight back (see sync_pull in schema.sql). */
+export async function syncPull(cursor: string, skip: string[] = []): Promise<PullResponse> {
+  let { data, error } = await supabase.rpc('sync_pull', skip.length ? { since: cursor, skip } : { since: cursor })
+  // A server whose schema.sql predates `skip` doesn't know the parameter —
+  // pull without it (just re-downloads our own save, as before).
+  if (error && skip.length && /sync_pull|function|schema cache/i.test(error.message)) {
+    ;({ data, error } = await supabase.rpc('sync_pull', { since: cursor }))
+  }
   if (error) throw new Error(error.message)
   return data as PullResponse
 }

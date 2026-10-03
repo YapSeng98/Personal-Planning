@@ -135,6 +135,7 @@ export async function syncNow(): Promise<void> {
     if (uploadErr) problems.push(`Couldn't upload an attachment: ${uploadErr}`)
 
     // 1. Push: drain the outbox.
+    const pushedKeys: string[] = [] // "<id>:<edited_at>" applied this sync — the pull skips them
     const entries = await db.outbox.orderBy('seq').toArray()
     if (entries.length > 0) {
       // One push per record: an auto-saving form queues an entry per pause
@@ -180,6 +181,7 @@ export async function syncNow(): Promise<void> {
             // overwritten by the pull below.
             const it = b.items.find((i) => i.client_uuid === r.client_uuid)!
             await tableMap[it.table as keyof typeof tableMap].update(r.client_uuid, { sysId: r.sys_id } as never)
+            if (r.outcome === 'applied') pushedKeys.push(`${r.client_uuid}:${it.edited_at}`)
           }
           done.push(...b.keys)
         } catch (err) {
@@ -200,7 +202,7 @@ export async function syncNow(): Promise<void> {
 
     // 2. Pull: apply everything changed since our cursor.
     const cursorMeta = await db.meta.get('syncCursor')
-    const pull = await syncPull(cursorMeta?.value ?? '1970-01-01 00:00:00')
+    const pull = await syncPull(cursorMeta?.value ?? '1970-01-01 00:00:00', pushedKeys)
     // Records edited locally since the push above (still queued) are newer
     // than anything the server has — their next push will carry them.
     const pending = new Set((await db.outbox.toArray()).map((e) => `${e.table}:${e.recordId}`))

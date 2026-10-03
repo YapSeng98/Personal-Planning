@@ -52,6 +52,22 @@ export default function SketchDetail() {
   attachmentsRef.current = attachments
   const [attachErr, setAttachErr] = useState('')
   const [drawing, setDrawing] = useState(false)
+  // What was last loaded/saved. Blur, typing pauses and app-switches save
+  // only when the page differs from this — so a note that's merely open
+  // (possibly stale, another device having edited it since) never
+  // overwrites newer content, and can take in remote changes safely.
+  const savedHtmlRef = useRef<string | null>(null)
+  const savedTitleRef = useRef('')
+  const savedDataUrlRef = useRef<string | undefined>(undefined)
+  const titleRef = useRef('')
+  const canvasDirtyRef = useRef(false)
+  // Last known content, for saving after the editor/canvas has unmounted.
+  const lastHtmlRef = useRef<string | null>(null)
+  const lastCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const saveTimer = useRef<number | undefined>(undefined)
+  // Image tapped in the note — gets a small resize toolbar.
+  const [imgSel, setImgSel] = useState<{ img: HTMLImageElement; top: number; left: number; width: number; height: number } | null>(null)
+  const editorWrapRef = useRef<HTMLDivElement>(null)
   // Where the caret was in the note when the draw pad opened — the pad
   // takes focus, so this is how the drawing lands where you were typing.
   const savedRange = useRef<Range | null>(null)
@@ -88,6 +104,8 @@ export default function SketchDetail() {
       setLoaded(true)
       if (!existing || existing.deleted) return
       setTitle(existing.title ?? '')
+      titleRef.current = savedTitleRef.current = existing.title ?? ''
+      savedDataUrlRef.current = existing.dataUrl
       setKind(existing.kind ?? 'draw')
       setText(existing.text ?? '')
       wasHtmlRef.current = existing.format === 'html'
@@ -111,8 +129,8 @@ export default function SketchDetail() {
   // Another device changed this note while it's open (a sync pulled it):
   // bring in what's new instead of letting the next autosave overwrite it
   // with this page's stale copy. Attachments always follow the stored note
-  // (local adds/removes write it immediately); title and text only update
-  // when you're not typing in them.
+  // (local adds/removes write it immediately); title, text and drawing only
+  // update if you haven't changed them here since the last save.
   useEffect(() => {
     if (!id) return
     const refresh = async () => {
@@ -120,11 +138,27 @@ export default function SketchDetail() {
       if (!rec || rec.deleted) return
       setAttachments(rec.attachments ?? [])
       setFolderId(rec.folderId)
-      const active = document.activeElement
-      if (!active?.classList.contains('sketch-title-input')) setTitle(rec.title ?? '')
+      // Title/text/drawing: only replace what you haven't changed here.
+      if (titleRef.current === savedTitleRef.current && (rec.title ?? '') !== titleRef.current) {
+        titleRef.current = savedTitleRef.current = rec.title ?? ''
+        setTitle(rec.title ?? '')
+      }
       const el = editorRef.current
-      if (rec.kind === 'text' && el && active !== el && !el.contains(active) && rec.text !== undefined && rec.text !== el.innerHTML) {
+      if (rec.kind === 'text' && el && rec.text !== undefined && rec.text !== el.innerHTML && el.innerHTML === savedHtmlRef.current) {
         el.innerHTML = toEditorHtml(rec.text, rec.format === 'html')
+        savedHtmlRef.current = lastHtmlRef.current = el.innerHTML
+      }
+      const canvas = canvasRef.current
+      if (rec.kind !== 'text' && canvas && !canvasDirtyRef.current && rec.dataUrl && rec.dataUrl !== savedDataUrlRef.current) {
+        savedDataUrlRef.current = rec.dataUrl
+        const img = new Image()
+        img.onload = () => {
+          const ctx = canvas.getContext('2d')!
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        }
+        img.src = rec.dataUrl
       }
     }
     window.addEventListener(CHANGED, refresh)
@@ -141,6 +175,7 @@ export default function SketchDetail() {
     const el = editorRef.current
     if (!el) return
     el.innerHTML = toEditorHtml(text, wasHtmlRef.current)
+    savedHtmlRef.current = lastHtmlRef.current = el.innerHTML
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, kind, loaded])
 
@@ -207,7 +242,11 @@ export default function SketchDetail() {
     if (!drawingRef.current) return
     drawingRef.current = false
     lastPoint.current = null
-    await autosaveDrawing()
+    // Saving re-encodes the whole canvas — do it once you pause, not after
+    // every stroke, so drawing stays smooth.
+    canvasDirtyRef.current = true
+    lastCanvasRef.current = canvasRef.current
+    scheduleSave()
   }
 
   async function undo() {
@@ -236,17 +275,20 @@ export default function SketchDetail() {
   }
 
   async function autosaveDrawing(fid: string | undefined = folderId) {
-    const canvas = canvasRef.current
+    const canvas = canvasRef.current ?? lastCanvasRef.current
     if (!canvas || !id) return
     const record: DrawingNote = {
       id,
-      title,
+      title: titleRef.current,
       kind: 'draw',
       dataUrl: canvas.toDataURL('image/png'),
       folderId: fid,
       deleted: 0,
       updatedAt: Date.now(),
     }
+    canvasDirtyRef.current = false
+    savedTitleRef.current = record.title
+    savedDataUrlRef.current = record.dataUrl
     await writeAndQueue(db.drawings, 'drawing', record)
     syncNow()
   }
@@ -255,21 +297,51 @@ export default function SketchDetail() {
     if (!id) return
     const record: DrawingNote = {
       id,
-      title,
+      title: titleRef.current,
       kind: 'text',
-      text: nextText ?? editorRef.current?.innerHTML ?? text,
+      text: nextText ?? editorRef.current?.innerHTML ?? lastHtmlRef.current ?? text,
       format: 'html',
       attachments: nextAttachments ?? attachments,
       folderId: fid,
       deleted: 0,
       updatedAt: Date.now(),
     }
+    savedHtmlRef.current = record.text ?? ''
+    savedTitleRef.current = record.title
     await writeAndQueue(db.drawings, 'drawing', record)
     wasHtmlRef.current = true
     syncNow()
   }
 
-  const autosave = () => (kind === 'text' ? autosaveText() : autosaveDrawing())
+  /** Blur / typing pause / leaving: save only if something here changed. */
+  function autosave() {
+    window.clearTimeout(saveTimer.current)
+    saveTimer.current = undefined
+    const titleChanged = titleRef.current !== savedTitleRef.current
+    if (kind === 'text') {
+      const html = editorRef.current?.innerHTML ?? lastHtmlRef.current
+      if (html === savedHtmlRef.current && !titleChanged) return
+      autosaveText()
+    } else {
+      if (!canvasDirtyRef.current && !titleChanged) return
+      autosaveDrawing()
+    }
+  }
+  function scheduleSave() {
+    window.clearTimeout(saveTimer.current)
+    saveTimer.current = window.setTimeout(autosave, 1000)
+  }
+  // Switching apps, closing the tab or leaving the page: save what's pending.
+  const autosaveRef = useRef(autosave)
+  autosaveRef.current = autosave
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') autosaveRef.current() }
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      document.removeEventListener('visibilitychange', onHide)
+      if (saveTimer.current !== undefined) autosaveRef.current()
+    }
+  }, [])
 
   /** Folder changes save immediately (not on blur, like everything else
       here) — there's no other natural commit point for a dropdown pick. */
@@ -330,6 +402,30 @@ export default function SketchDetail() {
     if (next || insertedImage) await autosaveText(editorRef.current?.innerHTML, next)
   }
 
+  function placeImgSel(img: HTMLImageElement) {
+    const wrap = editorWrapRef.current
+    if (!wrap) return
+    const w = wrap.getBoundingClientRect(), r = img.getBoundingClientRect()
+    setImgSel({ img, top: r.top - w.top, left: r.left - w.left, width: r.width, height: r.height })
+  }
+  function selectImage(target: HTMLElement) {
+    if (target.tagName === 'IMG' && editorRef.current?.contains(target)) placeImgSel(target as HTMLImageElement)
+    else setImgSel(null)
+  }
+  async function resizeImage(width: string) {
+    if (!imgSel) return
+    imgSel.img.style.width = width
+    imgSel.img.style.height = 'auto'
+    placeImgSel(imgSel.img)
+    await autosaveText(editorRef.current?.innerHTML)
+  }
+  async function removeImage() {
+    if (!imgSel) return
+    imgSel.img.remove()
+    setImgSel(null)
+    await autosaveText(editorRef.current?.innerHTML)
+  }
+
   function openDrawPad() {
     const sel = window.getSelection()
     const r = sel && sel.rangeCount ? sel.getRangeAt(0) : null
@@ -337,7 +433,7 @@ export default function SketchDetail() {
     setDrawing(true)
   }
 
-  async function insertDrawing(dataUrl: string) {
+  async function insertDrawing(dataUrl: string, cssWidth: number) {
     setDrawing(false)
     const el = editorRef.current
     if (!el) return
@@ -354,6 +450,11 @@ export default function SketchDetail() {
       el.appendChild(img)
       el.appendChild(document.createElement('br'))
     }
+    // Show it at the size it was drawn: the image is stored at the screen's
+    // pixel density (2-3x on phones/Retina), which would otherwise display
+    // it two or three times too big. Tap it to resize.
+    const placed = [...el.querySelectorAll('img')].reverse().find((i) => i.getAttribute('src') === dataUrl)
+    if (placed) placed.style.width = `${Math.round(cssWidth)}px`
     await autosaveText(el.innerHTML)
   }
 
@@ -423,7 +524,7 @@ export default function SketchDetail() {
               className="sketch-title-input"
               value={title}
               placeholder={t('sketch.untitled')}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); titleRef.current = e.target.value; scheduleSave() }}
               onBlur={autosave}
             />
           </div>
@@ -467,15 +568,30 @@ export default function SketchDetail() {
             multiple
             onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = '' }}
           />
-          <div
-            ref={editorRef}
-            className="sketch-text-editor"
-            contentEditable
-            suppressContentEditableWarning
-            data-placeholder={t('sketch.typePh')}
-            onBlur={() => autosaveText()}
-            autoFocus
-          />
+          <div className="sketch-editor-wrap" ref={editorWrapRef}>
+            <div
+              ref={editorRef}
+              className="sketch-text-editor"
+              contentEditable
+              suppressContentEditableWarning
+              data-placeholder={t('sketch.typePh')}
+              onBlur={autosave}
+              onInput={() => { lastHtmlRef.current = editorRef.current?.innerHTML ?? null; setImgSel(null); scheduleSave() }}
+              onClick={(e) => selectImage(e.target as HTMLElement)}
+              autoFocus
+            />
+            {imgSel && (
+              <>
+                <div className="img-sel-box" style={{ top: imgSel.top, left: imgSel.left, width: imgSel.width, height: imgSel.height }} />
+                <div className="img-sel-bar" style={{ top: Math.max(0, imgSel.top - 44), left: imgSel.left }} onMouseDown={(e) => e.preventDefault()}>
+                  {([['S', '25%'], ['M', '50%'], ['L', '75%'], [t('sketch.imgFull'), '100%']] as const).map(([label, w]) => (
+                    <button key={w} type="button" className={imgSel.img.style.width === w ? 'on' : ''} onClick={() => resizeImage(w)}>{label}</button>
+                  ))}
+                  <button type="button" onClick={removeImage} aria-label={t('sketch.imgRemove')}><Icon name="trash" size={14} /></button>
+                </div>
+              </>
+            )}
+          </div>
           {attachErr && <div className="ai-status err sketch-attach-err">{attachErr}</div>}
           {drawing && <DrawPad onInsert={insertDrawing} onClose={() => setDrawing(false)} />}
           {attachments.length > 0 && (

@@ -1208,6 +1208,18 @@ button.goal-card:hover { transform: translateY(-2px); }
 
 .sketch-rich-toolbar { justify-content: flex-start; }
 
+/* Tapping an image in a note: outline + resize bar (outside the editable
+   area, so nothing of it is saved into the note) */
+.sketch-editor-wrap { position: relative; }
+.img-sel-box { position: absolute; pointer-events: none; outline: 2px solid var(--accent-bright); outline-offset: 2px; border-radius: 6px; }
+.img-sel-bar { position: absolute; z-index: 5; display: flex; gap: 2px; padding: 3px; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--hairline); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+.img-sel-bar button { border: none; background: none; color: var(--text-1); font: inherit; font-size: 0.8rem; font-weight: 700;
+  padding: 0.35rem 0.6rem; border-radius: 7px; cursor: pointer; display: grid; place-items: center; }
+.img-sel-bar button:hover { background: var(--glass-strong); }
+.img-sel-bar button.on { background: var(--accent-wash); color: var(--accent-bright); }
+.sketch-text-editor img { cursor: pointer; }
+
 /* Typed note: files being dragged over the page */
 .sketch-drop-active .sketch-text-editor { outline: 2px dashed var(--accent); outline-offset: 4px; }
 .sketch-attach-err { max-width: 820px; margin: 0.6rem auto 0; }
@@ -1223,6 +1235,11 @@ button.goal-card:hover { transform: translateY(-2px); }
 button.sketch-attachment-link { background: none; border: none; padding: 0; font: inherit; cursor: pointer; text-align: left; }
 
 /* ---- Attachment viewer (full-screen, in-app) ---- */
+@keyframes fv-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes fv-pop { from { opacity: 0; transform: translateY(12px) scale(0.98) } to { opacity: 1; transform: none } }
+.fv-backdrop { animation: fv-fade 0.16s ease-out; }
+.fv-backdrop .fv { animation: fv-pop 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { .fv-backdrop, .fv-backdrop .fv { animation: none; } }
 /* Drawing pad over a typed note (DrawPad.tsx) — reuses the viewer shell */
 .drawpad-head { flex-wrap: wrap; gap: 0.5rem; }
 @media (max-width: 640px) {

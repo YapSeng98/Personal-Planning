@@ -10,7 +10,7 @@ const WIDTHS = { pen: 4, eraser: 26 }
     drawing into the note as an image (cropped to what was drawn). Same
     input rules as full drawing notes: once a real pen (Apple Pencil) is
     seen, finger/palm touches are ignored. */
-export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: string) => void; onClose: () => void }) {
+export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: string, cssWidth: number) => void; onClose: () => void }) {
   const { t } = useLang()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [color, setColor] = useState(COLORS[0])
@@ -128,7 +128,8 @@ export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: str
     out.width = Math.round(w * scale)
     out.height = Math.round(h * scale)
     out.getContext('2d')!.drawImage(c, x0, y0, w, h, 0, 0, out.width, out.height)
-    onInsert(out.toDataURL('image/png'))
+    // Width in CSS px (what it looked like on the pad), not device pixels.
+    onInsert(out.toDataURL('image/png'), w / Math.min(window.devicePixelRatio || 1, 2))
   }
 
   return createPortal(

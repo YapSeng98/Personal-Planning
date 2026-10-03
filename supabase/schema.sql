@@ -649,7 +649,12 @@ $$;
 -- existing type (a number, from Date.now() historically) — engine.ts's
 -- client-side LWW guard compares it directly against local.updatedAt.
 -- ------------------------------------------------------------
-create or replace function public.sync_pull(since timestamptz)
+-- `skip`: "<id>:<edited_at ms>" for records this device just pushed — the
+-- server leaves those out so a device doesn't re-download its own save
+-- (a note full of images is MBs per autosave). A key only matches that
+-- exact version, so a later edit from another device still comes through.
+drop function if exists public.sync_pull(timestamptz);
+create or replace function public.sync_pull(since timestamptz, skip text[] default '{}')
 returns jsonb
 language sql
 security invoker
@@ -672,6 +677,7 @@ as $$
       )
     ) as rec
     from public.tasks where user_id = auth.uid() and updated_at > since
+      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
     union all
     select jsonb_build_object(
       'table', 'goal', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
@@ -683,6 +689,7 @@ as $$
       )
     )
     from public.goals where user_id = auth.uid() and updated_at > since
+      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
     union all
     select jsonb_build_object(
       'table', 'habit', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
@@ -693,6 +700,7 @@ as $$
       )
     )
     from public.habits where user_id = auth.uid() and updated_at > since
+      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
     union all
     select jsonb_build_object(
       'table', 'habit_log', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
@@ -702,6 +710,7 @@ as $$
       )
     )
     from public.habit_logs where user_id = auth.uid() and updated_at > since
+      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
     union all
     select jsonb_build_object(
       'table', 'review', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
@@ -713,6 +722,7 @@ as $$
       )
     )
     from public.reviews where user_id = auth.uid() and updated_at > since
+      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
     union all
     select jsonb_build_object(
       'table', 'project', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
@@ -722,6 +732,7 @@ as $$
       )
     )
     from public.projects where user_id = auth.uid() and updated_at > since
+      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
     union all
     select jsonb_build_object(
       'table', 'drawing', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
@@ -732,6 +743,7 @@ as $$
       )
     )
     from public.drawings where user_id = auth.uid() and updated_at > since
+      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
     union all
     select jsonb_build_object(
       'table', 'folder', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
@@ -741,6 +753,7 @@ as $$
       )
     )
     from public.sketch_folders where user_id = auth.uid() and updated_at > since
+      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
   ) all_records;
 $$;
 
@@ -753,7 +766,7 @@ grant select, insert, update on public.profiles, public.tasks, public.goals,
   public.habits, public.habit_logs, public.reviews, public.projects,
   public.drawings, public.sketch_folders to authenticated;
 grant execute on function public.sync_push(jsonb) to authenticated;
-grant execute on function public.sync_pull(timestamptz) to authenticated;
+grant execute on function public.sync_pull(timestamptz, text[]) to authenticated;
 grant execute on function public.recalc_goal(uuid) to authenticated;
 
 -- ------------------------------------------------------------
@@ -765,7 +778,7 @@ grant execute on function public.recalc_goal(uuid) to authenticated;
 -- profiles.username is typed citext and moving the extension breaks it.
 -- ------------------------------------------------------------
 alter function public.sync_push(jsonb) set search_path = public;
-alter function public.sync_pull(timestamptz) set search_path = public;
+alter function public.sync_pull(timestamptz, text[]) set search_path = public;
 alter function public.recalc_goal(uuid) set search_path = public;
 alter function public.set_updated_at() set search_path = public;
 
