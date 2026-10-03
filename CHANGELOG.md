@@ -8,6 +8,27 @@ those.
 
 ## 2026-10-04
 
+- **Fixed: logging out on one device signed you out everywhere** — your
+  other devices silently stopped syncing. Log out now only affects the device
+  you're on. A device also remembers whose data it holds: if a different
+  account signs in, the old data is cleared first instead of being shown or
+  uploaded to the wrong account.
+  ([2709207](https://github.com/YapSeng98/Personal-Planning/commit/2709207))
+- **Fixed: the AI address could leak between accounts** — after logging out,
+  another account signing in on the same device got the first account's AI
+  address saved to it. Log out now clears it, and it's only ever saved to the
+  account it belongs to.
+  ([9ed2c6f](https://github.com/YapSeng98/Personal-Planning/commit/9ed2c6f))
+- **Repeating tasks on several devices** — tomorrow's copy of a repeating task
+  is now identical on every device, so two devices can't create duplicates;
+  "Doesn't repeat" now ends the series instead of it coming back the next day.
+  ([9d61f32](https://github.com/YapSeng98/Personal-Planning/commit/9d61f32))
+- **Layout pass on 5 devices** (iPhone SE, iPhone 15, Galaxy S24, iPad,
+  desktop — 28 screens each): fixed the Review page sliding sideways on small
+  phones, the + button covering the last item on a page, a ragged note
+  toolbar and draw-pad bar on phones, a cut-off note title and cramped folder
+  header on iPad, and too-narrow folder cards on desktop.
+  ([e15ad04](https://github.com/YapSeng98/Personal-Planning/commit/e15ad04))
 - **Fixed: photo-heavy notes still "too large to sync"** — notes with many
   photos now shrink step by step until they fit (a 23.7 MB, 11-photo test
   note synced at 5.0 MB with every photo kept). The note toolbar also fits
