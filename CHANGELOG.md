@@ -8,6 +8,11 @@ those.
 
 ## 2026-10-04
 
+- **Fixed: attachments not opening on iPhone** — Safari refused to keep the
+  downloaded file, which stopped the viewer (and attaching from the phone).
+  Tested with Safari's engine: a 30 MB PDF opens, reopens instantly from the
+  phone, and files attached on the phone open on the computer.
+  ([8b75506](https://github.com/YapSeng98/Personal-Planning/commit/8b75506))
 - **Fixed: big old notes stuck with "too large to sync"** — notes and reviews
   saved before files moved to Storage now slim themselves automatically:
   attached files move to Storage, oversized images shrink. A 93 MB test note
