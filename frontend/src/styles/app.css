@@ -1205,6 +1205,28 @@ button.goal-card:hover { transform: translateY(-2px); }
 }
 .sketch-attachment-remove:hover { background: var(--glass-strong); color: var(--text-1); }
 
+/* ---- Folder cover banner (Notion-style) ---- */
+.folder-cover { position: relative; height: 200px; border-radius: 16px; margin-bottom: 1rem;
+  background-size: cover; background-repeat: no-repeat; background-position-x: center;
+  border: 1px solid var(--hairline); overflow: hidden; touch-action: pan-y; }
+@media (max-width: 640px) { .folder-cover { height: 140px; } }
+.folder-cover.repositioning { cursor: grab; touch-action: none; }
+.folder-cover.repositioning:active { cursor: grabbing; }
+.cover-actions { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 2px;
+  background: rgba(0,0,0,0.55); border-radius: 8px; padding: 2px; opacity: 0; transition: opacity 0.15s; }
+.folder-cover:hover .cover-actions, .cover-actions.on, .cover-actions:focus-within { opacity: 1; }
+@media (hover: none) { .cover-actions { opacity: 1; } }
+.cover-actions button { background: none; border: none; color: #fff; font-size: 0.78rem; font-weight: 600;
+  padding: 0.35rem 0.6rem; border-radius: 6px; cursor: pointer; }
+.cover-actions button:hover { background: rgba(255,255,255,0.15); }
+.cover-hint { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex;
+  align-items: center; gap: 0.35rem; background: rgba(0,0,0,0.55); color: #fff; font-size: 0.8rem;
+  font-weight: 600; padding: 0.4rem 0.75rem; border-radius: 8px; pointer-events: none; }
+.cover-add { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.45rem; background: none;
+  border: none; color: var(--text-3); font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 0.2rem 0.3rem;
+  border-radius: 6px; }
+.cover-add:hover { background: var(--glass); color: var(--text-1); }
+
 /* ---- Background picker (Settings) ---- */
 .bg-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
 @media (min-width: 460px) { .bg-row { grid-template-columns: repeat(6, 1fr); } }

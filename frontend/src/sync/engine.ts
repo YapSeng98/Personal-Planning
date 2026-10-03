@@ -53,7 +53,7 @@ const SYNC_FIELDS: Record<keyof typeof tableMap, string[]> = {
   review: ['type', 'periodStart', 'periodEnd', 'wins', 'failures', 'lesson', 'mood', 'energy', 'nextPriorities', 'attachments', 'deleted'],
   project: ['title', 'color', 'archived', 'deleted'],
   drawing: ['title', 'kind', 'dataUrl', 'text', 'format', 'attachments', 'folderId', 'deleted'],
-  folder: ['name', 'deleted'],
+  folder: ['name', 'cover', 'coverY', 'deleted'],
 }
 
 function buildPayload(table: keyof typeof tableMap, rec: Record<string, unknown>): Record<string, unknown> {
@@ -178,6 +178,15 @@ export async function syncNow(): Promise<void> {
       // server wins later once its copy is genuinely newer.
       const local = (await table.get(r.client_uuid)) as { updatedAt?: number; emoji?: string } | undefined
       const data = r.data as Record<string, unknown>
+      // A field the server doesn't send at all (as opposed to sending null)
+      // means its schema predates that field — schema.sql not re-run yet.
+      // Keep the local value instead of letting the pull wipe it. Must run
+      // before the null-stripping below, which would make a cleared field
+      // look missing.
+      for (const f of SYNC_FIELDS[r.table as keyof typeof tableMap]) {
+        const lv = (local as Record<string, unknown> | undefined)?.[f]
+        if (f !== 'deleted' && !(f in data) && lv !== undefined) data[f] = lv
+      }
       // Postgres sends empty columns as null; the app's records model "not
       // set" as a missing key (fields are optional, never null). A stray null
       // breaks checks like `reminderDaysBefore !== undefined` — it made every
@@ -191,12 +200,6 @@ export async function syncNow(): Promise<void> {
           const v = data[k]
           data[k] = v === '' || v == null ? undefined : Number(v)
         }
-      }
-      if (r.table === 'review' && !('attachments' in data)) {
-        // Server predates review attachments (schema.sql not re-run yet) —
-        // don't let its copy wipe the ones saved locally.
-        const localAtt = (local as { attachments?: unknown } | undefined)?.attachments
-        if (localAtt) data.attachments = localAtt
       }
       if (r.deleted) {
         await table.delete(r.client_uuid)

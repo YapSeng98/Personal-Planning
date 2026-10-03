@@ -5,6 +5,7 @@ import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { toEditorHtml } from '../lib/noteHtml'
 import FolderForm from '../components/FolderForm'
+import FolderCover from '../components/FolderCover'
 import Icon from '../components/Icon'
 
 export default function Sketches() {
@@ -81,6 +82,7 @@ export default function Sketches() {
 
   return (
     <div>
+      {currentFolder?.cover && <FolderCover folder={currentFolder} />}
       <div className="greet page-head">
         {currentFolder ? (
           <div className="hd-title-wrap">
@@ -88,6 +90,7 @@ export default function Sketches() {
               <button className="hd-back" onClick={() => navigate('/sketches')} aria-label={t('common.cancel')}><Icon name="chevronLeft" size={18} /></button>
               <h1><Icon name="folder" size={22} className="hd-title-icon" /> {currentFolder.name}</h1>
             </div>
+            {!currentFolder.cover && <FolderCover folder={currentFolder} />}
           </div>
         ) : (
           <div>

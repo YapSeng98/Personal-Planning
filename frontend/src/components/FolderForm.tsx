@@ -26,6 +26,8 @@ export default function FolderForm({
         id: folder?.id ?? uuid(),
         sysId: folder?.sysId,
         name: name.trim(),
+        cover: folder?.cover,
+        coverY: folder?.coverY,
         deleted: 0,
         updatedAt: Date.now(),
       }

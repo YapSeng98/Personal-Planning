@@ -156,6 +156,10 @@ export interface SketchFolder {
   id: string
   sysId?: string
   name: string
+  /** Cover banner on the folder page (image data URL). */
+  cover?: string
+  /** Cover's vertical focus point, 0-100 (CSS background-position-y %). */
+  coverY?: number
   deleted: 0 | 1
   updatedAt: number
 }

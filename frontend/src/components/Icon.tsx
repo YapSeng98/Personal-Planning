@@ -5,9 +5,17 @@
 export type IconName =
   | 'today' | 'plan' | 'board' | 'goals' | 'reviews' | 'sketches' | 'stats'
   | 'settings' | 'search' | 'close' | 'trash' | 'folder' | 'pencil'
-  | 'chevronLeft' | 'plus' | 'check' | 'sparkle'
+  | 'chevronLeft' | 'plus' | 'check' | 'sparkle' | 'image' | 'move'
 
 const PATHS: Record<IconName, React.ReactNode> = {
+  image: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <circle cx="9" cy="9.5" r="1.6" />
+      <path d="M4 17.5l5-5 4 4 2.5-2.5 4.5 4.5" />
+    </>
+  ),
+  move: <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />,
   today: (
     <>
       <circle cx="12" cy="12" r="4.2" />
