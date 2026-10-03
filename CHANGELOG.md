@@ -8,6 +8,13 @@ those.
 
 ## 2026-10-03
 
+- **Attachments up to 50 MB** — PDFs, spreadsheets, videos and other files on
+  reviews and Sketches notes are now kept in Supabase Storage instead of
+  inside the record (was 5 MB). The chip shows the size; tap to download.
+  Files added offline upload on the next sync, other devices download on
+  first open. Removing an attachment deletes the file too. Images still
+  shrink and show inline.
+  ([15d6e04](https://github.com/YapSeng98/Personal-Planning/commit/15d6e04))
 - **Paste or drop files on a note** — on a typed Sketches note, paste a file
   anywhere on the page (Ctrl/⌘+V) or drag files onto it. Images go into the
   note; other files (PDF, Excel, …) become attachments. 📎 now takes several
