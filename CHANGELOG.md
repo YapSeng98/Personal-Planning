@@ -8,6 +8,14 @@ those.
 
 ## 2026-10-04
 
+- **Smoother notes & faster sync** — typed notes save as you type (about a
+  second after you pause) and when you switch apps; drawing notes no longer
+  stutter by saving after every stroke. A note left open on another device
+  can't overwrite newer edits any more, and picks them up live. Changes reach
+  your other devices in about 2 seconds. Tap an image or drawing in a note to
+  resize it (S / M / L / Full) or remove it; drawings now insert at the size
+  you drew them instead of 2–3× too big.
+  ([340cb4d](https://github.com/YapSeng98/Personal-Planning/commit/340cb4d))
 - **Draw inside a typed note** — a ✏️ button in the note toolbar opens a
   drawing pad; "Insert drawing" drops your sketch or handwriting into the
   note where your cursor is (cropped to what you drew). Type and draw in the
