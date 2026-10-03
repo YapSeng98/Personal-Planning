@@ -5,6 +5,7 @@
 
 import { db, notifyChange, cleanEmoji } from '../db/db'
 import { isAuthed, syncPush, syncPull, type PushItem } from './api'
+import { syncAiUrl } from '../lib/ai'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
 
@@ -119,6 +120,11 @@ export async function syncNow(): Promise<void> {
       // server wins later once its copy is genuinely newer.
       const local = (await table.get(r.client_uuid)) as { updatedAt?: number; emoji?: string } | undefined
       const data = r.data as Record<string, unknown>
+      // Postgres sends empty columns as null; the app's records model "not
+      // set" as a missing key (fields are optional, never null). A stray null
+      // breaks checks like `reminderDaysBefore !== undefined` — it made every
+      // synced task without a reminder reopen as "remind on due day".
+      for (const k of Object.keys(data)) if (data[k] === null) delete data[k]
       const serverAt = Number(data.updatedAt ?? 0)
       if (local?.updatedAt && local.updatedAt > serverAt) continue
       if (r.table === 'task') {
@@ -155,7 +161,8 @@ export async function syncNow(): Promise<void> {
       }
     }
     await db.meta.put({ key: 'syncCursor', value: pull.cursor })
-    if (pull.records.length > 0) notifyChange()
+    const aiChanged = await syncAiUrl().catch(() => false)
+    if (pull.records.length > 0 || aiChanged) notifyChange()
     setState('idle')
   } catch (err) {
     // 404 = SN endpoints not deployed yet; stay usable, just local.

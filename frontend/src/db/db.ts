@@ -243,6 +243,17 @@ class PlannerDB extends Dexie {
       drawings: 'id, folderId, updatedAt',
       folders: 'id, updatedAt',
     })
+    // v5: no schema change — one-time cleanup of nulls that earlier pulls
+    // wrote into records (Postgres empties came back as null instead of a
+    // missing key; see the pull in sync/engine.ts, which now strips them).
+    // A null reminderDaysBefore made tasks reopen as "remind on due day".
+    this.version(5).stores({}).upgrade(async (tx) => {
+      for (const name of ['tasks', 'habits', 'habitLogs', 'goals', 'reviews', 'projects', 'drawings', 'folders']) {
+        await tx.table(name).toCollection().modify((rec: Record<string, unknown>) => {
+          for (const k of Object.keys(rec)) if (rec[k] === null) delete rec[k]
+        })
+      }
+    })
   }
 }
 

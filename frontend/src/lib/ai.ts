@@ -1,16 +1,54 @@
 // Thin client for the Planner AI proxy (see ai-proxy/worker.js). The proxy URL
-// is per-user infra, stored in localStorage and set in Settings. When it's not
-// configured, aiEnabled() is false and the app stays fully rule-based.
+// is per-user infra, set in Settings. When it's not configured, aiEnabled() is
+// false and the app stays fully rule-based.
+//
+// localStorage is the working copy (aiEnabled() is called synchronously all
+// over the UI); the account's Supabase user_metadata.ai_url is the shared
+// copy, so setting it once in Settings turns AI on for every signed-in device.
+
+import { supabase } from '../sync/supabase'
+import { isAuthed } from '../sync/api'
 
 const KEY = 'planner_ai_url'
+const META = 'ai_url'
+let pushTimer: number | undefined
 
 export function getAiUrl(): string {
   return localStorage.getItem(KEY) ?? ''
 }
-export function setAiUrl(url: string) {
-  const u = url.trim()
+function setLocal(u: string) {
   if (u) localStorage.setItem(KEY, u)
   else localStorage.removeItem(KEY)
+}
+export function setAiUrl(url: string) {
+  const u = url.trim()
+  setLocal(u)
+  // Settings calls this per keystroke — push once typing settles.
+  if (!isAuthed()) return
+  window.clearTimeout(pushTimer)
+  pushTimer = window.setTimeout(() => {
+    pushTimer = undefined
+    supabase.auth.updateUser({ data: { [META]: u } }).catch(() => {})
+  }, 1000)
+}
+
+/** Adopt the account's AI URL on this device (called from each sync). If the
+    account has none yet but this device does — set up before syncing
+    existed — upload it instead. Returns true when the local value changed. */
+export async function syncAiUrl(): Promise<boolean> {
+  if (!isAuthed() || pushTimer !== undefined) return false // local edit pending
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data.user) return false
+  const meta = data.user.user_metadata ?? {}
+  const local = getAiUrl()
+  if (!(META in meta)) {
+    if (local) await supabase.auth.updateUser({ data: { [META]: local } })
+    return false
+  }
+  const remote = String(meta[META] ?? '')
+  if (remote === local || pushTimer !== undefined) return false
+  setLocal(remote)
+  return true
 }
 export function aiEnabled(): boolean {
   return getAiUrl().length > 0

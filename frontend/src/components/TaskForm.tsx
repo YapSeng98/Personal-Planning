@@ -61,7 +61,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [projectId, setProjectId] = useState(task?.projectId ?? '')
   const [state, setState] = useState<TaskState>(task?.state ?? 'open')
   const [isMit, setIsMit] = useState(Boolean(task?.isMit))
-  const [reminderDays, setReminderDays] = useState<number | undefined>(task?.reminderDaysBefore)
+  const [reminderDays, setReminderDays] = useState<number | undefined>(task?.reminderDaysBefore ?? undefined)
   const [recurrence, setRecurrence] = useState<Task['recurrence']>(task?.recurrence)
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [goals, setGoals] = useState<Goal[]>([])
@@ -81,7 +81,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   ]
 
   useEffect(() => {
-    setReminderDays((d) => (d !== undefined ? Math.min(d, maxReminderDays) : d))
+    setReminderDays((d) => (d != null ? Math.min(d, maxReminderDays) : undefined))
   }, [maxReminderDays])
 
   useEffect(() => {
@@ -305,7 +305,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
               <label className="fl">{t('task.reminder')}</label>
               <Select
                 ariaLabel={t('task.reminder')}
-                value={reminderDays === undefined ? '' : String(reminderDays)}
+                value={reminderDays == null ? '' : String(reminderDays)}
                 onChange={(v) => setReminderDays(v === '' ? undefined : Number(v))}
                 options={reminderOptions}
               />
