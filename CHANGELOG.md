@@ -6,6 +6,14 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-04
+
+- **Read attachments without downloading** — tap an attachment to open it in
+  the app: PDFs (every page, scrollable — works on iPhone too), images,
+  video, audio and text files. A Download button is there if you want the
+  file. Word/Excel can't be shown in a browser, so those offer the download.
+  ([1693525](https://github.com/YapSeng98/Personal-Planning/commit/1693525))
+
 ## 2026-10-03
 
 - **Attachments up to 50 MB** — PDFs, spreadsheets, videos and other files on
