@@ -8,6 +8,11 @@ those.
 
 ## 2026-10-03
 
+- **Folder covers** — a Sketches folder page can have a Notion-style cover
+  banner: "Add cover" under the title, then hover it to Change, Reposition
+  (drag the image to pick which part shows) or Remove. Syncs across devices
+  once `supabase/schema.sql` is re-run.
+  ([6deea1f](https://github.com/YapSeng98/Personal-Planning/commit/6deea1f))
 - **Bigger items sync now** — the server's per-request time limit went from
   8s to 60s, so a review or note can carry up to 8 MB (was ~2.5 MB) and a
   single attachment up to 5 MB (was 2 MB).
