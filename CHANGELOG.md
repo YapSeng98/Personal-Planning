@@ -8,6 +8,18 @@ those.
 
 ## 2026-10-04
 
+- **Draw inside a typed note** — a ✏️ button in the note toolbar opens a
+  drawing pad; "Insert drawing" drops your sketch or handwriting into the
+  note where your cursor is (cropped to what you drew). Type and draw in the
+  same note. Works with Apple Pencil (palm rejection).
+  ([f33f4c3](https://github.com/YapSeng98/Personal-Planning/commit/f33f4c3))
+- **Fixed: edits lost when saved in quick succession** — a second save made
+  while the first was still uploading was rejected by the server (e.g. a
+  note's text and attachments vanished after its title synced). **Faster
+  sync**: changes now reach your other devices within a second or two (was
+  up to a minute), and an open note picks up another device's changes.
+  Needs `supabase/schema.sql` re-run.
+  ([7e21870](https://github.com/YapSeng98/Personal-Planning/commit/7e21870))
 - **Fixed: attachments not opening on iPhone** — Safari refused to keep the
   downloaded file, which stopped the viewer (and attaching from the phone).
   Tested with Safari's engine: a 30 MB PDF opens, reopens instantly from the
