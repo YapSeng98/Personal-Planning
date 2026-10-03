@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { shrinkImage } from '../lib/attach'
+import { shrinkImage, MAX_FILE_BYTES } from '../lib/attach'
 import { folderOptions } from '../lib/folders'
 import { db, uuid, writeAndQueue, type DrawingNote, type NoteAttachment, type SketchFolder } from '../db/db'
 import { syncNow } from '../sync/engine'
@@ -45,6 +45,10 @@ export default function SketchDetail() {
   // comment for why this isn't state.
   const wasHtmlRef = useRef(false)
   const [attachments, setAttachments] = useState<NoteAttachment[]>([])
+  const attachmentsRef = useRef(attachments)
+  attachmentsRef.current = attachments
+  const [attachErr, setAttachErr] = useState('')
+  const [dragOver, setDragOver] = useState(false)
   // New notes pick their kind from the ?type= the gallery linked with;
   // existing notes always keep whatever they were saved as, ignoring the URL.
   const [kind, setKind] = useState<'draw' | 'text'>(searchParams.get('type') === 'text' ? 'text' : 'draw')
@@ -56,6 +60,9 @@ export default function SketchDetail() {
   const [folderId, setFolderId] = useState<string | undefined>(searchParams.get('folder') || undefined)
   const [folders, setFolders] = useState<SketchFolder[]>([])
   const { t } = useLang()
+  // Flips true once the stored note (if any) has been read for this id —
+  // the editor seeds itself from it only after that.
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     db.folders.filter((f) => !f.deleted).toArray().then((f) => {
@@ -66,10 +73,13 @@ export default function SketchDetail() {
 
   useEffect(() => {
     let cancelled = false
+    setLoaded(false)
     ;(async () => {
       if (!id) return
       const existing = await db.drawings.get(id)
-      if (cancelled || !existing || existing.deleted) return
+      if (cancelled) return
+      setLoaded(true)
+      if (!existing || existing.deleted) return
       setTitle(existing.title ?? '')
       setKind(existing.kind ?? 'draw')
       setText(existing.text ?? '')
@@ -91,18 +101,18 @@ export default function SketchDetail() {
     return () => { cancelled = true }
   }, [id])
 
-  // Seeds the editor's DOM from the loaded note. Runs on [id, kind] rather
-  // than [text]: `kind` only flips to 'text' (mounting the editor div) once
-  // the load above has already set `text` in the same batch, so this still
-  // sees the fresh value — and staying off `text` means it won't stomp the
-  // DOM (and the caret) on every keystroke.
+  // Seeds the editor's DOM from the loaded note. Waits for `loaded`: a new
+  // note's URL carries ?type=text, so `kind` is already 'text' (editor
+  // mounted) before the load finishes — seeding then would show an empty
+  // note on reload. Staying off `text` means it won't stomp the DOM (and the
+  // caret) on every keystroke.
   useEffect(() => {
-    if (kind !== 'text') return
+    if (kind !== 'text' || !loaded) return
     const el = editorRef.current
     if (!el) return
     el.innerHTML = toEditorHtml(text, wasHtmlRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, kind])
+  }, [id, kind, loaded])
 
   function getPos(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current!
@@ -268,24 +278,34 @@ export default function SketchDetail() {
     await autosaveText(el.innerHTML)
   }
 
-  /** Pasted screenshots: shrink before inserting at the caret, instead of
-      letting the browser embed the full-size image. */
-  async function onEditorPaste(e: React.ClipboardEvent<HTMLDivElement>) {
-    const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/'))
-    if (!files.length) return
-    e.preventDefault()
-    for (const f of files) {
-      const { dataUrl } = await shrinkImage(f)
-      document.execCommand('insertImage', false, dataUrl)
+  /** Files from anywhere — the 📎 picker, a paste, a drop. Images go into
+      the note itself (shrunk, so the note stays small enough to sync): at
+      the caret when pasting into the text, otherwise at the end. Anything
+      else becomes an attachment chip. */
+  async function addFiles(files: File[], atCaret = false) {
+    setAttachErr('')
+    const added: NoteAttachment[] = []
+    let insertedImage = false
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        if (atCaret) {
+          const { dataUrl } = await shrinkImage(file)
+          document.execCommand('insertImage', false, dataUrl)
+          insertedImage = true
+        } else {
+          await addImage(file)
+        }
+      } else if (file.size > MAX_FILE_BYTES) {
+        setAttachErr(t('rev.attachTooBig', { name: file.name }))
+      } else {
+        added.push({ id: uuid(), name: file.name, type: file.type, dataUrl: await readAsDataUrl(file) })
+      }
     }
-    await autosaveText(editorRef.current?.innerHTML)
-  }
-
-  async function addAttachment(file: File) {
-    const dataUrl = await readAsDataUrl(file)
-    const next = [...attachments, { id: uuid(), name: file.name, type: file.type, dataUrl }]
-    setAttachments(next)
-    await autosaveText(undefined, next)
+    // Read the latest list from the ref — several files arrive in one go, and
+    // each add awaits, so the `attachments` state captured here is stale.
+    const next = added.length ? [...attachmentsRef.current, ...added] : undefined
+    if (next) setAttachments(next)
+    if (next || insertedImage) await autosaveText(editorRef.current?.innerHTML, next)
   }
 
   async function removeAttachment(attId: string) {
@@ -293,6 +313,23 @@ export default function SketchDetail() {
     setAttachments(next)
     await autosaveText(undefined, next)
   }
+
+  // Paste a file anywhere on the page (text, title, toolbar). Only file
+  // pastes are intercepted — pasting text behaves as normal.
+  const addFilesRef = useRef(addFiles)
+  addFilesRef.current = addFiles
+  useEffect(() => {
+    if (kind !== 'text') return
+    function onPaste(e: ClipboardEvent) {
+      const files = Array.from(e.clipboardData?.files ?? [])
+      if (!files.length) return
+      e.preventDefault()
+      const inEditor = !!editorRef.current?.contains(e.target as Node)
+      addFilesRef.current(files, inEditor)
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [kind])
 
   async function remove() {
     if (!id) return
@@ -305,8 +342,28 @@ export default function SketchDetail() {
     navigate(folderId ? `/sketches/folder/${folderId}` : '/sketches')
   }
 
+  // Typed notes accept files dropped anywhere on the page. preventDefault on
+  // dragover is what stops the browser from opening the file instead.
+  const dropProps = kind === 'text' ? {
+    onDragOver: (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes('Files')) return
+      e.preventDefault()
+      setDragOver(true)
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false)
+    },
+    onDrop: (e: React.DragEvent) => {
+      const files = Array.from(e.dataTransfer.files)
+      setDragOver(false)
+      if (!files.length) return
+      e.preventDefault()
+      addFiles(files)
+    },
+  } : {}
+
   return (
-    <div>
+    <div className={dragOver ? 'sketch-drop-active' : undefined} {...dropProps}>
       <div className="greet page-head sketch-detail-head">
         <div className="hd-title-wrap">
           <div className="hd-title-row">
@@ -340,7 +397,7 @@ export default function SketchDetail() {
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')} aria-label={t('sketch.underline')}><u>U</u></button>
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('insertUnorderedList')} aria-label={t('sketch.bulletList')}>☰</button>
               <button type="button" className="sketch-tool-btn" onClick={() => imageInputRef.current?.click()} aria-label={t('sketch.addImage')}>🖼️</button>
-              <button type="button" className="sketch-tool-btn" onClick={() => fileInputRef.current?.click()} aria-label={t('sketch.addAttachment')}>📎</button>
+              <button type="button" className="sketch-tool-btn" onClick={() => fileInputRef.current?.click()} aria-label={t('sketch.addAttachment')} title={t('sketch.addAttachment')}>📎</button>
             </div>
           </div>
           <input
@@ -348,13 +405,15 @@ export default function SketchDetail() {
             type="file"
             accept="image/*"
             style={{ display: 'none' }}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) addImage(f); e.target.value = '' }}
+            multiple
+            onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = '' }}
           />
           <input
             ref={fileInputRef}
             type="file"
             style={{ display: 'none' }}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) addAttachment(f); e.target.value = '' }}
+            multiple
+            onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = '' }}
           />
           <div
             ref={editorRef}
@@ -363,9 +422,9 @@ export default function SketchDetail() {
             suppressContentEditableWarning
             data-placeholder={t('sketch.typePh')}
             onBlur={() => autosaveText()}
-            onPaste={onEditorPaste}
             autoFocus
           />
+          {attachErr && <div className="ai-status err sketch-attach-err">{attachErr}</div>}
           {attachments.length > 0 && (
             <div className="sketch-attachments">
               {attachments.map((a) => (

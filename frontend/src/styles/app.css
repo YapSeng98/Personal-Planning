@@ -1208,6 +1208,9 @@ button.goal-card:hover { transform: translateY(-2px); }
 
 .sketch-rich-toolbar { justify-content: flex-start; }
 
+/* Typed note: files being dragged over the page */
+.sketch-drop-active .sketch-text-editor { outline: 2px dashed var(--accent); outline-offset: 4px; }
+.sketch-attach-err { max-width: 820px; margin: 0.6rem auto 0; }
 .sketch-attachments { display: flex; flex-wrap: wrap; gap: 0.5rem; max-width: 820px; margin: 0.8rem auto 0; }
 @media (min-width: 900px) { .sketch-attachments { max-width: 900px; } }
 .sketch-attachment-chip {
