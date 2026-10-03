@@ -3,10 +3,11 @@
 // and applies delta pulls when a connection and login exist. If the SN side
 // isn't built yet (404) or we're offline, the app keeps working locally.
 
-import { db, notifyChange, cleanEmoji } from '../db/db'
+import { db, notifyChange, cleanEmoji, writeAndQueue, type DrawingNote, type Review } from '../db/db'
 import { isAuthed, syncPush, syncPull, type PushItem } from './api'
 import { syncAiUrl } from '../lib/ai'
 import { uploadPendingFiles } from '../lib/files'
+import { slimDrawing, slimReview, sizeBreakdown } from '../lib/compact'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
 
@@ -101,7 +102,32 @@ export async function syncNow(): Promise<void> {
   setState('syncing')
   const problems: string[] = []
   try {
-    // 0. Upload attachment files first, so a record never reaches another
+    // 0a. A queued note/review too big to send (saved before files moved to
+    // Storage, or with full-size images) gets slimmed first: inline files
+    // move to Storage, oversized images shrink. Done before the uploads
+    // below so the files it moves go up in this same sync.
+    const queued = await db.outbox.toArray()
+    const checked = new Set<string>()
+    for (const e of queued) {
+      const key = `${e.table}:${e.recordId}`
+      if (checked.has(key) || (e.table !== 'drawing' && e.table !== 'review')) continue
+      checked.add(key)
+      const rec = await tableMap[e.table].get(e.recordId)
+      if (!rec || JSON.stringify(buildPayload(e.table, rec as never)).length <= MAX_RECORD_BYTES) continue
+      try {
+        if (e.table === 'drawing') {
+          const slim = await slimDrawing(rec as DrawingNote)
+          if (slim) await writeAndQueue(db.drawings, 'drawing', slim)
+        } else {
+          const slim = await slimReview(rec as Review)
+          if (slim) await writeAndQueue(db.reviews, 'review', slim)
+        }
+      } catch {
+        // leave it — the size check below reports it
+      }
+    }
+
+    // 0b. Upload attachment files first, so a record never reaches another
     // device before the file it points at.
     const uploadErr = await uploadPendingFiles().catch((e) => String(e))
     if (uploadErr) problems.push(`Couldn't upload an attachment: ${uploadErr}`)
@@ -131,7 +157,8 @@ export async function syncNow(): Promise<void> {
         }
         const bytes = JSON.stringify(item).length
         if (bytes > MAX_RECORD_BYTES) {
-          problems.push(`${describe(e.table, rec as never)} is too large to sync (${(bytes / 1048576).toFixed(1)} MB) — remove some images or files`)
+          const where = sizeBreakdown(rec as never)
+          problems.push(`${describe(e.table, rec as never)} is too large to sync (${(bytes / 1048576).toFixed(1)} MB${where ? `: ${where}` : ''}) — remove some images or files`)
           continue
         }
         const last = batches[batches.length - 1]

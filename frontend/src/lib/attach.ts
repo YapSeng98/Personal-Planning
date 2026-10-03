@@ -16,10 +16,12 @@ const MAX_SIDE = 1920
 /** Screenshots come in as multi-MB PNGs; re-encode as a JPEG capped at
     1920px on the long side, which keeps charts readable at a fraction of
     the size. GIF/SVG (animation/vectors) and anything that fails to decode
-    pass through untouched. */
-export async function shrinkImage(file: File): Promise<{ dataUrl: string; type: string; name: string }> {
+    pass through untouched — unless `force`, which re-encodes any image the
+    browser can decode (a GIF keeps only its first frame), for images too big
+    to keep as they are. */
+export async function shrinkImage(file: File, force = false): Promise<{ dataUrl: string; type: string; name: string }> {
   const passthrough = async () => ({ dataUrl: await readAsDataUrl(file), type: file.type, name: file.name })
-  if (!/^image\/(png|jpeg|webp|bmp)$/.test(file.type)) return passthrough()
+  if (!(force ? /^image\//.test(file.type) && file.type !== 'image/svg+xml' : /^image\/(png|jpeg|webp|bmp)$/.test(file.type))) return passthrough()
   try {
     const bmp = await createImageBitmap(file)
     const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height))
@@ -43,10 +45,10 @@ export async function shrinkImage(file: File): Promise<{ dataUrl: string; type: 
 
 /** Re-encode a stored image data URL via shrinkImage — for images saved
     before shrinking existed. Returns the original when it isn't smaller. */
-export async function shrinkDataUrl(dataUrl: string): Promise<string> {
+export async function shrinkDataUrl(dataUrl: string, force = false): Promise<string> {
   try {
     const blob = await (await fetch(dataUrl)).blob()
-    const out = await shrinkImage(new File([blob], 'img', { type: blob.type }))
+    const out = await shrinkImage(new File([blob], 'img', { type: blob.type }), force)
     return out.dataUrl.length < dataUrl.length ? out.dataUrl : dataUrl
   } catch {
     return dataUrl

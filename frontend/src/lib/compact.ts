@@ -1,9 +1,12 @@
-// One-pass cleanup of oversized images saved before images were shrunk on
-// the way in (Sketches notes embedded them at full resolution). A note with
-// a few full-size screenshots grows past what the server accepts in one
-// write, and the sync engine then refuses to send it. Runs at startup;
-// cheap when nothing is big (it only measures string lengths).
-import { db, writeAndQueue, type NoteAttachment } from '../db/db'
+// Slimming records saved before today's size rules: Sketches notes used to
+// embed images at full resolution and keep attached files inline, so one
+// note could reach tens of MB — far past what a synced row allows (the
+// engine refuses records over MAX_RECORD_BYTES). This moves inline files
+// to Supabase Storage (lib/files.ts) and re-shrinks oversized images.
+// Runs at startup over everything, and from the sync engine on any record
+// that's too big to send. Cheap when nothing is big: it only measures
+// string lengths until it finds something worth touching.
+import { db, writeAndQueue, type DrawingNote, type NoteAttachment, type Review } from '../db/db'
 import { shrinkDataUrl } from './attach'
 
 const BIG = 400 * 1024 // only touch images whose data URL is larger than this
@@ -13,39 +16,88 @@ const BIG = 400 * 1024 // only touch images whose data URL is larger than this
 const BIG_JPEG = 1.5 * 1024 * 1024
 const worthShrinking = (dataUrl: string) =>
   dataUrl.length > (dataUrl.startsWith('data:image/jpeg') ? BIG_JPEG : BIG)
-const IMG_SRC = /src="(data:image\/(?:png|jpeg|webp|bmp);base64,[^"]+)"/g
+// Inline attachments bigger than this move to Storage.
+const MOVE_OVER = 300 * 1024
+const IMG_SRC = /src="(data:image\/[a-z0-9.+-]+;base64,[^"]+)"/gi
 
-async function shrinkAttachments(list: NoteAttachment[] | undefined) {
-  if (!list?.some((a) => a.type.startsWith('image/') && worthShrinking(a.dataUrl))) return null
-  return Promise.all(list.map(async (a) =>
-    a.type.startsWith('image/') && worthShrinking(a.dataUrl) ? { ...a, dataUrl: await shrinkDataUrl(a.dataUrl) } : a))
+async function toStorage(a: NoteAttachment): Promise<NoteAttachment> {
+  const blob = await (await fetch(a.dataUrl)).blob()
+  await db.files.put({ id: a.id, blob: new Blob([blob], { type: a.type || blob.type }), pending: 1 })
+  return { ...a, stored: 1, size: blob.size, dataUrl: '' }
+}
+
+async function slimAttachments(list: NoteAttachment[] | undefined): Promise<NoteAttachment[] | null> {
+  if (!list?.some((a) => !a.stored && a.dataUrl.length > MOVE_OVER)) return null
+  const out: NoteAttachment[] = []
+  for (let a of list) {
+    if (!a.stored && a.dataUrl.length > MOVE_OVER) {
+      // Images: shrinking may be enough to stay inline (thumbnails work offline).
+      if (a.type.startsWith('image/') && worthShrinking(a.dataUrl)) a = { ...a, dataUrl: await shrinkDataUrl(a.dataUrl) }
+      if (a.dataUrl.length > MOVE_OVER) a = await toStorage(a)
+    }
+    out.push(a)
+  }
+  return out
+}
+
+/** Images embedded in a note's HTML: shrink the big ones; anything still
+    huge afterwards (GIF, etc.) is re-encoded as JPEG regardless. */
+async function slimNoteHtml(text: string | undefined): Promise<string | undefined> {
+  if (!text || text.length <= BIG) return text
+  let out = text
+  for (const [, src] of text.matchAll(IMG_SRC)) {
+    if (!worthShrinking(src)) continue
+    let small = await shrinkDataUrl(src)
+    if (small.length > BIG_JPEG) small = await shrinkDataUrl(small, true)
+    if (small !== src) out = out.replace(src, small)
+  }
+  return out
+}
+
+/** A slimmer copy of the record, or null if there was nothing to do. */
+export async function slimDrawing(d: DrawingNote): Promise<DrawingNote | null> {
+  const text = await slimNoteHtml(d.text)
+  const attachments = await slimAttachments(d.attachments)
+  let dataUrl = d.dataUrl
+  if (dataUrl && dataUrl.length > 2 * 1024 * 1024) dataUrl = await shrinkDataUrl(dataUrl, true)
+  if (text === d.text && !attachments && dataUrl === d.dataUrl) return null
+  return { ...d, text, dataUrl, attachments: attachments ?? d.attachments, updatedAt: Date.now() }
+}
+
+export async function slimReview(r: Review): Promise<Review | null> {
+  const attachments = await slimAttachments(r.attachments)
+  return attachments ? { ...r, attachments, updatedAt: Date.now() } : null
 }
 
 export async function compactImages(): Promise<number> {
   let changed = 0
   for (const d of await db.drawings.toArray()) {
     if (d.deleted) continue
-    let text = d.text
-    if (text && text.length > BIG) {
-      for (const [, src] of text.matchAll(IMG_SRC)) {
-        if (!worthShrinking(src)) continue
-        const small = await shrinkDataUrl(src)
-        if (small !== src) text = text.replace(src, small)
-      }
-    }
-    const attachments = await shrinkAttachments(d.attachments)
-    if (text !== d.text || attachments) {
-      await writeAndQueue(db.drawings, 'drawing', { ...d, text, attachments: attachments ?? d.attachments, updatedAt: Date.now() })
+    const slim = await slimDrawing(d)
+    if (slim) {
+      await writeAndQueue(db.drawings, 'drawing', slim)
       changed++
     }
   }
   for (const r of await db.reviews.toArray()) {
     if (r.deleted) continue
-    const attachments = await shrinkAttachments(r.attachments)
-    if (attachments) {
-      await writeAndQueue(db.reviews, 'review', { ...r, attachments, updatedAt: Date.now() })
+    const slim = await slimReview(r)
+    if (slim) {
+      await writeAndQueue(db.reviews, 'review', slim)
       changed++
     }
   }
   return changed
+}
+
+/** Where a record's bytes are — for the "too large" message. */
+export function sizeBreakdown(rec: { text?: string; dataUrl?: string; attachments?: NoteAttachment[] }): string {
+  const mb = (n: number) => `${(n / 1048576).toFixed(1)} MB`
+  const imgs = [...(rec.text ?? '').matchAll(IMG_SRC)].reduce((n, m) => n + m[1].length * 0.75, 0)
+  const files = (rec.attachments ?? []).reduce((n, a) => n + a.dataUrl.length * 0.75, 0)
+  const parts = []
+  if (imgs > 1048576) parts.push(`images in the note ${mb(imgs)}`)
+  if (rec.dataUrl && rec.dataUrl.length > 1048576) parts.push(`drawing ${mb(rec.dataUrl.length * 0.75)}`)
+  if (files > 1048576) parts.push(`attached files ${mb(files)}`)
+  return parts.join(', ')
 }
