@@ -6,6 +6,17 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-03
+
+- **Fixed: tasks without a reminder reopened as "remind on the due day"**
+  after syncing (and saving them made it a real reminder). Existing records
+  are cleaned up automatically on update.
+  ([cdee0b6](https://github.com/YapSeng98/Personal-Planning/commit/cdee0b6))
+- **AI features now work on all your devices** — the AI address set in
+  Settings is saved to your account, so other signed-in devices pick it up
+  on their next sync instead of hiding every AI button.
+  ([cdee0b6](https://github.com/YapSeng98/Personal-Planning/commit/cdee0b6))
+
 ## 2026-10-02
 
 - **Reviews save automatically as you type** — no more losing a half-written
