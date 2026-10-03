@@ -8,6 +8,10 @@ those.
 
 ## 2026-10-03
 
+- **Folder covers can be resized** — drag the banner's bottom edge to make it
+  taller or shorter, or tap "Show full image" to see the whole picture
+  ("Default size" goes back). Keeps the same shape on phone and desktop.
+  ([38c4ef1](https://github.com/YapSeng98/Personal-Planning/commit/38c4ef1))
 - **Folder covers** — a Sketches folder page can have a Notion-style cover
   banner: "Add cover" under the title, then hover it to Change, Reposition
   (drag the image to pick which part shows) or Remove. Syncs across devices
