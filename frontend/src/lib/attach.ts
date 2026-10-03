@@ -12,7 +12,7 @@ export function readAsDataUrl(file: Blob): Promise<string> {
 }
 
 /** Non-image files above this are rejected — images get shrunk instead. */
-export const MAX_FILE_BYTES = 5 * 1024 * 1024
+export const MAX_FILE_BYTES = 2 * 1024 * 1024 // keeps a record under the sync limit (engine.ts)
 const MAX_SIDE = 1920
 
 /** Screenshots come in as multi-MB PNGs; re-encode as a JPEG capped at
@@ -40,5 +40,17 @@ export async function shrinkImage(file: File): Promise<{ dataUrl: string; type: 
     return { dataUrl, type: 'image/jpeg', name: file.name.replace(/\.\w+$/, '') + '.jpg' }
   } catch {
     return passthrough()
+  }
+}
+
+/** Re-encode a stored image data URL via shrinkImage — for images saved
+    before shrinking existed. Returns the original when it isn't smaller. */
+export async function shrinkDataUrl(dataUrl: string): Promise<string> {
+  try {
+    const blob = await (await fetch(dataUrl)).blob()
+    const out = await shrinkImage(new File([blob], 'img', { type: blob.type }))
+    return out.dataUrl.length < dataUrl.length ? out.dataUrl : dataUrl
+  } catch {
+    return dataUrl
   }
 }

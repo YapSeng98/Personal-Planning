@@ -11,10 +11,11 @@ export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
 
 let listeners: ((s: SyncState, detail?: string) => void)[] = []
 let current: SyncState = 'idle'
+let currentDetail: string | undefined
 
 export function onSyncState(fn: (s: SyncState, detail?: string) => void) {
   listeners.push(fn)
-  fn(current)
+  fn(current, currentDetail)
   return () => {
     listeners = listeners.filter((l) => l !== fn)
   }
@@ -22,6 +23,7 @@ export function onSyncState(fn: (s: SyncState, detail?: string) => void) {
 
 function setState(s: SyncState, detail?: string) {
   current = s
+  currentDetail = detail
   listeners.forEach((l) => l(s, detail))
 }
 
@@ -60,6 +62,23 @@ function buildPayload(table: keyof typeof tableMap, rec: Record<string, unknown>
   return out
 }
 
+// A record bigger than this isn't sent: the server's statement timeout
+// cancels writes somewhere around 3-4 MB (measured), and retrying a doomed
+// multi-MB upload every minute just loads the database for nothing.
+const MAX_RECORD_BYTES = 2.5 * 1024 * 1024
+// Records are pushed in batches up to this size, so one bad record only
+// fails its own batch instead of blocking every other change.
+const BATCH_BYTES = 1024 * 1024
+
+function describe(table: string, rec: Record<string, unknown>): string {
+  const name = rec.title || rec.name || rec.periodStart || ''
+  const kind = table === 'drawing' ? 'sketch' : table
+  return name ? `${kind} "${String(name).slice(0, 40)}"` : kind
+}
+
+let running = false
+let rerun = false
+
 export async function syncNow(): Promise<void> {
   if (!isAuthed()) {
     setState('local-only')
@@ -69,40 +88,77 @@ export async function syncNow(): Promise<void> {
     setState('offline')
     return
   }
+  // One sync at a time (the minute timer, auto-save and "Sync now" can all
+  // fire together); a request during a run gets one follow-up run.
+  if (running) {
+    rerun = true
+    return
+  }
+  running = true
   setState('syncing')
+  const problems: string[] = []
   try {
-    // 1. Push: drain the outbox, newest edit per record wins locally.
+    // 1. Push: drain the outbox.
     const entries = await db.outbox.orderBy('seq').toArray()
     if (entries.length > 0) {
-      const items: PushItem[] = []
       // One push per record: an auto-saving form queues an entry per pause
       // in typing, and each would otherwise re-send the whole record
       // (attachments included). The record itself is read fresh below, so
       // only the latest entry's editedAt matters.
       const latest = new Map<string, (typeof entries)[number]>()
       for (const e of entries) latest.set(`${e.table}:${e.recordId}`, e)
-      for (const e of latest.values()) {
+      const batches: { items: PushItem[]; keys: string[]; bytes: number }[] = []
+      const done: string[] = [] // record keys whose entries can be cleared
+      for (const [key, e] of latest) {
         const rec = await tableMap[e.table].get(e.recordId)
-        if (rec) {
-          items.push({
-            table: e.table,
-            client_uuid: e.recordId,
-            payload: buildPayload(e.table, rec as unknown as Record<string, unknown>),
-            edited_at: e.editedAt,
-          })
+        if (!rec) {
+          done.push(key)
+          continue
+        }
+        const item: PushItem = {
+          table: e.table,
+          client_uuid: e.recordId,
+          payload: buildPayload(e.table, rec as unknown as Record<string, unknown>),
+          edited_at: e.editedAt,
+        }
+        const bytes = JSON.stringify(item).length
+        if (bytes > MAX_RECORD_BYTES) {
+          problems.push(`${describe(e.table, rec as never)} is too large to sync (${(bytes / 1048576).toFixed(1)} MB) — remove some images or files`)
+          continue
+        }
+        const last = batches[batches.length - 1]
+        if (last && last.bytes + bytes <= BATCH_BYTES) {
+          last.items.push(item)
+          last.keys.push(key)
+          last.bytes += bytes
+        } else {
+          batches.push({ items: [item], keys: [key], bytes })
         }
       }
-      const res = await syncPush(items)
-      for (const r of res.results) {
-        // Record the server-assigned sys_id; conflicts (server_won) get
-        // overwritten by the pull below.
-        await tableMap[entries.find((e) => e.recordId === r.client_uuid)!.table].update(
-          r.client_uuid,
-          { sysId: r.sys_id } as never,
-        )
+      for (const b of batches) {
+        try {
+          const res = await syncPush(b.items)
+          for (const r of res.results) {
+            // Record the server-assigned sys_id; conflicts (server_won) get
+            // overwritten by the pull below.
+            const it = b.items.find((i) => i.client_uuid === r.client_uuid)!
+            await tableMap[it.table as keyof typeof tableMap].update(r.client_uuid, { sysId: r.sys_id } as never)
+          }
+          done.push(...b.keys)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          if (msg.includes('404')) throw err
+          const what = b.items.length === 1
+            ? describe(b.items[0].table, b.items[0].payload)
+            : `${b.items.length} changes`
+          problems.push(`Couldn't sync ${what}: ${msg}`)
+        }
       }
-      // Only the entries just pushed — an edit queued mid-push stays for next time.
-      await db.outbox.bulkDelete(entries.map((e) => e.seq!))
+      // Only the entries just pushed — an edit queued mid-push, or a record
+      // that failed, stays queued for next time.
+      const doneSet = new Set(done)
+      const seqs = entries.filter((e) => doneSet.has(`${e.table}:${e.recordId}`)).map((e) => e.seq!)
+      await db.outbox.bulkDelete(seqs)
     }
 
     // 2. Pull: apply everything changed since our cursor.
@@ -163,11 +219,18 @@ export async function syncNow(): Promise<void> {
     await db.meta.put({ key: 'syncCursor', value: pull.cursor })
     const aiChanged = await syncAiUrl().catch(() => false)
     if (pull.records.length > 0 || aiChanged) notifyChange()
-    setState('idle')
+    if (problems.length) setState('error', problems.join('\n'))
+    else setState('idle')
   } catch (err) {
     // 404 = SN endpoints not deployed yet; stay usable, just local.
     const msg = err instanceof Error ? err.message : String(err)
-    setState(msg.includes('404') ? 'local-only' : 'error', msg)
+    setState(msg.includes('404') ? 'local-only' : 'error', [msg, ...problems].join('\n'))
+  } finally {
+    running = false
+    if (rerun) {
+      rerun = false
+      syncNow()
+    }
   }
 }
 

@@ -13,8 +13,9 @@ import SketchDetail from './pages/SketchDetail'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import { isAuthed } from './sync/api'
-import { startSyncLoop } from './sync/engine'
+import { startSyncLoop, syncNow } from './sync/engine'
 import { seedIfEmpty } from './db/seed'
+import { compactImages } from './lib/compact'
 import { startRecurringLoop } from './db/db'
 import { LangProvider } from './lib/i18n'
 
@@ -30,6 +31,9 @@ export default function App() {
     if (localStorage.getItem('offline_mode') === '1') seedIfEmpty()
     startRecurringLoop()
     startSyncLoop()
+    // Shrink oversized old images so they stop blocking the sync; push the
+    // smaller copies right away if anything changed.
+    compactImages().then((n) => { if (n) syncNow() }).catch(() => {})
   }, [])
 
   return (

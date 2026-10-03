@@ -23,6 +23,7 @@ export default function Settings() {
   const [aiTest, setAiTest] = useState<{ state: 'idle' | 'testing' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const [ytUrl, setYtUrlState] = useState(getYoutubeUrl())
   const [sync, setSync] = useState<SyncState>('idle')
+  const [syncDetail, setSyncDetail] = useState('')
   const [pending, setPending] = useState(0)
   const [cleanup, setCleanup] = useState<{ state: 'idle' | 'running' | 'done'; msg: string }>({ state: 'idle', msg: '' })
   const [newPw, setNewPw] = useState('')
@@ -41,8 +42,11 @@ export default function Settings() {
   }
 
   useEffect(() => {
-    const off = onSyncState(setSync)
-    db.outbox.count().then(setPending)
+    const off = onSyncState((st, detail) => {
+      setSync(st)
+      setSyncDetail(st === 'error' ? detail ?? '' : '')
+      db.outbox.count().then(setPending)
+    })
     return off
   }, [])
 
@@ -259,6 +263,7 @@ export default function Settings() {
           <div className="row-sub">
             {pending > 0 ? t(pending === 1 ? 'set.pending' : 'set.pendingPlural', { n: pending }) : t('set.allSaved')}
           </div>
+          {syncDetail && <div className="row-sub sync-detail">{syncDetail}</div>}
         </div>
         {!offlineMode && <button className="btn" onClick={() => syncNow()}>{t('set.syncNow')}</button>}
       </div>

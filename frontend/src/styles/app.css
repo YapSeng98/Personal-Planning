@@ -507,6 +507,8 @@ textarea.field { background: var(--glass); border: 1px solid var(--hairline); bo
   background: var(--glass); cursor: pointer; padding: 0; }
 .dot.on { background: var(--ok); border-color: var(--ok); }
 .flash { color: var(--ok); font-weight: 700; font-size: 0.85rem; }
+.sync-detail { color: var(--danger, #e5484d); white-space: pre-line; margin-top: 0.3rem; word-break: break-word; }
+
 /* Review attachments: image thumbnails + file chips, paste/drop target */
 .rev-attach { display: flex; flex-direction: column; gap: 0.7rem; transition: border-color 0.15s; }
 .rev-attach.drag { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }

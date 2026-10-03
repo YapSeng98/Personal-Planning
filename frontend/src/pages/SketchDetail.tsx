@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { shrinkImage } from '../lib/attach'
 import { db, uuid, writeAndQueue, type DrawingNote, type NoteAttachment, type SketchFolder } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
@@ -254,7 +255,9 @@ export default function SketchDetail() {
   /** Appended at the end rather than at the caret: opening the native file
       picker makes where the caret was unreliable to restore across browsers. */
   async function addImage(file: File) {
-    const dataUrl = await readAsDataUrl(file)
+    // Shrunk like review screenshots: full-size images make a note too big
+    // to sync (see lib/compact.ts).
+    const { dataUrl } = await shrinkImage(file)
     const el = editorRef.current
     if (!el) return
     const img = document.createElement('img')
@@ -262,6 +265,19 @@ export default function SketchDetail() {
     el.appendChild(img)
     el.appendChild(document.createElement('br'))
     await autosaveText(el.innerHTML)
+  }
+
+  /** Pasted screenshots: shrink before inserting at the caret, instead of
+      letting the browser embed the full-size image. */
+  async function onEditorPaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/'))
+    if (!files.length) return
+    e.preventDefault()
+    for (const f of files) {
+      const { dataUrl } = await shrinkImage(f)
+      document.execCommand('insertImage', false, dataUrl)
+    }
+    await autosaveText(editorRef.current?.innerHTML)
   }
 
   async function addAttachment(file: File) {
@@ -346,6 +362,7 @@ export default function SketchDetail() {
             suppressContentEditableWarning
             data-placeholder={t('sketch.typePh')}
             onBlur={() => autosaveText()}
+            onPaste={onEditorPaste}
             autoFocus
           />
           {attachments.length > 0 && (
