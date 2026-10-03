@@ -8,6 +8,10 @@ those.
 
 ## 2026-10-03
 
+- **Fixed: note title hidden on phones** when the note sat in a nested folder
+  with a long path — the title now has its own row, and the folder picker
+  shortens long paths with "…".
+  ([a994316](https://github.com/YapSeng98/Personal-Planning/commit/a994316))
 - **Folders inside folders** in Sketches — open a folder and tap Folder to
   make a sub-folder. A path line (Sketches › Personal Work › …) jumps to any
   level, the back arrow goes up one, and a folder's edit sheet has an
