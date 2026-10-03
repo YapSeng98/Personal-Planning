@@ -30,7 +30,8 @@ export default defineConfig({
       workbox: {
         // App shell is precached; API calls are network-first and the app
         // falls back to the Dexie store when offline (sync/engine.ts).
-        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        // .mjs: the pdf.js worker (attachment viewer), so PDFs open offline.
+        globPatterns: ['**/*.{js,mjs,css,html,svg,woff2}'],
         navigateFallbackDenylist: [/^\/api\//, /^\/oauth_token\.do/],
       },
     }),

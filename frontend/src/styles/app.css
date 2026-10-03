@@ -1221,7 +1221,32 @@ button.goal-card:hover { transform: translateY(-2px); }
 .sketch-attachment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; max-width: 180px; }
 .sketch-attachment-size { flex-shrink: 0; font-size: 0.72rem; color: var(--text-3); }
 button.sketch-attachment-link { background: none; border: none; padding: 0; font: inherit; cursor: pointer; text-align: left; }
-.sketch-attachment-err { color: var(--danger); font-weight: 800; font-size: 0.8rem; }
+
+/* ---- Attachment viewer (full-screen, in-app) ---- */
+.fv-backdrop { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,0.75); display: flex;
+  align-items: center; justify-content: center; padding: 16px; }
+.fv { width: min(1000px, 100%); height: 100%; max-height: 100%; display: flex; flex-direction: column;
+  background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 16px; overflow: hidden; }
+.fv-head { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.7rem 0.6rem 1rem;
+  border-bottom: 1px solid var(--hairline); min-width: 0; }
+.fv-name { flex: 1; min-width: 0; font-weight: 700; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fv-size { flex-shrink: 0; font-size: 0.75rem; color: var(--text-3); }
+.fv-dl { flex-shrink: 0; padding: 0.35rem 0.8rem; font-size: 0.8rem; }
+.fv-close { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--glass);
+  color: var(--text-1); cursor: pointer; display: grid; place-items: center; }
+.fv-body { flex: 1; min-height: 0; overflow: auto; position: relative; -webkit-overflow-scrolling: touch; }
+.fv-msg { padding: 2rem 1.2rem; text-align: center; color: var(--text-2); font-size: 0.9rem; }
+.fv-msg.err { color: var(--danger); }
+.fv-msg p { margin: 0 0 1rem; }
+.fv-pdf { padding: 12px; display: flex; flex-direction: column; gap: 12px; background: var(--glass); min-height: 100%; }
+.fv-pdf-page { width: 100%; height: auto; display: block; background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); }
+.fv-k-image, .fv-k-video, .fv-k-audio { display: flex; align-items: center; justify-content: center; background: #000; }
+.fv-k-image img, .fv-k-video video { max-width: 100%; max-height: 100%; object-fit: contain; }
+.fv-k-audio { background: var(--glass); }
+.fv-k-audio audio { width: min(480px, 90%); }
+.fv-text { margin: 0; padding: 1rem 1.2rem; font-size: 0.82rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-1); }
+@media (max-width: 640px) { .fv-backdrop { padding: 0; } .fv { border-radius: 0; border: none; } }
 .sketch-attachment-remove {
   background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 1rem; line-height: 1;
   width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; padding: 0;

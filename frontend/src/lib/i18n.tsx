@@ -115,6 +115,8 @@ const en: Dict = {
   'search.hint': 'Type to search everything.', 'search.empty': 'No results.',
   'search.tasks': 'Tasks', 'search.goals': 'Goals', 'search.sketches': 'Sketches',
   // common
+  'common.close': 'Close', 'fv.download': 'Download', 'fv.loading': 'Opening…',
+  'fv.noPreview': "This type of file can't be shown in the app — download it to open.",
   'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.today': 'today',
   // goals
   'goals.title': 'Goals', 'goals.sub': 'Vision → Year → Quarter → Month → Week — progress rolls up. Tap a goal to edit.',
@@ -322,6 +324,8 @@ const zh: Dict = {
   'search.trigger': '搜索', 'search.placeholder': '搜索任务、目标、手绘…',
   'search.hint': '输入以搜索全部内容。', 'search.empty': '没有找到结果。',
   'search.tasks': '任务', 'search.goals': '目标', 'search.sketches': '手绘',
+  'common.close': '关闭', 'fv.download': '下载', 'fv.loading': '正在打开…',
+  'fv.noPreview': '此类文件无法在应用内显示 — 请下载后打开。',
   'common.cancel': '取消', 'common.delete': '删除', 'common.today': '今天',
   'goals.title': '目标', 'goals.sub': '愿景 → 年 → 季 → 月 → 周 — 进度自动汇总。点击目标可编辑。',
   'goals.add': '+ 目标', 'goals.empty': '还没有目标 — 添加一个年度目标作为基石。',
