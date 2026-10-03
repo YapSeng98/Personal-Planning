@@ -50,7 +50,7 @@ const formKey = (f: Form) =>
 const isEmpty = (f: Form) => formKey(f) === formKey(blank)
 
 const AUTOSAVE_MS = 800
-const AUTOSYNC_MS = 5000
+const AUTOSYNC_MS = 2000
 
 export default function Reviews() {
   const [type, setType] = useState<RType>('daily')

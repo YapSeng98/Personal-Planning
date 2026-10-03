@@ -303,6 +303,23 @@ create index if not exists drawings_user_updated_idx on public.drawings (user_id
 create index if not exists drawings_folder_idx on public.drawings (folder_id);
 
 -- ------------------------------------------------------------
+-- edited_at: when the change was made ON THE DEVICE (the client's edited_at).
+-- Last-write-wins compares an incoming edit against this, not updated_at:
+-- updated_at is the server's commit time, so a second quick edit made while
+-- the first was still uploading looked "older" than the server copy and was
+-- silently rejected (server_won) — a real lost-edit bug with auto-save and
+-- attachments. updated_at stays the server clock for the pull cursor.
+-- ------------------------------------------------------------
+alter table public.tasks add column if not exists edited_at timestamptz;
+alter table public.goals add column if not exists edited_at timestamptz;
+alter table public.habits add column if not exists edited_at timestamptz;
+alter table public.habit_logs add column if not exists edited_at timestamptz;
+alter table public.reviews add column if not exists edited_at timestamptz;
+alter table public.projects add column if not exists edited_at timestamptz;
+alter table public.drawings add column if not exists edited_at timestamptz;
+alter table public.sketch_folders add column if not exists edited_at timestamptz;
+
+-- ------------------------------------------------------------
 -- recalc_goal — recompute a goal's progress, then every ancestor's.
 -- Mirrors rollUpGoal in frontend/src/db/db.ts; keep the two in step.
 -- Any level can have tasks linked directly, so a goal's progress is the
@@ -354,6 +371,7 @@ begin
     if v_parts > 0 then
       v_pct := round(v_sum / v_parts);
       update public.goals set
+        edited_at = now(),
         progress = v_pct,
         status = case when v_pct > 0 and status = 'not_started' then 'in_progress' else status end
       where id = v_id;
@@ -400,16 +418,16 @@ begin
     goal_id_val := null;
 
     if tbl = 'task' then
-      select updated_at into existing_updated from public.tasks where id = rid and user_id = auth.uid();
+      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.tasks where id = rid and user_id = auth.uid();
       if found and existing_updated > edited_ts then
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
         goal_id_val := nullif(p->>'goalId', '')::uuid;
-        insert into public.tasks (id, user_id, title, notes, state, priority, due,
+        insert into public.tasks (id, user_id, edited_at, title, notes, state, priority, due,
           time_block_start, time_block_end, estimated_hours, actual_hours,
           goal_id, project_id, is_mit, sort_order, reminder_days_before,
           recurrence, series_id, deleted)
-        values (rid, auth.uid(),
+        values (rid, auth.uid(), edited_ts,
           coalesce(nullif(p->>'title', ''), ''),
           nullif(p->>'notes', ''),
           coalesce(nullif(p->>'state', ''), 'open'),
@@ -429,6 +447,7 @@ begin
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
+          edited_at = excluded.edited_at,
           title = excluded.title, notes = excluded.notes, state = excluded.state,
           priority = excluded.priority, due = excluded.due,
           time_block_start = excluded.time_block_start, time_block_end = excluded.time_block_end,
@@ -447,13 +466,13 @@ begin
       end if;
 
     elsif tbl = 'goal' then
-      select updated_at into existing_updated from public.goals where id = rid and user_id = auth.uid();
+      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.goals where id = rid and user_id = auth.uid();
       if found and existing_updated > edited_ts then
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
-        insert into public.goals (id, user_id, title, type, parent_id, life_area,
+        insert into public.goals (id, user_id, edited_at, title, type, parent_id, life_area,
           why_it_matters, progress, status, target_date, deleted)
-        values (rid, auth.uid(),
+        values (rid, auth.uid(), edited_ts,
           coalesce(nullif(p->>'title', ''), ''),
           coalesce(nullif(p->>'type', ''), 'week'),
           nullif(p->>'parentId', '')::uuid,
@@ -465,6 +484,7 @@ begin
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
+          edited_at = excluded.edited_at,
           title = excluded.title, type = excluded.type, parent_id = excluded.parent_id,
           life_area = excluded.life_area, why_it_matters = excluded.why_it_matters,
           progress = excluded.progress, status = excluded.status,
@@ -476,12 +496,12 @@ begin
       end if;
 
     elsif tbl = 'habit' then
-      select updated_at into existing_updated from public.habits where id = rid and user_id = auth.uid();
+      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.habits where id = rid and user_id = auth.uid();
       if found and existing_updated > edited_ts then
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
-        insert into public.habits (id, user_id, name, emoji, frequency, target_per_day, active, deleted)
-        values (rid, auth.uid(),
+        insert into public.habits (id, user_id, edited_at, name, emoji, frequency, target_per_day, active, deleted)
+        values (rid, auth.uid(), edited_ts,
           coalesce(nullif(p->>'name', ''), ''),
           nullif(p->>'emoji', ''),
           coalesce(nullif(p->>'frequency', ''), 'daily'),
@@ -490,6 +510,7 @@ begin
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
+          edited_at = excluded.edited_at,
           name = excluded.name, emoji = excluded.emoji, frequency = excluded.frequency,
           target_per_day = excluded.target_per_day, active = excluded.active, deleted = excluded.deleted
         where public.habits.user_id = auth.uid();
@@ -497,31 +518,32 @@ begin
       end if;
 
     elsif tbl = 'habit_log' then
-      select updated_at into existing_updated from public.habit_logs where id = rid and user_id = auth.uid();
+      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.habit_logs where id = rid and user_id = auth.uid();
       if found and existing_updated > edited_ts then
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
-        insert into public.habit_logs (id, user_id, habit_id, date, count, deleted)
-        values (rid, auth.uid(),
+        insert into public.habit_logs (id, user_id, edited_at, habit_id, date, count, deleted)
+        values (rid, auth.uid(), edited_ts,
           nullif(p->>'habitId', '')::uuid,
           nullif(p->>'date', '')::date,
           coalesce(nullif(p->>'count', '')::int, 0),
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
+          edited_at = excluded.edited_at,
           habit_id = excluded.habit_id, date = excluded.date, count = excluded.count, deleted = excluded.deleted
         where public.habit_logs.user_id = auth.uid();
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
       end if;
 
     elsif tbl = 'review' then
-      select updated_at into existing_updated from public.reviews where id = rid and user_id = auth.uid();
+      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.reviews where id = rid and user_id = auth.uid();
       if found and existing_updated > edited_ts then
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
-        insert into public.reviews (id, user_id, type, period_start, period_end, wins,
+        insert into public.reviews (id, user_id, edited_at, type, period_start, period_end, wins,
           failures, lesson, mood, energy, next_priorities, attachments, deleted)
-        values (rid, auth.uid(),
+        values (rid, auth.uid(), edited_ts,
           coalesce(nullif(p->>'type', ''), 'daily'),
           nullif(p->>'periodStart', '')::date,
           nullif(p->>'periodEnd', '')::date,
@@ -535,6 +557,7 @@ begin
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
+          edited_at = excluded.edited_at,
           type = excluded.type, period_start = excluded.period_start, period_end = excluded.period_end,
           wins = excluded.wins, failures = excluded.failures, lesson = excluded.lesson,
           mood = excluded.mood, energy = excluded.energy, next_priorities = excluded.next_priorities,
@@ -544,30 +567,31 @@ begin
       end if;
 
     elsif tbl = 'project' then
-      select updated_at into existing_updated from public.projects where id = rid and user_id = auth.uid();
+      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.projects where id = rid and user_id = auth.uid();
       if found and existing_updated > edited_ts then
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
-        insert into public.projects (id, user_id, title, color, archived, deleted)
-        values (rid, auth.uid(),
+        insert into public.projects (id, user_id, edited_at, title, color, archived, deleted)
+        values (rid, auth.uid(), edited_ts,
           coalesce(nullif(p->>'title', ''), ''),
           coalesce(nullif(p->>'color', ''), 'coral'),
           coalesce(nullif(p->>'archived', '')::boolean, false),
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
+          edited_at = excluded.edited_at,
           title = excluded.title, color = excluded.color, archived = excluded.archived, deleted = excluded.deleted
         where public.projects.user_id = auth.uid();
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
       end if;
 
     elsif tbl = 'drawing' then
-      select updated_at into existing_updated from public.drawings where id = rid and user_id = auth.uid();
+      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.drawings where id = rid and user_id = auth.uid();
       if found and existing_updated > edited_ts then
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
-        insert into public.drawings (id, user_id, title, kind, data_url, text, format, attachments, folder_id, deleted)
-        values (rid, auth.uid(),
+        insert into public.drawings (id, user_id, edited_at, title, kind, data_url, text, format, attachments, folder_id, deleted)
+        values (rid, auth.uid(), edited_ts,
           coalesce(nullif(p->>'title', ''), ''),
           coalesce(nullif(p->>'kind', ''), 'draw'),
           nullif(p->>'dataUrl', ''),
@@ -578,6 +602,7 @@ begin
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
+          edited_at = excluded.edited_at,
           title = excluded.title, kind = excluded.kind, data_url = excluded.data_url,
           text = excluded.text, format = excluded.format, attachments = excluded.attachments,
           folder_id = excluded.folder_id, deleted = excluded.deleted
@@ -586,12 +611,12 @@ begin
       end if;
 
     elsif tbl = 'folder' then
-      select updated_at into existing_updated from public.sketch_folders where id = rid and user_id = auth.uid();
+      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.sketch_folders where id = rid and user_id = auth.uid();
       if found and existing_updated > edited_ts then
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
-        insert into public.sketch_folders (id, user_id, name, parent_id, cover, cover_y, cover_h, deleted)
-        values (rid, auth.uid(),
+        insert into public.sketch_folders (id, user_id, edited_at, name, parent_id, cover, cover_y, cover_h, deleted)
+        values (rid, auth.uid(), edited_ts,
           coalesce(nullif(p->>'name', ''), ''),
           nullif(p->>'parentId', '')::uuid,
           nullif(p->>'cover', ''),
@@ -600,6 +625,7 @@ begin
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
+          edited_at = excluded.edited_at,
           name = excluded.name, parent_id = excluded.parent_id, cover = excluded.cover, cover_y = excluded.cover_y, cover_h = excluded.cover_h,
           deleted = excluded.deleted
         where public.sketch_folders.user_id = auth.uid();
@@ -642,7 +668,7 @@ as $$
         'goalId', goal_id, 'projectId', project_id, 'isMit', is_mit,
         'sortOrder', sort_order, 'reminderDaysBefore', reminder_days_before,
         'recurrence', recurrence, 'seriesId', series_id,
-        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
       )
     ) as rec
     from public.tasks where user_id = auth.uid() and updated_at > since
@@ -653,7 +679,7 @@ as $$
         'title', title, 'type', type, 'parentId', parent_id,
         'lifeArea', life_area, 'whyItMatters', why_it_matters,
         'progress', progress, 'status', status, 'targetDate', target_date,
-        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
       )
     )
     from public.goals where user_id = auth.uid() and updated_at > since
@@ -663,7 +689,7 @@ as $$
       'data', jsonb_build_object(
         'name', name, 'emoji', emoji, 'frequency', frequency,
         'targetPerDay', target_per_day, 'active', active,
-        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
       )
     )
     from public.habits where user_id = auth.uid() and updated_at > since
@@ -672,7 +698,7 @@ as $$
       'table', 'habit_log', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
       'data', jsonb_build_object(
         'habitId', habit_id, 'date', date, 'count', count,
-        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
       )
     )
     from public.habit_logs where user_id = auth.uid() and updated_at > since
@@ -683,7 +709,7 @@ as $$
         'type', type, 'periodStart', period_start, 'periodEnd', period_end,
         'wins', wins, 'failures', failures, 'lesson', lesson, 'mood', mood,
         'energy', energy, 'nextPriorities', next_priorities, 'attachments', attachments,
-        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
       )
     )
     from public.reviews where user_id = auth.uid() and updated_at > since
@@ -692,7 +718,7 @@ as $$
       'table', 'project', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
       'data', jsonb_build_object(
         'title', title, 'color', color, 'archived', archived,
-        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
       )
     )
     from public.projects where user_id = auth.uid() and updated_at > since
@@ -702,7 +728,7 @@ as $$
       'data', jsonb_build_object(
         'title', title, 'kind', kind, 'dataUrl', data_url, 'text', text,
         'format', format, 'attachments', attachments, 'folderId', folder_id,
-        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
       )
     )
     from public.drawings where user_id = auth.uid() and updated_at > since
@@ -711,7 +737,7 @@ as $$
       'table', 'folder', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
       'data', jsonb_build_object(
         'name', name, 'parentId', parent_id, 'cover', cover, 'coverY', cover_y, 'coverH', cover_h,
-        'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
+        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
       )
     )
     from public.sketch_folders where user_id = auth.uid() and updated_at > since
@@ -744,6 +770,67 @@ alter function public.recalc_goal(uuid) set search_path = public;
 alter function public.set_updated_at() set search_path = public;
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+-- ------------------------------------------------------------
+-- Live sync: one tiny row per user, bumped whenever any of their rows
+-- change. Devices subscribe to it over Supabase Realtime and pull right
+-- away, instead of waiting for the 60s poll. A dedicated signal table keeps
+-- realtime messages tiny — subscribing to the data tables directly would
+-- push whole multi-MB notes through Realtime on every save.
+-- ------------------------------------------------------------
+create table if not exists public.sync_signals (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  changed_at timestamptz not null default now()
+);
+alter table public.sync_signals enable row level security;
+drop policy if exists "read own signal" on public.sync_signals;
+create policy "read own signal" on public.sync_signals for select using (user_id = auth.uid());
+grant select on public.sync_signals to authenticated;
+
+create or replace function public.bump_sync_signal()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.sync_signals (user_id, changed_at) values (new.user_id, now())
+  on conflict (user_id) do update set changed_at = excluded.changed_at;
+  return null;
+end;
+$$;
+revoke execute on function public.bump_sync_signal() from public, anon, authenticated;
+drop trigger if exists bump_sync_signal on public.tasks;
+create trigger bump_sync_signal after insert or update on public.tasks
+  for each row execute function public.bump_sync_signal();
+drop trigger if exists bump_sync_signal on public.goals;
+create trigger bump_sync_signal after insert or update on public.goals
+  for each row execute function public.bump_sync_signal();
+drop trigger if exists bump_sync_signal on public.habits;
+create trigger bump_sync_signal after insert or update on public.habits
+  for each row execute function public.bump_sync_signal();
+drop trigger if exists bump_sync_signal on public.habit_logs;
+create trigger bump_sync_signal after insert or update on public.habit_logs
+  for each row execute function public.bump_sync_signal();
+drop trigger if exists bump_sync_signal on public.reviews;
+create trigger bump_sync_signal after insert or update on public.reviews
+  for each row execute function public.bump_sync_signal();
+drop trigger if exists bump_sync_signal on public.projects;
+create trigger bump_sync_signal after insert or update on public.projects
+  for each row execute function public.bump_sync_signal();
+drop trigger if exists bump_sync_signal on public.drawings;
+create trigger bump_sync_signal after insert or update on public.drawings
+  for each row execute function public.bump_sync_signal();
+drop trigger if exists bump_sync_signal on public.sketch_folders;
+create trigger bump_sync_signal after insert or update on public.sketch_folders
+  for each row execute function public.bump_sync_signal();
+
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables
+                 where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'sync_signals') then
+    alter publication supabase_realtime add table public.sync_signals;
+  end if;
+end $$;
 
 -- ------------------------------------------------------------
 -- Attachment files (Supabase Storage). Non-image attachments on reviews and

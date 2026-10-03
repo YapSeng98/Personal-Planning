@@ -8,6 +8,7 @@ import { isAuthed, syncPush, syncPull, type PushItem } from './api'
 import { syncAiUrl } from '../lib/ai'
 import { uploadPendingFiles } from '../lib/files'
 import { slimDrawing, slimReview, sizeBreakdown } from '../lib/compact'
+import { startLiveSync } from './live'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
 
@@ -99,6 +100,7 @@ export async function syncNow(): Promise<void> {
     return
   }
   running = true
+  startLiveSync(() => syncNow())
   setState('syncing')
   const problems: string[] = []
   try {
@@ -276,5 +278,12 @@ export function startSyncLoop() {
   syncNow()
   window.addEventListener('online', () => syncNow())
   window.addEventListener('offline', () => setState('offline'))
+  // Coming back to the app (tab switch, unlocking the phone) catches up at
+  // once rather than at the next poll.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow() })
+  window.addEventListener('focus', () => syncNow())
+  // Changes from other devices arrive within a second or two over
+  // Realtime; the poll stays as a safety net if the socket drops.
+  startLiveSync(() => syncNow())
   setInterval(syncNow, 60_000)
 }

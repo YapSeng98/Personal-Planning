@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { db, cleanupDuplicateRecurringTasks } from '../db/db'
 import { isAuthed, currentUser, clearTokens, serverLogout, changePassword } from '../sync/api'
 import { syncNow, onSyncState, type SyncState } from '../sync/engine'
+import { stopLiveSync } from '../sync/live'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { getAiUrl, setAiUrl, askAI } from '../lib/ai'
@@ -110,6 +111,7 @@ export default function Settings() {
       ? t(unsynced === 1 ? 'set.logoutUnsynced' : 'set.logoutUnsyncedPlural', { n: unsynced })
       : offlineMode ? t('set.exitConfirm') : t('set.logoutConfirm')
     if (!window.confirm(msg)) return
+    stopLiveSync()
     if (isAuthed()) await serverLogout()
     clearTokens()
     localStorage.removeItem('offline_mode')
