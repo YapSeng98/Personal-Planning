@@ -159,9 +159,8 @@ export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: str
             ))}
           </div>
           <button type="button" className={`sketch-tool-btn ${tool === 'eraser' ? 'on' : ''}`} onClick={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}>{t('sketch.eraser')}</button>
-          <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo}>{t('sketch.undo')}</button>
-          <button type="button" className="sketch-tool-btn" onClick={redo} disabled={!canRedo}>{t('sketch.redo')}</button>
-          <button type="button" className="sketch-tool-btn" onClick={clear}>{t('sketch.clear')}</button>
+          <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo} aria-label={t('sketch.undo')} title={t('sketch.undo')}>↶</button>
+          <button type="button" className="sketch-tool-btn" onClick={redo} disabled={!canRedo} aria-label={t('sketch.redo')} title={t('sketch.redo')}>↷</button>
           <button type="button" className="fv-close" style={{ marginLeft: 'auto' }} onClick={onClose} aria-label={t('common.close')}><Icon name="close" size={18} /></button>
         </div>
         <div className="drawpad-body">
@@ -175,6 +174,7 @@ export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: str
           />
         </div>
         <div className="drawpad-foot">
+          <button type="button" className="btn drawpad-clear" onClick={clear}>{t('sketch.clear')}</button>
           <button type="button" className="btn" onClick={onClose}>{t('common.cancel')}</button>
           <button type="button" className="btn btn-primary" onClick={insert}>{t('sketch.insertDrawing')}</button>
         </div>

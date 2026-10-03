@@ -2,6 +2,12 @@
 
 .shell { display: flex; min-height: 100dvh; }
 .shell-main { flex: 1; min-width: 0; padding: 1.2rem 1.2rem 6rem; max-width: 860px; margin: 0 auto; }
+/* Phones: room under the last item for the bottom nav + floating Add
+   button (≈ 66 + 56 + gap), so nothing ends up permanently under it. */
+@media (max-width: 639px) {
+  .shell-main { padding-bottom: calc(9.5rem + env(safe-area-inset-bottom)); }
+  .shell-main:has(.ql-orbit) { padding-bottom: calc(13rem + env(safe-area-inset-bottom)); }
+}
 /* Mobile-only: the fixed search/gear circles float in the top corners over
    the page — without this, a page-head action button (e.g. Sketches'
    Delete) sits right underneath them and gets visually clipped/overlapped. */
@@ -488,19 +494,22 @@ button.title-btn:hover { color: var(--accent-bright); }
   padding: 0.6rem 0.8rem; cursor: pointer; text-align: left; font-size: 0.9rem; color: var(--text-2); }
 .chip-toggle.on { border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright);
   background: var(--accent-wash); color: var(--text-1); }
-.page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; row-gap: 0.8rem; }
 
 /* ---- Reviews + goal edit ---- */
 .tabs { display: flex; gap: 0.5rem; margin: 1.1rem 0 0.2rem; flex-wrap: wrap; }
+/* Narrow phones: Daily / Weekly / Monthly / Yearly on one row. */
+@media (max-width: 400px) { .tabs { gap: 0.35rem; } .tabs .tab { padding: 0.35rem 0.75rem; } }
 .tab { border: 1px solid var(--hairline); background: var(--glass); border-radius: 999px;
   padding: 0.35rem 0.95rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; color: var(--text-2); }
 .tab.on { background: var(--grad); color: var(--on-grad); border-color: transparent; }
 textarea.field { background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
   padding: 0.7rem 0.9rem; width: 100%; min-height: 72px; resize: vertical; color: var(--text-1);
   font-size: 0.92rem; font-family: inherit; }
-.mood-row { display: flex; gap: 0.5rem; align-items: center; }
+.mood-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; row-gap: 0.7rem; }
 .mood-btn { font-size: 1.3rem; background: var(--glass); border: 1px solid var(--hairline);
   border-radius: 12px; padding: 0.3rem 0.55rem; cursor: pointer; opacity: 0.45; transition: opacity 150ms var(--ease); }
+@media (max-width: 400px) { .mood-btn { padding: 0.3rem 0.45rem; } .mood-row { gap: 0.4rem; } }
 .mood-btn.on { opacity: 1; border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright); }
 .energy-row { display: flex; gap: 0.4rem; margin-left: auto; }
 .dot { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--hairline);
@@ -1014,6 +1023,9 @@ button.goal-card:hover { transform: translateY(-2px); }
 /* ---- Habit detail page ---- */
 .hd-title-wrap { min-width: 0; }
 .hd-title-row { display: flex; align-items: center; gap: 0.6rem; }
+/* The title takes the free space beside the header's buttons, so a short
+   title like "💧 Drink water" stays on one line on phones. */
+.page-head > .hd-title-wrap { flex: 1 1 auto; }
 .hd-back { flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--hairline);
   background: var(--glass); color: var(--text-1); font-size: 1.4rem; line-height: 1; cursor: pointer;
   display: flex; align-items: center; justify-content: center; font-family: inherit; }
@@ -1096,7 +1108,7 @@ button.goal-card:hover { transform: translateY(-2px); }
 /* Phones: Sketches header stacks — title (and folder path) full width, the
    Draw / Type / Folder buttons on their own row underneath. */
 @media (max-width: 640px) {
-  .page-head:has(.sketch-new-row) { flex-direction: column; align-items: stretch; gap: 0.8rem; }
+  .page-head:has(.sketch-new-row) { flex-direction: column; align-items: stretch; gap: 0.8rem; flex-wrap: nowrap; }
   .page-head .hd-title-wrap { width: 100%; }
 }
 .sketch-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.55rem 0.7rem; }
@@ -1111,7 +1123,8 @@ button.goal-card:hover { transform: translateY(-2px); }
 }
 .sketch-del:hover { opacity: 1; background: var(--glass-strong); color: var(--danger); }
 
-.sketch-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.7rem; margin: 0.6rem 0 1.2rem; }
+/* Wide enough that a folder name like "Product Knowledge Library" shows in full beside its count and buttons. */
+.sketch-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 0.7rem; margin: 0.6rem 0 1.2rem; }
 .sketch-folder-card { padding: 0; display: flex; align-items: center; gap: 0.2rem; transition: transform 180ms var(--ease), border-color 180ms var(--ease); }
 .sketch-folder-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent-bright) 30%, var(--hairline)); }
 .sketch-folder-open {
@@ -1131,13 +1144,16 @@ button.goal-card:hover { transform: translateY(-2px); }
 .sketch-detail-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 1; min-width: 0; }
 /* The title gets the room; a long folder path ("A / B / C") shortens with
    an ellipsis instead of squeezing the title input to nothing. */
-.sketch-detail-head .hd-title-wrap { flex: 1; min-width: 0; }
+.sketch-detail-head .hd-title-wrap { flex: 1 1 280px; min-width: 0; }  /* below ~280px of title room, the folder picker + Delete wrap underneath */
 .sketch-detail-actions .sel { min-width: 0; max-width: 260px; }
 .sketch-detail-actions .sel-btn { max-width: 100%; }
 .sketch-detail-actions .sel-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .sketch-detail-actions .btn { flex-shrink: 0; }
 @media (max-width: 640px) {
-  .sketch-detail-head { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+  /* nowrap: in a wrapping column, "stretch" sizes items to the widest one's
+     content (a long folder path) instead of the screen, pushing it sideways. */
+  .sketch-detail-head { flex-direction: column; align-items: stretch; gap: 0.6rem; flex-wrap: nowrap; }
+  .sketch-detail-head .hd-title-wrap { flex: 0 0 auto; }  /* the 280px basis is a width rule — stacked, it would become a height */
   .sketch-detail-actions .sel { flex: 1; max-width: none; }
 }
 .hd-title-icon { color: var(--accent-bright); vertical-align: -3px; margin-right: 0.1rem; }
@@ -1166,7 +1182,11 @@ button.goal-card:hover { transform: translateY(-2px); }
 @media (max-width: 640px) {
   .sketch-tools { gap: 0.3rem; }
   .sketch-tool-btn { padding: 0.4rem 0.55rem; }
-  .sketch-rich-toolbar .sketch-tools { width: 100%; justify-content: space-between; }
+  /* Typed note: B I U list undo redo draw image file share one even row
+     (grid columns shrink to fit even a 360px screen) instead of wrapping
+     one or two buttons onto a ragged second line. */
+  .sketch-rich-toolbar .sketch-tools { width: 100%; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+  .sketch-rich-toolbar .sketch-tool-btn { padding: 0.45rem 0; text-align: center; min-width: 0; }
 }
 .sketch-tool-btn {
   border: 1px solid var(--hairline); background: var(--glass); border-radius: 10px; padding: 0.4rem 0.7rem;
@@ -1258,6 +1278,7 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 .drawpad-body { flex: 1; min-height: 0; padding: 12px; background: var(--glass); display: flex; }
 .drawpad-canvas { flex: 1; width: 100%; height: 100%; background: #fff; border-radius: 12px; border: 1px solid var(--hairline);
   touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: crosshair; }
+.drawpad-clear { margin-right: auto; }
 .drawpad-foot { display: flex; justify-content: flex-end; gap: 0.6rem; padding: 0.7rem 1rem calc(0.7rem + env(safe-area-inset-bottom));
   border-top: 1px solid var(--hairline); }
 .fv-backdrop { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,0.75); display: flex;
