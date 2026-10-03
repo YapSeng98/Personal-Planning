@@ -4,7 +4,8 @@
 // isn't built yet (404) or we're offline, the app keeps working locally.
 
 import { db, notifyChange, cleanEmoji, writeAndQueue, type DrawingNote, type Review } from '../db/db'
-import { isAuthed, syncPush, syncPull, type PushItem } from './api'
+import { isAuthed, syncPush, syncPull, localDataOwner, setLocalDataOwner, type PushItem } from './api'
+import { supabase } from './supabase'
 import { syncAiUrl } from '../lib/ai'
 import { uploadPendingFiles } from '../lib/files'
 import { slimDrawing, slimReview, sizeBreakdown, MAX_SLIM_LEVEL } from '../lib/compact'
@@ -102,6 +103,16 @@ export async function syncNow(): Promise<void> {
   running = true
   startLiveSync(() => syncNow())
   setState('syncing')
+  // Installs from before ownership was tracked: the data here belongs to
+  // whoever is signed in now (one account per device until then).
+  if (!localDataOwner()) {
+    try {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) setLocalDataOwner(data.session.user.id)
+    } catch {
+      // try again next sync
+    }
+  }
   const problems: string[] = []
   try {
     // 0a. A queued note/review too big to send (saved before files moved to

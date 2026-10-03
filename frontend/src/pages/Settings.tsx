@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { db, cleanupDuplicateRecurringTasks } from '../db/db'
-import { isAuthed, currentUser, clearTokens, serverLogout, changePassword } from '../sync/api'
+import { isAuthed, currentUser, clearTokens, serverLogout, changePassword, setLocalDataOwner } from '../sync/api'
 import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { stopLiveSync } from '../sync/live'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
@@ -113,6 +113,7 @@ export default function Settings() {
     if (!window.confirm(msg)) return
     stopLiveSync()
     clearAiUrlLocal()
+    setLocalDataOwner(null)
     if (isAuthed()) await serverLogout()
     clearTokens()
     localStorage.removeItem('offline_mode')

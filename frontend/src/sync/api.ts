@@ -74,13 +74,28 @@ export async function changePassword(newPassword: string) {
   if (error) throw new Error(error.message)
 }
 
-/** Best-effort server logout; local cleanup is the caller's job. */
+/** Best-effort server logout; local cleanup is the caller's job. Only THIS
+    device's session ends — supabase-js's default ('global') revoked every
+    session of the account, silently signing out the user's other devices
+    (their edits then stopped syncing). */
 export async function serverLogout() {
   try {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: 'local' })
   } catch {
     // offline or already dead — fine, we're leaving anyway
   }
+}
+
+/** Which account the data stored on this device belongs to. Signing in as a
+    different account (e.g. after a session expired without logging out)
+    must not show — or push — the previous account's local data. */
+export const DATA_OWNER_KEY = 'planner_data_owner'
+export function localDataOwner(): string | null {
+  return localStorage.getItem(DATA_OWNER_KEY)
+}
+export function setLocalDataOwner(uid: string | null) {
+  if (uid) localStorage.setItem(DATA_OWNER_KEY, uid)
+  else localStorage.removeItem(DATA_OWNER_KEY)
 }
 
 // ---- Planner sync (Postgres functions in supabase/schema.sql) ----
