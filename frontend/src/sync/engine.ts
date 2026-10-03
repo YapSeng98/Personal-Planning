@@ -7,7 +7,7 @@ import { db, notifyChange, cleanEmoji, writeAndQueue, type DrawingNote, type Rev
 import { isAuthed, syncPush, syncPull, type PushItem } from './api'
 import { syncAiUrl } from '../lib/ai'
 import { uploadPendingFiles } from '../lib/files'
-import { slimDrawing, slimReview, sizeBreakdown } from '../lib/compact'
+import { slimDrawing, slimReview, sizeBreakdown, MAX_SLIM_LEVEL } from '../lib/compact'
 import { startLiveSync } from './live'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
@@ -118,8 +118,15 @@ export async function syncNow(): Promise<void> {
       if (!rec || JSON.stringify(buildPayload(e.table, rec as never)).length <= MAX_RECORD_BYTES) continue
       try {
         if (e.table === 'drawing') {
-          const slim = await slimDrawing(rec as DrawingNote)
-          if (slim) await writeAndQueue(db.drawings, 'drawing', slim)
+          // Squeeze harder step by step until it fits (many compact photos
+          // in one note need more than the normal pass).
+          let cur = rec as DrawingNote
+          for (let level = 0; level <= MAX_SLIM_LEVEL; level++) {
+            const slim = await slimDrawing(cur, level)
+            if (slim) cur = slim
+            if (JSON.stringify(buildPayload('drawing', cur as never)).length <= MAX_RECORD_BYTES) break
+          }
+          if (cur !== rec) await writeAndQueue(db.drawings, 'drawing', cur)
         } else {
           const slim = await slimReview(rec as Review)
           if (slim) await writeAndQueue(db.reviews, 'review', slim)

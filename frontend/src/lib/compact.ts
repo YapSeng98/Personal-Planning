@@ -40,23 +40,36 @@ async function slimAttachments(list: NoteAttachment[] | undefined): Promise<Note
   return out
 }
 
+/** How hard to squeeze when a note is still too big to sync: level 0 is the
+    normal pass (only oversized originals); 1 and 2 re-encode every image
+    over 200 KB smaller — for notes holding many already-compact photos. */
+const LEVELS = [null, { side: 1600, q: 0.8 }, { side: 1280, q: 0.72 }] as const
+export const MAX_SLIM_LEVEL = LEVELS.length - 1
+
 /** Images embedded in a note's HTML: shrink the big ones; anything still
     huge afterwards (GIF, etc.) is re-encoded as JPEG regardless. */
-async function slimNoteHtml(text: string | undefined): Promise<string | undefined> {
+async function slimNoteHtml(text: string | undefined, level = 0): Promise<string | undefined> {
   if (!text || text.length <= BIG) return text
+  const lv = LEVELS[level]
   let out = text
   for (const [, src] of text.matchAll(IMG_SRC)) {
-    if (!worthShrinking(src)) continue
-    let small = await shrinkDataUrl(src)
-    if (small.length > BIG_JPEG) small = await shrinkDataUrl(small, true)
+    let small = src
+    if (lv) {
+      if (src.length <= 200 * 1024) continue
+      small = await shrinkDataUrl(src, true, lv.side, lv.q)
+    } else {
+      if (!worthShrinking(src)) continue
+      small = await shrinkDataUrl(src)
+      if (small.length > BIG_JPEG) small = await shrinkDataUrl(small, true)
+    }
     if (small !== src) out = out.replace(src, small)
   }
   return out
 }
 
 /** A slimmer copy of the record, or null if there was nothing to do. */
-export async function slimDrawing(d: DrawingNote): Promise<DrawingNote | null> {
-  const text = await slimNoteHtml(d.text)
+export async function slimDrawing(d: DrawingNote, level = 0): Promise<DrawingNote | null> {
+  const text = await slimNoteHtml(d.text, level)
   const attachments = await slimAttachments(d.attachments)
   let dataUrl = d.dataUrl
   if (dataUrl && dataUrl.length > 2 * 1024 * 1024) dataUrl = await shrinkDataUrl(dataUrl, true)
