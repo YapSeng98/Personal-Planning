@@ -729,3 +729,14 @@ alter function public.recalc_goal(uuid) set search_path = public;
 alter function public.set_updated_at() set search_path = public;
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+-- ------------------------------------------------------------
+-- Statement timeout for signed-in users: Supabase's default is 8s, and a
+-- record carrying a few MB of images/files (review attachments, Sketches
+-- notes) can take longer than that to write — measured 4-6 MB pushes
+-- landing anywhere from 5s to 12s depending on server load. 60s gives big
+-- records (the app allows up to 8 MB, see MAX_RECORD_BYTES in
+-- frontend/src/sync/engine.ts) and a new device's first full pull room.
+-- ------------------------------------------------------------
+alter role authenticated set statement_timeout = '60s';
+notify pgrst, 'reload config';

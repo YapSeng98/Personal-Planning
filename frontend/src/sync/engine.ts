@@ -62,10 +62,12 @@ function buildPayload(table: keyof typeof tableMap, rec: Record<string, unknown>
   return out
 }
 
-// A record bigger than this isn't sent: the server's statement timeout
-// cancels writes somewhere around 3-4 MB (measured), and retrying a doomed
-// multi-MB upload every minute just loads the database for nothing.
-const MAX_RECORD_BYTES = 2.5 * 1024 * 1024
+// A record bigger than this isn't sent — retrying a doomed huge upload every
+// minute just loads the database. The server allows 60s per statement
+// (supabase/schema.sql; Supabase's 8s default cancelled 4-6 MB writes).
+// Measured after raising it: 8 MB ≈ 20s, 10 MB ≈ 80s or a gateway error —
+// so 8 MB is the practical ceiling.
+const MAX_RECORD_BYTES = 8 * 1024 * 1024
 // Records are pushed in batches up to this size, so one bad record only
 // fails its own batch instead of blocking every other change.
 const BATCH_BYTES = 1024 * 1024
