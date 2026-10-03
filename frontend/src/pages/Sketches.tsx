@@ -8,6 +8,7 @@ import FolderForm from '../components/FolderForm'
 import FolderCover from '../components/FolderCover'
 import Icon from '../components/Icon'
 import { childFolders, folderPath, subtreeIds } from '../lib/folders'
+import { deleteStoredFiles } from '../lib/files'
 
 export default function Sketches() {
   const { folderId } = useParams<{ folderId?: string }>()
@@ -53,6 +54,7 @@ export default function Sketches() {
     e.preventDefault()
     e.stopPropagation()
     if (!window.confirm(t('sketch.deleteConfirm', { title: d.title || t('sketch.untitled') }))) return
+    deleteStoredFiles(d.attachments)
     const tombstone: DrawingNote = { ...d, deleted: 1, updatedAt: Date.now() }
     await writeAndQueue(db.drawings, 'drawing', tombstone)
     syncNow()

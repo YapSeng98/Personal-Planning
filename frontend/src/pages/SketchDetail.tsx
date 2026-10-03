@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { shrinkImage, MAX_FILE_BYTES } from '../lib/attach'
+import { shrinkImage } from '../lib/attach'
+import { storeFile, deleteStoredFiles, MAX_STORED_BYTES } from '../lib/files'
+import AttachmentChip from '../components/AttachmentChip'
 import { folderOptions } from '../lib/folders'
-import { db, uuid, writeAndQueue, type DrawingNote, type NoteAttachment, type SketchFolder } from '../db/db'
+import { db, writeAndQueue, type DrawingNote, type NoteAttachment, type SketchFolder } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { toEditorHtml } from '../lib/noteHtml'
@@ -254,15 +256,6 @@ export default function SketchDetail() {
     document.execCommand(cmd)
   }
 
-  function readAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = () => reject(reader.error)
-      reader.readAsDataURL(file)
-    })
-  }
-
   /** Appended at the end rather than at the caret: opening the native file
       picker makes where the caret was unreliable to restore across browsers. */
   async function addImage(file: File) {
@@ -295,10 +288,11 @@ export default function SketchDetail() {
         } else {
           await addImage(file)
         }
-      } else if (file.size > MAX_FILE_BYTES) {
+      } else if (file.size > MAX_STORED_BYTES) {
         setAttachErr(t('rev.attachTooBig', { name: file.name }))
       } else {
-        added.push({ id: uuid(), name: file.name, type: file.type, dataUrl: await readAsDataUrl(file) })
+        // Non-image files go to Storage, not inline in the note.
+        added.push(await storeFile(file))
       }
     }
     // Read the latest list from the ref — several files arrive in one go, and
@@ -309,6 +303,7 @@ export default function SketchDetail() {
   }
 
   async function removeAttachment(attId: string) {
+    deleteStoredFiles(attachments.filter((a) => a.id === attId))
     const next = attachments.filter((a) => a.id !== attId)
     setAttachments(next)
     await autosaveText(undefined, next)
@@ -336,6 +331,7 @@ export default function SketchDetail() {
     if (!window.confirm(t('sketch.deleteConfirm', { title: title || t('sketch.untitled') }))) return
     const existing = await db.drawings.get(id)
     if (existing) {
+      deleteStoredFiles(existing.attachments)
       await writeAndQueue(db.drawings, 'drawing', { ...existing, deleted: 1, updatedAt: Date.now() })
       syncNow()
     }
@@ -428,13 +424,7 @@ export default function SketchDetail() {
           {attachments.length > 0 && (
             <div className="sketch-attachments">
               {attachments.map((a) => (
-                <div key={a.id} className="sketch-attachment-chip">
-                  <a className="sketch-attachment-link" href={a.dataUrl} download={a.name} target="_blank" rel="noopener noreferrer">
-                    <span className="sketch-attachment-icon">{a.type.startsWith('image/') ? '🖼️' : '📎'}</span>
-                    <span className="sketch-attachment-name">{a.name}</span>
-                  </a>
-                  <button type="button" className="sketch-attachment-remove" onClick={() => removeAttachment(a.id)} aria-label={t('sketch.removeAttachment')}>×</button>
-                </div>
+                <AttachmentChip key={a.id} a={a} onRemove={() => removeAttachment(a.id)} />
               ))}
             </div>
           )}

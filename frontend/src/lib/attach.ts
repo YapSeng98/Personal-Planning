@@ -11,8 +11,6 @@ export function readAsDataUrl(file: Blob): Promise<string> {
   })
 }
 
-/** Non-image files above this are rejected — images get shrunk instead. */
-export const MAX_FILE_BYTES = 5 * 1024 * 1024 // keeps a record under the sync limit (engine.ts)
 const MAX_SIDE = 1920
 
 /** Screenshots come in as multi-MB PNGs; re-encode as a JPEG capped at

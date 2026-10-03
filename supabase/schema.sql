@@ -746,6 +746,31 @@ alter function public.set_updated_at() set search_path = public;
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 -- ------------------------------------------------------------
+-- Attachment files (Supabase Storage). Non-image attachments on reviews and
+-- Sketches notes live here instead of inline in the row — rows stay small,
+-- files can be up to 50 MB (free-plan ceiling). Private bucket; each user
+-- can only touch objects under their own "<user id>/" prefix. The record's
+-- attachments JSON keeps {id, name, type, size, stored: 1}; the object path
+-- is "<user id>/<attachment id>".
+-- ------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('attachments', 'attachments', false, 52428800)
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit;
+
+drop policy if exists "attachments: own files read" on storage.objects;
+create policy "attachments: own files read" on storage.objects for select to authenticated
+  using (bucket_id = 'attachments' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "attachments: own files insert" on storage.objects;
+create policy "attachments: own files insert" on storage.objects for insert to authenticated
+  with check (bucket_id = 'attachments' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "attachments: own files update" on storage.objects;
+create policy "attachments: own files update" on storage.objects for update to authenticated
+  using (bucket_id = 'attachments' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "attachments: own files delete" on storage.objects;
+create policy "attachments: own files delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'attachments' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ------------------------------------------------------------
 -- Statement timeout for signed-in users: Supabase's default is 8s, and a
 -- record carrying a few MB of images/files (review attachments, Sketches
 -- notes) can take longer than that to write — measured 4-6 MB pushes

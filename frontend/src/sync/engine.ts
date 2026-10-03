@@ -6,6 +6,7 @@
 import { db, notifyChange, cleanEmoji } from '../db/db'
 import { isAuthed, syncPush, syncPull, type PushItem } from './api'
 import { syncAiUrl } from '../lib/ai'
+import { uploadPendingFiles } from '../lib/files'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
 
@@ -100,6 +101,11 @@ export async function syncNow(): Promise<void> {
   setState('syncing')
   const problems: string[] = []
   try {
+    // 0. Upload attachment files first, so a record never reaches another
+    // device before the file it points at.
+    const uploadErr = await uploadPendingFiles().catch((e) => String(e))
+    if (uploadErr) problems.push(`Couldn't upload an attachment: ${uploadErr}`)
+
     // 1. Push: drain the outbox.
     const entries = await db.outbox.orderBy('seq').toArray()
     if (entries.length > 0) {

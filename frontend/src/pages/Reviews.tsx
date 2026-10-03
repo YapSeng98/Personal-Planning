@@ -4,7 +4,9 @@ import { syncNow } from '../sync/engine'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 import { useLang } from '../lib/i18n'
 import AutoTextarea from '../components/AutoTextarea'
-import { readAsDataUrl, shrinkImage, MAX_FILE_BYTES } from '../lib/attach'
+import { shrinkImage } from '../lib/attach'
+import { storeFile, deleteStoredFiles, MAX_STORED_BYTES } from '../lib/files'
+import AttachmentChip from '../components/AttachmentChip'
 
 type RType = Review['type']
 const TYPES: RType[] = ['daily', 'weekly', 'monthly', 'yearly']
@@ -153,16 +155,18 @@ export default function Reviews() {
           ? `screenshot-${new Date().toTimeString().slice(0, 8).replace(/:/g, '')}.${img.name.split('.').pop()}`
           : img.name
         added.push({ id: uuid(), ...img, name })
-      } else if (file.size > MAX_FILE_BYTES) {
+      } else if (file.size > MAX_STORED_BYTES) {
         setAttachErr(t('rev.attachTooBig', { name: file.name }))
       } else {
-        added.push({ id: uuid(), name: file.name, type: file.type, dataUrl: await readAsDataUrl(file) })
+        // Non-image files go to Storage, not inline in the review.
+        added.push(await storeFile(file))
       }
     }
     if (added.length) setForm((f) => ({ ...f, attachments: [...f.attachments, ...added] }))
   }
 
   function removeAttachment(id: string) {
+    deleteStoredFiles(form.attachments.filter((a) => a.id === id))
     setForm((f) => ({ ...f, attachments: f.attachments.filter((a) => a.id !== id) }))
   }
 
@@ -230,6 +234,7 @@ export default function Reviews() {
     savedKeyRef.current = formKey(blank)
     setForm({ ...blank })
     setExistingId(null)
+    deleteStoredFiles(r.attachments)
     const tombstone: Review = { ...r, deleted: 1, updatedAt: Date.now() }
     await writeAndQueue(db.reviews, 'review', tombstone)
     setAnchorDate(null)
@@ -436,13 +441,7 @@ export default function Reviews() {
             {form.attachments.some((a) => !a.type.startsWith('image/')) && (
               <div className="sketch-attachments rev-files">
                 {form.attachments.filter((a) => !a.type.startsWith('image/')).map((a) => (
-                  <div key={a.id} className="sketch-attachment-chip">
-                    <a className="sketch-attachment-link" href={a.dataUrl} download={a.name} target="_blank" rel="noopener noreferrer">
-                      <span className="sketch-attachment-icon">📎</span>
-                      <span className="sketch-attachment-name">{a.name}</span>
-                    </a>
-                    <button type="button" className="sketch-attachment-remove" onClick={() => removeAttachment(a.id)} aria-label={t('sketch.removeAttachment')}>×</button>
-                  </div>
+                  <AttachmentChip key={a.id} a={a} onRemove={() => removeAttachment(a.id)} />
                 ))}
               </div>
             )}

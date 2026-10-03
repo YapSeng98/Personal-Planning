@@ -149,7 +149,20 @@ export interface NoteAttachment {
   name: string
   /** MIME type, e.g. 'application/pdf' — used to pick the chip icon. */
   type: string
+  /** Inline content. Empty for a stored file (see `stored`). */
   dataUrl: string
+  /** 1 = the file lives in Supabase Storage at "<user id>/<id>" (and in the
+      local `files` table on devices that have it); see lib/files.ts. */
+  stored?: 1
+  /** Bytes — shown on the chip for stored files. */
+  size?: number
+}
+
+/** Local copy of a stored attachment's file. `pending` = not uploaded yet. */
+export interface LocalFile {
+  id: string
+  blob: Blob
+  pending: 0 | 1
 }
 
 export interface SketchFolder {
@@ -215,6 +228,7 @@ class PlannerDB extends Dexie {
   projects!: Table<Project, string>
   drawings!: Table<DrawingNote, string>
   folders!: Table<SketchFolder, string>
+  files!: Table<LocalFile, string>
   outbox!: Table<OutboxEntry, number>
   meta!: Table<Meta, string>
 
@@ -262,6 +276,8 @@ class PlannerDB extends Dexie {
         })
       }
     })
+    // v6: local copies of attachment files kept in Supabase Storage.
+    this.version(6).stores({ files: 'id, pending' })
   }
 }
 
