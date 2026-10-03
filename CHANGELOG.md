@@ -8,6 +8,11 @@ those.
 
 ## 2026-10-04
 
+- **Fixed: big old notes stuck with "too large to sync"** — notes and reviews
+  saved before files moved to Storage now slim themselves automatically:
+  attached files move to Storage, oversized images shrink. A 93 MB test note
+  went to 0.65 MB and synced, with its PDF still opening on another device.
+  ([74b96b0](https://github.com/YapSeng98/Personal-Planning/commit/74b96b0))
 - **Read attachments without downloading** — tap an attachment to open it in
   the app: PDFs (every page, scrollable — works on iPhone too), images,
   video, audio and text files. A Download button is there if you want the
