@@ -160,6 +160,8 @@ export interface SketchFolder {
   cover?: string
   /** Cover's vertical focus point, 0-100 (CSS background-position-y %). */
   coverY?: number
+  /** Banner height as % of its width; undefined = default fixed height. */
+  coverH?: number
   deleted: 0 | 1
   updatedAt: number
 }

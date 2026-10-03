@@ -28,6 +28,7 @@ export default function FolderForm({
         name: name.trim(),
         cover: folder?.cover,
         coverY: folder?.coverY,
+        coverH: folder?.coverH,
         deleted: 0,
         updatedAt: Date.now(),
       }

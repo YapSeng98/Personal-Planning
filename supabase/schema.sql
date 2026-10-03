@@ -263,6 +263,9 @@ create trigger set_updated_at before update on public.sketch_folders
 -- vertical focus point (0-100, CSS background-position-y %).
 alter table public.sketch_folders add column if not exists cover text;
 alter table public.sketch_folders add column if not exists cover_y int;
+-- Banner height as a percentage of its width (null = default fixed height),
+-- so it keeps the same shape on phone and desktop.
+alter table public.sketch_folders add column if not exists cover_h real;
 
 -- ------------------------------------------------------------
 -- drawings (Sketches feature: hand-drawn or typed notes). Was local-only
@@ -584,15 +587,16 @@ begin
       if found and existing_updated > edited_ts then
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
       else
-        insert into public.sketch_folders (id, user_id, name, cover, cover_y, deleted)
+        insert into public.sketch_folders (id, user_id, name, cover, cover_y, cover_h, deleted)
         values (rid, auth.uid(),
           coalesce(nullif(p->>'name', ''), ''),
           nullif(p->>'cover', ''),
           nullif(p->>'coverY', '')::int,
+          nullif(p->>'coverH', '')::real,
           coalesce(nullif(p->>'deleted', '')::boolean, false)
         )
         on conflict (id) do update set
-          name = excluded.name, cover = excluded.cover, cover_y = excluded.cover_y,
+          name = excluded.name, cover = excluded.cover, cover_y = excluded.cover_y, cover_h = excluded.cover_h,
           deleted = excluded.deleted
         where public.sketch_folders.user_id = auth.uid();
         results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
@@ -702,7 +706,7 @@ as $$
     select jsonb_build_object(
       'table', 'folder', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
       'data', jsonb_build_object(
-        'name', name, 'cover', cover, 'coverY', cover_y,
+        'name', name, 'cover', cover, 'coverY', cover_y, 'coverH', cover_h,
         'updatedAt', (extract(epoch from updated_at) * 1000)::bigint
       )
     )
