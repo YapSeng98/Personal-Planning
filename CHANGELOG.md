@@ -8,6 +8,10 @@ those.
 
 ## 2026-10-04
 
+- **Undo / Redo** — typed notes get ↶ ↷ buttons (and ⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z)
+  that also cover inserted drawings, image resizes and removed images; drawing
+  notes and the drawing pad get Redo next to Undo.
+  ([4505e4c](https://github.com/YapSeng98/Personal-Planning/commit/4505e4c))
 - **Smoother notes & faster sync** — typed notes save as you type (about a
   second after you pause) and when you switch apps; drawing notes no longer
   stutter by saving after every stroke. A note left open on another device
