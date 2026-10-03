@@ -291,6 +291,18 @@ export const db = new PlannerDB()
 export const uuid = () =>
   crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
 
+/** A UUID derived from `key` (same key → same id on every device). Used for
+    generated recurring occurrences: two devices rolling a series forward on
+    the same morning then produce the *same* row instead of two duplicates. */
+export async function uuidFrom(key: string): Promise<string> {
+  if (!crypto.subtle) return uuid()
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))).slice(0, 16)
+  h[6] = (h[6] & 0x0f) | 0x50 // version 5-style (name-based)
+  h[8] = (h[8] & 0x3f) | 0x80 // RFC 4122 variant
+  const x = [...h].map((b) => b.toString(16).padStart(2, '0')).join('')
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20)}`
+}
+
 const EMOJI_RE = /\p{Extended_Pictographic}/u
 const EMOJI_GUESS: [RegExp, string][] = [
   [/water|drink|hydrat/i, '💧'],
@@ -485,9 +497,14 @@ async function rollRecurringTasksInner() {
 
     const startTime = latest.timeBlockStart?.slice(11, 16)
     const endTime = latest.timeBlockEnd?.slice(11, 16)
+    // Same id on every device for this series + date (see uuidFrom) — and
+    // if this device already has it (e.g. synced from another device that
+    // rolled first, or deleted), leave it alone rather than overwrite.
+    const nextId = await uuidFrom(`${latest.seriesId}:${due}`)
+    if (await db.tasks.get(nextId)) continue
     const next: Task = {
       ...latest,
-      id: uuid(),
+      id: nextId,
       sysId: undefined,
       due,
       timeBlockStart: startTime ? `${due}T${startTime}` : undefined,

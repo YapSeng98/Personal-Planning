@@ -246,7 +246,14 @@ export async function syncNow(): Promise<void> {
         }
       }
       if (r.deleted) {
-        await table.delete(r.client_uuid)
+        if (r.table === 'task' && (data.seriesId || (local as { seriesId?: string } | undefined)?.seriesId)) {
+          // Keep a tombstone for recurring occurrences: their ids are derived
+          // from series + date (uuidFrom), so with the row gone this device
+          // would regenerate — and resurrect — the occurrence just deleted.
+          await table.put({ ...(local ?? {}), ...data, id: r.client_uuid, sysId: r.sys_id, deleted: 1 } as never)
+        } else {
+          await table.delete(r.client_uuid)
+        }
       } else {
         if (r.table === 'habit') {
           // The app has no "deactivate" — a non-deleted habit is active.

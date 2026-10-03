@@ -166,6 +166,13 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       // it outright — there's no history to preserve, and it was the latest
       // row in its series, so nothing more gets generated. An already-done
       // occurrence just loses the badge and stays as a normal record.
+      // Turning repeat off ends the whole series: earlier occurrences still
+      // carry `recurrence`, and the newest of them would otherwise restart
+      // the series the next day. They keep their history, minus the badge.
+      if (task && task.recurrence && !recurrence && task.seriesId) {
+        const series = await db.tasks.filter((x) => x.seriesId === task.seriesId && x.id !== task.id && !x.deleted && !!x.recurrence).toArray()
+        for (const row of series) await writeAndQueue(db.tasks, 'task', { ...row, recurrence: undefined, updatedAt: Date.now() })
+      }
       if (task && task.recurrence && !recurrence && task.state !== 'done') {
         const tombstone: Task = { ...task, deleted: 1, updatedAt: Date.now() }
         await writeAndQueue(db.tasks, 'task', tombstone)
