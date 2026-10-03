@@ -4,13 +4,20 @@
 // else: a new file is written to the local `files` table at once and
 // uploaded by the next sync; another device downloads it the first time
 // it's opened and keeps the copy.
-import { db, uuid, type NoteAttachment } from '../db/db'
+import { db, uuid, type LocalFile, type NoteAttachment } from '../db/db'
 import { supabase } from '../sync/supabase'
 import { isAuthed } from '../sync/api'
 
 const BUCKET = 'attachments'
 /** Supabase free plan's per-file ceiling (bucket limit in schema.sql). */
 export const MAX_STORED_BYTES = 50 * 1024 * 1024
+
+async function toLocal(id: string, blob: Blob, pending: 0 | 1): Promise<LocalFile> {
+  return { id, data: await blob.arrayBuffer(), type: blob.type, pending }
+}
+function blobOf(f: LocalFile): Blob {
+  return f.blob ?? new Blob([f.data ?? new ArrayBuffer(0)], { type: f.type || 'application/octet-stream' })
+}
 
 async function userId(): Promise<string | null> {
   if (!isAuthed()) return null
@@ -21,7 +28,7 @@ async function userId(): Promise<string | null> {
 /** Keep a file locally and describe it as a stored attachment. */
 export async function storeFile(file: File): Promise<NoteAttachment> {
   const id = uuid()
-  await db.files.put({ id, blob: file, pending: 1 })
+  await db.files.put(await toLocal(id, file, 1))
   return { id, name: file.name, type: file.type, size: file.size, stored: 1, dataUrl: '' }
 }
 
@@ -34,9 +41,10 @@ export async function uploadPendingFiles(): Promise<string | null> {
   if (!uid) return null
   let firstErr: string | null = null
   for (const f of pending) {
-    const { error } = await supabase.storage.from(BUCKET).upload(`${uid}/${f.id}`, f.blob, {
+    const blob = blobOf(f)
+    const { error } = await supabase.storage.from(BUCKET).upload(`${uid}/${f.id}`, blob, {
       upsert: true,
-      contentType: f.blob.type || 'application/octet-stream',
+      contentType: blob.type || 'application/octet-stream',
     })
     if (error) firstErr ??= error.message
     else await db.files.update(f.id, { pending: 0 })
@@ -47,13 +55,19 @@ export async function uploadPendingFiles(): Promise<string | null> {
 /** The file's bytes: the local copy, else downloaded (and cached). */
 export async function getFileBlob(a: NoteAttachment): Promise<Blob> {
   const local = await db.files.get(a.id)
-  if (local) return local.blob
+  if (local) return blobOf(local)
   const uid = await userId()
   if (!uid) throw new Error('Sign in to download this file')
   const { data, error } = await supabase.storage.from(BUCKET).download(`${uid}/${a.id}`)
   if (error || !data) throw new Error("This file isn't available yet — it may still be uploading from another device")
   const blob = data.type ? data : new Blob([data], { type: a.type })
-  await db.files.put({ id: a.id, blob, pending: 0 })
+  // Keeping a copy is a bonus (offline / instant reopen) — if the browser
+  // won't store it (private browsing, storage full), still show the file.
+  try {
+    await db.files.put(await toLocal(a.id, blob, 0))
+  } catch {
+    // not cached; it downloads again next time
+  }
   return blob
 }
 

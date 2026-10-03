@@ -158,10 +158,15 @@ export interface NoteAttachment {
   size?: number
 }
 
-/** Local copy of a stored attachment's file. `pending` = not uploaded yet. */
+/** Local copy of a stored attachment's file. `pending` = not uploaded yet.
+    Written as raw bytes (`data` + `type`): Safari/WebKit can refuse to put a
+    Blob into IndexedDB ("Error preparing Blob/File data to be stored"),
+    while ArrayBuffers always work. `blob` is from copies saved before that. */
 export interface LocalFile {
   id: string
-  blob: Blob
+  data?: ArrayBuffer
+  type?: string
+  blob?: Blob
   pending: 0 | 1
 }
 

@@ -22,7 +22,7 @@ const IMG_SRC = /src="(data:image\/[a-z0-9.+-]+;base64,[^"]+)"/gi
 
 async function toStorage(a: NoteAttachment): Promise<NoteAttachment> {
   const blob = await (await fetch(a.dataUrl)).blob()
-  await db.files.put({ id: a.id, blob: new Blob([blob], { type: a.type || blob.type }), pending: 1 })
+  await db.files.put({ id: a.id, data: await blob.arrayBuffer(), type: a.type || blob.type, pending: 1 })
   return { ...a, stored: 1, size: blob.size, dataUrl: '' }
 }
 
