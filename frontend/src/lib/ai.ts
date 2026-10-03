@@ -10,15 +10,28 @@ import { supabase } from '../sync/supabase'
 import { isAuthed } from '../sync/api'
 
 const KEY = 'planner_ai_url'
+// Which account the local copy belongs to — so a device shared between
+// accounts never uploads one person's AI proxy into another's account.
+const OWNER_KEY = 'planner_ai_url_owner'
 const META = 'ai_url'
 let pushTimer: number | undefined
 
 export function getAiUrl(): string {
   return localStorage.getItem(KEY) ?? ''
 }
-function setLocal(u: string) {
+function setLocal(u: string, owner?: string) {
   if (u) localStorage.setItem(KEY, u)
   else localStorage.removeItem(KEY)
+  if (owner) localStorage.setItem(OWNER_KEY, owner)
+  if (!u) localStorage.removeItem(OWNER_KEY)
+}
+
+/** On log out: the AI address belongs to the account, not the device. */
+export function clearAiUrlLocal() {
+  window.clearTimeout(pushTimer)
+  pushTimer = undefined
+  localStorage.removeItem(KEY)
+  localStorage.removeItem(OWNER_KEY)
 }
 export function setAiUrl(url: string) {
   const u = url.trim()
@@ -26,28 +39,39 @@ export function setAiUrl(url: string) {
   // Settings calls this per keystroke — push once typing settles.
   if (!isAuthed()) return
   window.clearTimeout(pushTimer)
-  pushTimer = window.setTimeout(() => {
+  pushTimer = window.setTimeout(async () => {
     pushTimer = undefined
-    supabase.auth.updateUser({ data: { [META]: u } }).catch(() => {})
+    const { data } = await supabase.auth.updateUser({ data: { [META]: u } }).catch(() => ({ data: null }))
+    if (data?.user && u) localStorage.setItem(OWNER_KEY, data.user.id)
   }, 1000)
 }
 
 /** Adopt the account's AI URL on this device (called from each sync). If the
-    account has none yet but this device does — set up before syncing
-    existed — upload it instead. Returns true when the local value changed. */
+    account has none yet but this device has one this same account set,
+    upload it. A local address from another account — or of unknown owner,
+    left from before ownership was tracked — is dropped, never uploaded.
+    Returns true when the local value changed. */
 export async function syncAiUrl(): Promise<boolean> {
   if (!isAuthed() || pushTimer !== undefined) return false // local edit pending
   const { data, error } = await supabase.auth.getUser()
   if (error || !data.user) return false
+  const uid = data.user.id
   const meta = data.user.user_metadata ?? {}
   const local = getAiUrl()
+  const owner = localStorage.getItem(OWNER_KEY)
   if (!(META in meta)) {
-    if (local) await supabase.auth.updateUser({ data: { [META]: local } })
-    return false
+    if (!local) return false
+    if (owner === uid) {
+      await supabase.auth.updateUser({ data: { [META]: local } })
+      return false
+    }
+    setLocal('')
+    return true
   }
   const remote = String(meta[META] ?? '')
-  if (remote === local || pushTimer !== undefined) return false
-  setLocal(remote)
+  if (pushTimer !== undefined) return false
+  if (remote === local && (owner === uid || !remote)) return false
+  setLocal(remote, uid)
   return true
 }
 export function aiEnabled(): boolean {

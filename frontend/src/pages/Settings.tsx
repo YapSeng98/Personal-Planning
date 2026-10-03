@@ -5,7 +5,7 @@ import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { stopLiveSync } from '../sync/live'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
-import { getAiUrl, setAiUrl, askAI } from '../lib/ai'
+import { getAiUrl, setAiUrl, askAI, clearAiUrlLocal } from '../lib/ai'
 import { getYoutubeUrl, setYoutubeUrl, extractYoutubeId } from '../lib/youtube'
 import { useLang, LANGS, type Lang } from '../lib/i18n'
 
@@ -112,6 +112,7 @@ export default function Settings() {
       : offlineMode ? t('set.exitConfirm') : t('set.logoutConfirm')
     if (!window.confirm(msg)) return
     stopLiveSync()
+    clearAiUrlLocal()
     if (isAuthed()) await serverLogout()
     clearTokens()
     localStorage.removeItem('offline_mode')
