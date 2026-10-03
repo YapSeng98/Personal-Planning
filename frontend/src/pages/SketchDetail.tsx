@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { shrinkImage } from '../lib/attach'
+import { folderOptions } from '../lib/folders'
 import { db, uuid, writeAndQueue, type DrawingNote, type NoteAttachment, type SketchFolder } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
@@ -324,7 +325,7 @@ export default function SketchDetail() {
             ariaLabel={t('sketch.folder')}
             value={folderId ?? ''}
             onChange={changeFolder}
-            options={[{ value: '', label: t('sketch.noFolder') }, ...folders.map((f) => ({ value: f.id, label: f.name }))]}
+            options={[{ value: '', label: t('sketch.noFolder') }, ...folderOptions(folders)]}
           />
           <button className="btn btn-danger-soft" onClick={remove}>{t('common.delete')}</button>
         </div>

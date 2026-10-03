@@ -108,6 +108,8 @@ const en: Dict = {
   'sketch.emptyFolder': 'No sketches in this folder yet — tap Draw or Type to add one.',
   'sketch.folderDeleteConfirm': 'Delete folder "{name}"?',
   'sketch.folderDeleteConfirmWithNotes': 'Delete folder "{name}"? Its {n} note(s) move back to the main list.',
+  'sketch.folderDeleteConfirmWithItems': 'Delete folder "{name}"? Its {n} item(s) move up one level — nothing inside is deleted.',
+  'sketch.folderInside': 'Inside', 'sketch.topLevel': 'Top level (Sketches)',
   // search
   'search.trigger': 'Search', 'search.placeholder': 'Search tasks, goals, sketches…',
   'search.hint': 'Type to search everything.', 'search.empty': 'No results.',
@@ -314,6 +316,8 @@ const zh: Dict = {
   'sketch.emptyFolder': '这个文件夹还没有笔记 — 点击"画画"或"打字"添加一个吧。',
   'sketch.folderDeleteConfirm': '删除文件夹"{name}"？',
   'sketch.folderDeleteConfirmWithNotes': '删除文件夹"{name}"？其中的 {n} 篇笔记会移回主列表。',
+  'sketch.folderDeleteConfirmWithItems': '删除文件夹"{name}"？其中的 {n} 项会上移一层 — 里面的内容不会被删除。',
+  'sketch.folderInside': '位于', 'sketch.topLevel': '顶层（草图）',
   // search
   'search.trigger': '搜索', 'search.placeholder': '搜索任务、目标、手绘…',
   'search.hint': '输入以搜索全部内容。', 'search.empty': '没有找到结果。',

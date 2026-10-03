@@ -53,7 +53,7 @@ const SYNC_FIELDS: Record<keyof typeof tableMap, string[]> = {
   review: ['type', 'periodStart', 'periodEnd', 'wins', 'failures', 'lesson', 'mood', 'energy', 'nextPriorities', 'attachments', 'deleted'],
   project: ['title', 'color', 'archived', 'deleted'],
   drawing: ['title', 'kind', 'dataUrl', 'text', 'format', 'attachments', 'folderId', 'deleted'],
-  folder: ['name', 'cover', 'coverY', 'coverH', 'deleted'],
+  folder: ['name', 'parentId', 'cover', 'coverY', 'coverH', 'deleted'],
 }
 
 function buildPayload(table: keyof typeof tableMap, rec: Record<string, unknown>): Record<string, unknown> {

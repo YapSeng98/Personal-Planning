@@ -156,6 +156,8 @@ export interface SketchFolder {
   id: string
   sysId?: string
   name: string
+  /** The folder this one sits inside; undefined = top level. */
+  parentId?: string
   /** Cover banner on the folder page (image data URL). */
   cover?: string
   /** Cover's vertical focus point, 0-100 (CSS background-position-y %). */

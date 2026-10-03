@@ -7,6 +7,7 @@ import { toEditorHtml } from '../lib/noteHtml'
 import FolderForm from '../components/FolderForm'
 import FolderCover from '../components/FolderCover'
 import Icon from '../components/Icon'
+import { childFolders, folderPath, subtreeIds } from '../lib/folders'
 
 export default function Sketches() {
   const { folderId } = useParams<{ folderId?: string }>()
@@ -32,11 +33,21 @@ export default function Sketches() {
   }, [load])
 
   const currentFolder = folderId ? folders.find((f) => f.id === folderId) : undefined
-  const items = folderId ? allNotes.filter((d) => d.folderId === folderId) : allNotes.filter((d) => !d.folderId)
-  const counts = allNotes.reduce<Record<string, number>>((acc, d) => {
-    if (d.folderId) acc[d.folderId] = (acc[d.folderId] ?? 0) + 1
-    return acc
-  }, {})
+  const path = currentFolder ? folderPath(currentFolder.id, folders) : []
+  const parentId = path.length > 1 ? path[path.length - 2].id : undefined
+  const subfolders = childFolders(folderId, folders)
+  // A note whose folder no longer exists shows at the top level rather than
+  // vanishing.
+  const folderIds = new Set(folders.map((f) => f.id))
+  const items = folderId
+    ? allNotes.filter((d) => d.folderId === folderId)
+    : allNotes.filter((d) => !d.folderId || !folderIds.has(d.folderId))
+  // Card counts include everything nested inside the folder.
+  const countIn = (id: string) => {
+    const ids = subtreeIds(id, folders)
+    return allNotes.filter((d) => d.folderId && ids.has(d.folderId)).length
+  }
+  const folderUrl = (id?: string) => (id ? `/sketches/folder/${id}` : '/sketches')
 
   async function remove(d: DrawingNote, e: React.MouseEvent) {
     e.preventDefault()
@@ -50,16 +61,21 @@ export default function Sketches() {
   async function removeFolder(f: SketchFolder, e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
-    const n = counts[f.id] ?? 0
+    const notes = allNotes.filter((x) => x.folderId === f.id)
+    const kids = folders.filter((x) => x.parentId === f.id)
+    const n = notes.length + kids.length
     const msg = n > 0
-      ? t('sketch.folderDeleteConfirmWithNotes', { name: f.name, n })
+      ? t('sketch.folderDeleteConfirmWithItems', { name: f.name, n })
       : t('sketch.folderDeleteConfirm', { name: f.name })
     if (!window.confirm(msg)) return
-    // Deleting a folder ungroups its notes rather than deleting them — a
-    // folder is organization, not ownership of its contents.
-    for (const d of allNotes.filter((x) => x.folderId === f.id)) {
-      const ungrouped: DrawingNote = { ...d, folderId: undefined, updatedAt: Date.now() }
-      await writeAndQueue(db.drawings, 'drawing', ungrouped)
+    // Deleting a folder moves its notes and sub-folders up one level rather
+    // than deleting them — a folder is organization, not ownership.
+    const up = f.parentId && folderIds.has(f.parentId) ? f.parentId : undefined
+    for (const d of notes) {
+      await writeAndQueue(db.drawings, 'drawing', { ...d, folderId: up, updatedAt: Date.now() })
+    }
+    for (const k of kids) {
+      await writeAndQueue(db.folders, 'folder', { ...k, parentId: up, updatedAt: Date.now() })
     }
     const tombstone: SketchFolder = { ...f, deleted: 1, updatedAt: Date.now() }
     await writeAndQueue(db.folders, 'folder', tombstone)
@@ -76,7 +92,7 @@ export default function Sketches() {
     <div className="sketch-new-row">
       <button className="btn btn-primary" onClick={() => createNew('draw')}><Icon name="pencil" size={16} /> {t('sketch.newDraw')}</button>
       <button className="btn btn-primary" onClick={() => createNew('text')}><Icon name="reviews" size={16} /> {t('sketch.newType')}</button>
-      {!folderId && <button className="btn" onClick={() => setFolderSheet('new')}><Icon name="folder" size={16} /> {t('sketch.newFolder')}</button>}
+      <button className="btn" onClick={() => setFolderSheet('new')}><Icon name="folder" size={16} /> {t('sketch.newFolder')}</button>
     </div>
   )
 
@@ -86,8 +102,17 @@ export default function Sketches() {
       <div className="greet page-head">
         {currentFolder ? (
           <div className="hd-title-wrap">
+            <nav className="folder-crumbs" aria-label="Breadcrumb">
+              <button type="button" onClick={() => navigate('/sketches')}>{t('sketch.title')}</button>
+              {path.slice(0, -1).map((f) => (
+                <span key={f.id}>
+                  <span className="sep" aria-hidden>›</span>
+                  <button type="button" onClick={() => navigate(folderUrl(f.id))}>{f.name}</button>
+                </span>
+              ))}
+            </nav>
             <div className="hd-title-row">
-              <button className="hd-back" onClick={() => navigate('/sketches')} aria-label={t('common.cancel')}><Icon name="chevronLeft" size={18} /></button>
+              <button className="hd-back" onClick={() => navigate(folderUrl(parentId))} aria-label={t('common.cancel')}><Icon name="chevronLeft" size={18} /></button>
               <h1><Icon name="folder" size={22} className="hd-title-icon" /> {currentFolder.name}</h1>
             </div>
             {!currentFolder.cover && <FolderCover folder={currentFolder} />}
@@ -101,14 +126,14 @@ export default function Sketches() {
         {newButtons}
       </div>
 
-      {!folderId && folders.length > 0 && (
+      {subfolders.length > 0 && (
         <div className="sketch-folder-grid">
-          {folders.map((f) => (
+          {subfolders.map((f) => (
             <div key={f.id} className="card sketch-folder-card">
               <button type="button" className="sketch-folder-open" onClick={() => navigate(`/sketches/folder/${f.id}`)}>
                 <span className="sketch-folder-icon"><Icon name="folder" size={17} /></span>
                 <span className="sketch-folder-name">{f.name}</span>
-                <span className="sketch-folder-count num">{counts[f.id] ?? 0}</span>
+                <span className="sketch-folder-count num">{countIn(f.id)}</span>
               </button>
               <div className="sketch-folder-actions">
                 <button type="button" className="sketch-del" onClick={() => setFolderSheet(f)} aria-label={t('sketch.renameFolder')}><Icon name="pencil" size={14} /></button>
@@ -119,11 +144,11 @@ export default function Sketches() {
         </div>
       )}
 
-      {items.length === 0 ? (
+      {items.length === 0 && subfolders.length === 0 ? (
         <div className="card empty-cta">
           <p>{folderId ? t('sketch.emptyFolder') : t('sketch.empty')}</p>
         </div>
-      ) : (
+      ) : items.length > 0 && (
         <div className="sketch-grid">
           {items.map((d) => (
             <div key={d.id} className="card sketch-card">
@@ -148,6 +173,7 @@ export default function Sketches() {
       {folderSheet !== 'closed' && (
         <FolderForm
           folder={folderSheet === 'new' ? null : folderSheet}
+          parentId={folderId}
           onClose={() => setFolderSheet('closed')}
         />
       )}

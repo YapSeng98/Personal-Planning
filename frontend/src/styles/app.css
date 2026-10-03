@@ -1093,6 +1093,12 @@ button.goal-card:hover { transform: translateY(-2px); }
   background: linear-gradient(to bottom, transparent, #fff);
 }
 .sketch-new-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+/* Phones: Sketches header stacks — title (and folder path) full width, the
+   Draw / Type / Folder buttons on their own row underneath. */
+@media (max-width: 640px) {
+  .page-head:has(.sketch-new-row) { flex-direction: column; align-items: stretch; gap: 0.8rem; }
+  .page-head .hd-title-wrap { width: 100%; }
+}
 .sketch-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.55rem 0.7rem; }
 .sketch-name {
   font-size: 0.82rem; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis;
@@ -1204,6 +1210,14 @@ button.goal-card:hover { transform: translateY(-2px); }
   width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; padding: 0;
 }
 .sketch-attachment-remove:hover { background: var(--glass-strong); color: var(--text-1); }
+
+/* Folder breadcrumb: Sketches › Parent › … above a folder page's title */
+.folder-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem; margin-bottom: 0.35rem;
+  font-size: 0.8rem; color: var(--text-3); min-width: 0; }
+.folder-crumbs button { background: none; border: none; padding: 0.1rem 0.3rem; border-radius: 6px; color: inherit;
+  font: inherit; font-weight: 600; cursor: pointer; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-crumbs button:hover { background: var(--glass); color: var(--text-1); }
+.folder-crumbs .sep { margin: 0 0.1rem; opacity: 0.6; }
 
 /* ---- Folder cover banner (Notion-style) ---- */
 .folder-cover { position: relative; height: 200px; border-radius: 16px; margin-bottom: 1rem;
