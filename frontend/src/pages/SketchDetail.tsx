@@ -307,7 +307,7 @@ export default function SketchDetail() {
 
   return (
     <div>
-      <div className="greet page-head">
+      <div className="greet page-head sketch-detail-head">
         <div className="hd-title-wrap">
           <div className="hd-title-row">
             <button className="hd-back" onClick={() => navigate(folderId ? `/sketches/folder/${folderId}` : '/sketches')} aria-label={t('common.cancel')}><Icon name="chevronLeft" size={18} /></button>

@@ -1128,7 +1128,18 @@ button.goal-card:hover { transform: translateY(-2px); }
 .sketch-folder-actions { display: flex; flex-direction: column; gap: 0.1rem; padding-right: 0.5rem; flex-shrink: 0; }
 .sketch-name-ico { flex-shrink: 0; vertical-align: -2px; opacity: 0.8; }
 
-.sketch-detail-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.sketch-detail-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 1; min-width: 0; }
+/* The title gets the room; a long folder path ("A / B / C") shortens with
+   an ellipsis instead of squeezing the title input to nothing. */
+.sketch-detail-head .hd-title-wrap { flex: 1; min-width: 0; }
+.sketch-detail-actions .sel { min-width: 0; max-width: 260px; }
+.sketch-detail-actions .sel-btn { max-width: 100%; }
+.sketch-detail-actions .sel-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.sketch-detail-actions .btn { flex-shrink: 0; }
+@media (max-width: 640px) {
+  .sketch-detail-head { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+  .sketch-detail-actions .sel { flex: 1; max-width: none; }
+}
 .hd-title-icon { color: var(--accent-bright); vertical-align: -3px; margin-right: 0.1rem; }
 
 .sketch-title-input {
