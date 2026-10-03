@@ -8,6 +8,11 @@ those.
 
 ## 2026-10-03
 
+- **Paste or drop files on a note** — on a typed Sketches note, paste a file
+  anywhere on the page (Ctrl/⌘+V) or drag files onto it. Images go into the
+  note; other files (PDF, Excel, …) become attachments. 📎 now takes several
+  files at once. Also fixed: reloading a just-created note showed it empty.
+  ([07fd739](https://github.com/YapSeng98/Personal-Planning/commit/07fd739))
 - **Fixed: note title hidden on phones** when the note sat in a nested folder
   with a long path — the title now has its own row, and the folder picker
   shortens long paths with "…".
