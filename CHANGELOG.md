@@ -8,6 +8,12 @@ those.
 
 ## 2026-10-03
 
+- **Folders inside folders** in Sketches — open a folder and tap Folder to
+  make a sub-folder. A path line (Sketches › Personal Work › …) jumps to any
+  level, the back arrow goes up one, and a folder's edit sheet has an
+  "Inside" picker to move it. Deleting a folder moves what's in it up a
+  level; nothing is deleted. Syncs once `supabase/schema.sql` is re-run.
+  ([a2220f5](https://github.com/YapSeng98/Personal-Planning/commit/a2220f5))
 - **Folder covers can be resized** — drag the banner's bottom edge to make it
   taller or shorter, or tap "Show full image" to see the whole picture
   ("Default size" goes back). Keeps the same shape on phone and desktop.
