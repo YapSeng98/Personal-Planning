@@ -3,8 +3,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { shrinkImage } from '../lib/attach'
 import { storeFile, deleteStoredFiles, MAX_STORED_BYTES } from '../lib/files'
 import AttachmentChip from '../components/AttachmentChip'
+import DrawPad from '../components/DrawPad'
 import { folderOptions } from '../lib/folders'
-import { db, writeAndQueue, type DrawingNote, type NoteAttachment, type SketchFolder } from '../db/db'
+import { db, writeAndQueue, CHANGED, type DrawingNote, type NoteAttachment, type SketchFolder } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { toEditorHtml } from '../lib/noteHtml'
@@ -50,6 +51,10 @@ export default function SketchDetail() {
   const attachmentsRef = useRef(attachments)
   attachmentsRef.current = attachments
   const [attachErr, setAttachErr] = useState('')
+  const [drawing, setDrawing] = useState(false)
+  // Where the caret was in the note when the draw pad opened — the pad
+  // takes focus, so this is how the drawing lands where you were typing.
+  const savedRange = useRef<Range | null>(null)
   const [dragOver, setDragOver] = useState(false)
   // New notes pick their kind from the ?type= the gallery linked with;
   // existing notes always keep whatever they were saved as, ignoring the URL.
@@ -101,6 +106,29 @@ export default function SketchDetail() {
       }
     })()
     return () => { cancelled = true }
+  }, [id])
+
+  // Another device changed this note while it's open (a sync pulled it):
+  // bring in what's new instead of letting the next autosave overwrite it
+  // with this page's stale copy. Attachments always follow the stored note
+  // (local adds/removes write it immediately); title and text only update
+  // when you're not typing in them.
+  useEffect(() => {
+    if (!id) return
+    const refresh = async () => {
+      const rec = await db.drawings.get(id)
+      if (!rec || rec.deleted) return
+      setAttachments(rec.attachments ?? [])
+      setFolderId(rec.folderId)
+      const active = document.activeElement
+      if (!active?.classList.contains('sketch-title-input')) setTitle(rec.title ?? '')
+      const el = editorRef.current
+      if (rec.kind === 'text' && el && active !== el && !el.contains(active) && rec.text !== undefined && rec.text !== el.innerHTML) {
+        el.innerHTML = toEditorHtml(rec.text, rec.format === 'html')
+      }
+    }
+    window.addEventListener(CHANGED, refresh)
+    return () => window.removeEventListener(CHANGED, refresh)
   }, [id])
 
   // Seeds the editor's DOM from the loaded note. Waits for `loaded`: a new
@@ -302,6 +330,33 @@ export default function SketchDetail() {
     if (next || insertedImage) await autosaveText(editorRef.current?.innerHTML, next)
   }
 
+  function openDrawPad() {
+    const sel = window.getSelection()
+    const r = sel && sel.rangeCount ? sel.getRangeAt(0) : null
+    savedRange.current = r && editorRef.current?.contains(r.startContainer) ? r.cloneRange() : null
+    setDrawing(true)
+  }
+
+  async function insertDrawing(dataUrl: string) {
+    setDrawing(false)
+    const el = editorRef.current
+    if (!el) return
+    const range = savedRange.current
+    if (range) {
+      el.focus()
+      const sel = window.getSelection()!
+      sel.removeAllRanges()
+      sel.addRange(range)
+      document.execCommand('insertImage', false, dataUrl)
+    } else {
+      const img = document.createElement('img')
+      img.src = dataUrl
+      el.appendChild(img)
+      el.appendChild(document.createElement('br'))
+    }
+    await autosaveText(el.innerHTML)
+  }
+
   async function removeAttachment(attId: string) {
     deleteStoredFiles(attachments.filter((a) => a.id === attId))
     const next = attachments.filter((a) => a.id !== attId)
@@ -392,6 +447,7 @@ export default function SketchDetail() {
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('italic')} aria-label={t('sketch.italic')}><i>I</i></button>
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')} aria-label={t('sketch.underline')}><u>U</u></button>
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('insertUnorderedList')} aria-label={t('sketch.bulletList')}>☰</button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={openDrawPad} aria-label={t('sketch.drawInNote')} title={t('sketch.drawInNote')}>✏️</button>
               <button type="button" className="sketch-tool-btn" onClick={() => imageInputRef.current?.click()} aria-label={t('sketch.addImage')}>🖼️</button>
               <button type="button" className="sketch-tool-btn" onClick={() => fileInputRef.current?.click()} aria-label={t('sketch.addAttachment')} title={t('sketch.addAttachment')}>📎</button>
             </div>
@@ -421,6 +477,7 @@ export default function SketchDetail() {
             autoFocus
           />
           {attachErr && <div className="ai-status err sketch-attach-err">{attachErr}</div>}
+          {drawing && <DrawPad onInsert={insertDrawing} onClose={() => setDrawing(false)} />}
           {attachments.length > 0 && (
             <div className="sketch-attachments">
               {attachments.map((a) => (

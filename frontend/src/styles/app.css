@@ -1223,6 +1223,19 @@ button.goal-card:hover { transform: translateY(-2px); }
 button.sketch-attachment-link { background: none; border: none; padding: 0; font: inherit; cursor: pointer; text-align: left; }
 
 /* ---- Attachment viewer (full-screen, in-app) ---- */
+/* Drawing pad over a typed note (DrawPad.tsx) — reuses the viewer shell */
+.drawpad-head { flex-wrap: wrap; gap: 0.5rem; }
+@media (max-width: 640px) {
+  .drawpad-head { gap: 0.35rem; padding-left: 0.6rem; }
+  .drawpad-head .sketch-colors { gap: 0.3rem; }
+  .drawpad-head .sketch-swatch { width: 22px; height: 22px; }
+  .drawpad-head .sketch-tool-btn { padding: 0.3rem 0.5rem; font-size: 0.78rem; }
+}
+.drawpad-body { flex: 1; min-height: 0; padding: 12px; background: var(--glass); display: flex; }
+.drawpad-canvas { flex: 1; width: 100%; height: 100%; background: #fff; border-radius: 12px; border: 1px solid var(--hairline);
+  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: crosshair; }
+.drawpad-foot { display: flex; justify-content: flex-end; gap: 0.6rem; padding: 0.7rem 1rem calc(0.7rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--hairline); }
 .fv-backdrop { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,0.75); display: flex;
   align-items: center; justify-content: center; padding: 16px; }
 .fv { width: min(1000px, 100%); height: 100%; max-height: 100%; display: flex; flex-direction: column;
