@@ -5,7 +5,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, uuid, writeAndQueue, rollUpGoal, byOrder, nextCompletedAt, CHANGED, type Task, type Project, type TaskState } from '../db/db'
+import { db, uuid, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, nextCompletedAt, CHANGED, type Task, type Project, type TaskState } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
 import TaskForm from '../components/TaskForm'
@@ -264,10 +264,9 @@ export default function Board() {
     // the next time it's opened individually.
     if (isAll) {
       if (moved.state === targetState) return
-      await writeAndQueue(db.tasks, 'task', {
-        ...moved, state: targetState,
+      await patchAndQueue(db.tasks, 'task', moved.id, {
+        state: targetState,
         completedAt: nextCompletedAt(moved.state, moved.completedAt, targetState),
-        updatedAt: Date.now(),
       })
       if (moved.goalId) await rollUpGoal(moved.goalId)
       syncNow()
@@ -283,18 +282,17 @@ export default function Board() {
     }
     const newIds = [...colIds.slice(0, idx), activeId, ...colIds.slice(idx)]
 
-    const now = Date.now()
     let wrote = false
     for (let i = 0; i < newIds.length; i++) {
       const task = tasks.find((x) => x.id === newIds[i])!
       const stateChanged = task.id === activeId && task.state !== targetState
       if (task.sortOrder === i && !stateChanged) continue
-      const patch: Task = { ...task, sortOrder: i, updatedAt: now }
+      const patch: Partial<Task> = { sortOrder: i }
       if (task.id === activeId) {
         patch.state = targetState
         patch.completedAt = nextCompletedAt(task.state, task.completedAt, targetState)
       }
-      await writeAndQueue(db.tasks, 'task', patch)
+      await patchAndQueue(db.tasks, 'task', task.id, patch)
       wrote = true
     }
     if (moved.state !== targetState && moved.goalId) await rollUpGoal(moved.goalId)

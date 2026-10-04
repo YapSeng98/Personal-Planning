@@ -5,10 +5,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  db, uuid, todayStr, writeAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, nextCompletedAt, CHANGED,
-  type Task, type TaskState, type Goal, type Habit, type Review,
-} from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, nextCompletedAt, CHANGED, type Task, type TaskState, type Goal, type Habit, type Review } from '../db/db'
 import { syncNow } from '../sync/engine'
 import TaskForm from '../components/TaskForm'
 import { useLang, type TFn } from '../lib/i18n'
@@ -258,9 +255,8 @@ export default function Plan() {
 
   async function toggle(task: Task) {
     const state: TaskState = task.state === 'done' ? 'open' : 'done'
-    const updated: Task = { ...task, state, completedAt: nextCompletedAt(task.state, task.completedAt, state), updatedAt: Date.now() }
-    await writeAndQueue(db.tasks, 'task', updated)
-    if (updated.goalId) await rollUpGoal(updated.goalId)
+    const saved = await patchAndQueue(db.tasks, 'task', task.id, { state, completedAt: nextCompletedAt(task.state, task.completedAt, state) })
+    if (saved?.goalId) await rollUpGoal(saved.goalId)
     syncNow()
   }
 
@@ -303,15 +299,14 @@ export default function Plan() {
     }
     const newIds = [...dayIds.slice(0, idx), activeId, ...dayIds.slice(idx)]
 
-    const now = Date.now()
     let wrote = false
     for (let i = 0; i < newIds.length; i++) {
       const task = all.find((x) => x.id === newIds[i])!
       const dueChanged = task.id === activeId && task.due !== targetDate
       if (task.sortOrder === i && !dueChanged) continue
-      const patch: Task = { ...task, sortOrder: i, updatedAt: now }
+      const patch: Partial<Task> = { sortOrder: i }
       if (task.id === activeId) patch.due = targetDate
-      await writeAndQueue(db.tasks, 'task', patch)
+      await patchAndQueue(db.tasks, 'task', task.id, patch)
       wrote = true
     }
     if (wrote) syncNow()
@@ -340,11 +335,10 @@ export default function Plan() {
     const newI = ids.indexOf(String(over.id))
     if (oldI < 0 || newI < 0) return
     const ordered = arrayMove(ids, oldI, newI)
-    const now = Date.now()
     for (let i = 0; i < ordered.length; i++) {
       const task = selectedTasks.find((x) => x.id === ordered[i])!
       if (task.sortOrder === i) continue
-      await writeAndQueue(db.tasks, 'task', { ...task, sortOrder: i, updatedAt: now })
+      await patchAndQueue(db.tasks, 'task', task.id, { sortOrder: i })
     }
     syncNow()
   }

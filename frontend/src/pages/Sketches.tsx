@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { db, uuid, writeAndQueue, CHANGED, type DrawingNote, type SketchFolder } from '../db/db'
+import { db, uuid, patchAndQueue, CHANGED, type DrawingNote, type SketchFolder } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { toEditorHtml } from '../lib/noteHtml'
@@ -55,8 +55,7 @@ export default function Sketches() {
     e.stopPropagation()
     if (!window.confirm(t('sketch.deleteConfirm', { title: d.title || t('sketch.untitled') }))) return
     deleteStoredFiles(d.attachments)
-    const tombstone: DrawingNote = { ...d, deleted: 1, updatedAt: Date.now() }
-    await writeAndQueue(db.drawings, 'drawing', tombstone)
+    await patchAndQueue(db.drawings, 'drawing', d.id, { deleted: 1 })
     syncNow()
   }
 
@@ -74,13 +73,12 @@ export default function Sketches() {
     // than deleting them — a folder is organization, not ownership.
     const up = f.parentId && folderIds.has(f.parentId) ? f.parentId : undefined
     for (const d of notes) {
-      await writeAndQueue(db.drawings, 'drawing', { ...d, folderId: up, updatedAt: Date.now() })
+      await patchAndQueue(db.drawings, 'drawing', d.id, { folderId: up })
     }
     for (const k of kids) {
-      await writeAndQueue(db.folders, 'folder', { ...k, parentId: up, updatedAt: Date.now() })
+      await patchAndQueue(db.folders, 'folder', k.id, { parentId: up })
     }
-    const tombstone: SketchFolder = { ...f, deleted: 1, updatedAt: Date.now() }
-    await writeAndQueue(db.folders, 'folder', tombstone)
+    await patchAndQueue(db.folders, 'folder', f.id, { deleted: 1 })
     syncNow()
   }
 

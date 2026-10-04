@@ -6,7 +6,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, todayStr, uuid, writeAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, nextCompletedAt, CHANGED, type Task, type TaskState, type Habit, type Project } from '../db/db'
+import { db, todayStr, writeAndQueue, uuidFrom, patchAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, nextCompletedAt, CHANGED, type Task, type TaskState, type Habit, type Project } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
 import { aiEnabled, askAI } from '../lib/ai'
@@ -376,9 +376,8 @@ export default function Today() {
 
   async function toggleTask(t: Task) {
     const state: TaskState = t.state === 'done' ? 'open' : 'done'
-    const updated: Task = { ...t, state, completedAt: nextCompletedAt(t.state, t.completedAt, state), updatedAt: Date.now() }
-    await writeAndQueue(db.tasks, 'task', updated)
-    if (updated.goalId) await rollUpGoal(updated.goalId)
+    const saved = await patchAndQueue(db.tasks, 'task', t.id, { state, completedAt: nextCompletedAt(t.state, t.completedAt, state) })
+    if (saved?.goalId) await rollUpGoal(saved.goalId)
     syncNow()
   }
 
@@ -390,21 +389,23 @@ export default function Today() {
     const newI = ids.indexOf(String(over.id))
     if (oldI < 0 || newI < 0) return
     const ordered = arrayMove(ids, oldI, newI)
-    const now = Date.now()
     for (let i = 0; i < ordered.length; i++) {
       const task = tasks.find((x) => x.id === ordered[i])!
       if (task.sortOrder === i) continue
-      await writeAndQueue(db.tasks, 'task', { ...task, sortOrder: i, updatedAt: now })
+      await patchAndQueue(db.tasks, 'task', task.id, { sortOrder: i })
     }
     syncNow()
   }
 
   async function tickHabit(h: HabitView) {
     const existing = await db.habitLogs.where('[habitId+date]').equals([h.id, today]).first()
-    const next = existing
-      ? { ...existing, count: existing.count >= h.targetPerDay ? 0 : existing.count + 1, updatedAt: Date.now() }
-      : { id: uuid(), habitId: h.id, date: today, count: 1, deleted: 0 as const, updatedAt: Date.now() }
-    await writeAndQueue(db.habitLogs, 'habit_log', next)
+    if (existing) {
+      await patchAndQueue(db.habitLogs, 'habit_log', existing.id, { count: existing.count >= h.targetPerDay ? 0 : existing.count + 1 })
+    } else {
+      // Same id on every device for this habit + day (uuidFrom), so a first
+      // check-in on two devices updates one log instead of creating two.
+      await writeAndQueue(db.habitLogs, 'habit_log', { id: await uuidFrom(`log:${h.id}:${today}`), habitId: h.id, date: today, count: 1, deleted: 0, updatedAt: Date.now() })
+    }
     await load()
     syncNow()
   }

@@ -93,6 +93,17 @@ export const DATA_OWNER_KEY = 'planner_data_owner'
 export function localDataOwner(): string | null {
   return localStorage.getItem(DATA_OWNER_KEY)
 }
+
+/** The signed-in account's id, read synchronously from the stored session
+    (null when signed out). */
+export function accountId(): string | null {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as { user?: { id?: string } } | null
+    return s?.user?.id ?? localDataOwner()
+  } catch {
+    return localDataOwner()
+  }
+}
 export function setLocalDataOwner(uid: string | null) {
   if (uid) localStorage.setItem(DATA_OWNER_KEY, uid)
   else localStorage.removeItem(DATA_OWNER_KEY)
@@ -105,10 +116,20 @@ export interface PushItem {
   client_uuid: string
   payload: Record<string, unknown>
   edited_at: number
+  /** Field-level merge (see sync/engine.ts pushItem). Servers whose
+      schema.sql predates it ignore these and use last-write-wins. */
+  base_rev?: number | null
+  fields?: string[] | null
+  field_times?: Record<string, number>
+  att_up?: string[]
+  att_rm?: string[]
 }
 
 export interface PushResult {
-  results: { client_uuid: string; sys_id: string; outcome: 'applied' | 'server_won' }[]
+  /** 'rejected': the id belongs to a row this account can't see.
+      'server_won': only from servers whose schema.sql predates field-level
+      merging (their whole-record last-write-wins kept the server's copy). */
+  results: { client_uuid: string; sys_id: string; outcome: 'applied' | 'server_won' | 'rejected'; rev?: number; foreign?: boolean }[]
 }
 
 export async function syncPush(items: PushItem[]): Promise<PushResult> {
@@ -122,7 +143,9 @@ export interface PullResponse {
   records: { table: string; client_uuid: string; sys_id: string; deleted: boolean; data: Record<string, unknown> }[]
 }
 
-/** `skip`: "<id>:<edited_at ms>" of records this device just pushed, so the
+/** `cursor`: whatever the last pull returned (a database snapshot; a
+    timestamp from older servers). `skip`: "<id>#<rev>" of records this
+    device just pushed ("<id>:<edited_at ms>" for older servers), so the
     server doesn't send them straight back (see sync_pull in schema.sql). */
 export async function syncPull(cursor: string, skip: string[] = []): Promise<PullResponse> {
   let { data, error } = await supabase.rpc('sync_pull', skip.length ? { since: cursor, skip } : { since: cursor })

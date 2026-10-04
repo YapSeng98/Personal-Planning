@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import { SYNC_FIELDS, diffRecord, applyAttachmentOps, filledFields, type SyncTable } from '../sync/fields'
 
 // Local mirror of the x_pps_* ServiceNow tables (design doc §04/§09).
 // `id` is the client_uuid used for idempotent sync; `sysId` arrives after
@@ -44,6 +45,8 @@ export interface Task {
   completedAt?: number
   deleted: 0 | 1
   updatedAt: number
+  /** Server revision this copy is based on (local-only, from sync). */
+  rev?: number
 }
 
 /** Stamps or clears Task.completedAt for a state transition — call at every
@@ -78,6 +81,8 @@ export interface Habit {
   active: 0 | 1
   deleted: 0 | 1
   updatedAt: number
+  /** Server revision this copy is based on (local-only, from sync). */
+  rev?: number
 }
 
 export interface HabitLog {
@@ -89,6 +94,8 @@ export interface HabitLog {
   count: number
   deleted: 0 | 1
   updatedAt: number
+  /** Server revision this copy is based on (local-only, from sync). */
+  rev?: number
 }
 
 export type GoalType = 'vision' | 'year' | 'quarter' | 'month' | 'week'
@@ -106,6 +113,8 @@ export interface Goal {
   targetDate?: string
   deleted: 0 | 1
   updatedAt: number
+  /** Server revision this copy is based on (local-only, from sync). */
+  rev?: number
 }
 
 export type ProjectColor = 'coral' | 'green' | 'blue' | 'purple' | 'teal' | 'gray'
@@ -118,6 +127,8 @@ export interface Project {
   archived: 0 | 1
   deleted: 0 | 1
   updatedAt: number
+  /** Server revision this copy is based on (local-only, from sync). */
+  rev?: number
 }
 
 export interface Review {
@@ -136,6 +147,8 @@ export interface Review {
   attachments?: NoteAttachment[]
   deleted: 0 | 1
   updatedAt: number
+  /** Server revision this copy is based on (local-only, from sync). */
+  rev?: number
 }
 
 /** A sketch note is either hand-drawn or typed. Payloads can run large (a
@@ -184,6 +197,8 @@ export interface SketchFolder {
   coverH?: number
   deleted: 0 | 1
   updatedAt: number
+  /** Server revision this copy is based on (local-only, from sync). */
+  rev?: number
 }
 
 export interface DrawingNote {
@@ -210,13 +225,22 @@ export interface DrawingNote {
   /** Missing on records saved before soft-delete existed — treat as 0. */
   deleted?: 0 | 1
   updatedAt: number
+  /** Server revision this copy is based on (local-only, from sync). */
+  rev?: number
 }
 
 export interface OutboxEntry {
   seq?: number
-  table: 'task' | 'habit' | 'habit_log' | 'goal' | 'review' | 'project' | 'drawing' | 'folder'
+  table: SyncTable
   recordId: string
   editedAt: number
+  /** Synced fields this write changed (for a new record: the ones it fills).
+      Missing on entries queued by app versions before field-level sync —
+      those push the whole record (last write wins). */
+  fields?: string[]
+  /** Attachment ids this write added/replaced, and removed. */
+  attUp?: string[]
+  attRm?: string[]
 }
 
 export interface Meta {
@@ -333,17 +357,80 @@ export const todayStr = (d = new Date()) =>
 export const CHANGED = 'planner:changed'
 export const notifyChange = () => window.dispatchEvent(new CustomEvent(CHANGED))
 
-/** Write a record and queue it for sync in one transaction. */
-export async function writeAndQueue<T extends { id: string; updatedAt: number }>(
+type SyncRecord = { id: string; updatedAt: number; attachments?: NoteAttachment[] }
+
+/** Save a NEW record (or, rarely, a whole record) and queue it for sync.
+    For an existing record only the fields that differ from what's stored
+    are queued — but any screen holding a copy that may be out of date (a
+    form opened a while ago, a list loaded before a sync) must use
+    patchAndQueue instead, or it would write its old values back. */
+export async function writeAndQueue<T extends SyncRecord>(
   table: Table<T, string>,
-  tableName: OutboxEntry['table'],
+  tableName: SyncTable,
   record: T,
+  /** A record the app generated (a repeat), not one the user made. */
+  opts: { derived?: boolean } = {},
 ) {
   await db.transaction('rw', table, db.outbox, async () => {
+    const cur = await table.get(record.id)
     await table.put(record)
-    await db.outbox.add({ table: tableName, recordId: record.id, editedAt: record.updatedAt })
+    if (cur) {
+      const d = diffRecord(tableName, cur, record)
+      if (d.fields.length) await db.outbox.add({ table: tableName, recordId: record.id, editedAt: record.updatedAt, ...d })
+    } else {
+      await db.outbox.add({
+        table: tableName, recordId: record.id, editedAt: record.updatedAt,
+        fields: filledFields(tableName, record, opts.derived), attUp: (record.attachments ?? []).map((a) => a.id), attRm: [],
+      })
+    }
   })
   notifyChange()
+}
+
+export interface AttachmentOps {
+  /** Attachments to add, or replace by id. */
+  up?: NoteAttachment[]
+  /** Attachment ids to remove. */
+  rm?: string[]
+}
+
+/** Change some fields of a stored record and queue exactly those changes.
+    The patch is applied to the record as it is in the database NOW (not to
+    whatever copy the screen loaded), so changes another device synced in
+    the meantime are kept. Attachments change only through `att` (adds /
+    removals by id) — never by passing a whole list, which could drop files
+    another device added. Returns the saved record (undefined if it doesn't
+    exist); a patch that changes nothing writes and queues nothing. */
+export async function patchAndQueue<T extends SyncRecord>(
+  table: Table<T, string>,
+  tableName: SyncTable,
+  id: string,
+  patch: Partial<Omit<T, 'attachments'>>,
+  att?: AttachmentOps,
+): Promise<T | undefined> {
+  let saved: T | undefined
+  let changed = false
+  await db.transaction('rw', table, db.outbox, async () => {
+    const cur = await table.get(id)
+    if (!cur) return
+    const next = { ...cur, ...patch } as T
+    if (att) next.attachments = applyAttachmentOps(cur.attachments ?? [], att.up ?? [], att.rm ?? [])
+    const d = diffRecord(tableName, cur, next)
+    const synced = new Set(SYNC_FIELDS[tableName])
+    const localOnly = Object.keys(patch).some((k) => !synced.has(k) && k !== 'updatedAt' &&
+      JSON.stringify((cur as Record<string, unknown>)[k]) !== JSON.stringify((patch as Record<string, unknown>)[k]))
+    if (!d.fields.length && !localOnly) {
+      saved = cur
+      return
+    }
+    next.updatedAt = Date.now()
+    await table.put(next)
+    if (d.fields.length) await db.outbox.add({ table: tableName, recordId: id, editedAt: next.updatedAt, ...d })
+    saved = next
+    changed = true
+  })
+  if (changed) notifyChange()
+  return saved
 }
 
 function nextOccurrence(date: string, recurrence: NonNullable<Task['recurrence']>): string {
@@ -428,8 +515,7 @@ async function dedupeRecurringOccurrences(): Promise<number> {
     if (rows.length <= 1) continue
     rows.sort((a, b) => (a.state === 'done' ? -1 : 1) - (b.state === 'done' ? -1 : 1) || a.updatedAt - b.updatedAt)
     for (const dupe of rows.slice(1)) {
-      const tombstone: Task = { ...dupe, deleted: 1, updatedAt: Date.now() }
-      await writeAndQueue(db.tasks, 'task', tombstone)
+      await patchAndQueue(db.tasks, 'task', dupe.id, { deleted: 1 })
       removed++
     }
   }
@@ -515,7 +601,7 @@ async function rollRecurringTasksInner() {
       sortOrder: undefined,
       updatedAt: Date.now(),
     }
-    await writeAndQueue(db.tasks, 'task', next)
+    await writeAndQueue(db.tasks, 'task', next, { derived: true })
   }
 }
 

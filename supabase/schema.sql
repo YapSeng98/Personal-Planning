@@ -320,6 +320,119 @@ alter table public.drawings add column if not exists edited_at timestamptz;
 alter table public.sketch_folders add column if not exists edited_at timestamptz;
 
 -- ------------------------------------------------------------
+-- rev: bumped on every write (any device, the server's own goal roll-up),
+-- so a device can tell whether a row changed since the copy it last saw.
+-- field_times: per-field time of the last applied edit (ms since epoch) —
+-- the clock for field-level merging in sync_push.
+-- txid: the transaction that last wrote the row — what makes sync_pull's
+-- cursor exact (see there).
+-- ------------------------------------------------------------
+alter table public.tasks add column if not exists rev bigint not null default 1;
+alter table public.tasks add column if not exists field_times jsonb not null default '{}'::jsonb;
+alter table public.tasks add column if not exists txid xid8;
+create index if not exists tasks_user_txid_idx on public.tasks (user_id, txid);
+alter table public.habits add column if not exists rev bigint not null default 1;
+alter table public.habits add column if not exists field_times jsonb not null default '{}'::jsonb;
+alter table public.habits add column if not exists txid xid8;
+create index if not exists habits_user_txid_idx on public.habits (user_id, txid);
+alter table public.habit_logs add column if not exists rev bigint not null default 1;
+alter table public.habit_logs add column if not exists field_times jsonb not null default '{}'::jsonb;
+alter table public.habit_logs add column if not exists txid xid8;
+create index if not exists habit_logs_user_txid_idx on public.habit_logs (user_id, txid);
+alter table public.goals add column if not exists rev bigint not null default 1;
+alter table public.goals add column if not exists field_times jsonb not null default '{}'::jsonb;
+alter table public.goals add column if not exists txid xid8;
+create index if not exists goals_user_txid_idx on public.goals (user_id, txid);
+alter table public.reviews add column if not exists rev bigint not null default 1;
+alter table public.reviews add column if not exists field_times jsonb not null default '{}'::jsonb;
+alter table public.reviews add column if not exists txid xid8;
+create index if not exists reviews_user_txid_idx on public.reviews (user_id, txid);
+alter table public.projects add column if not exists rev bigint not null default 1;
+alter table public.projects add column if not exists field_times jsonb not null default '{}'::jsonb;
+alter table public.projects add column if not exists txid xid8;
+create index if not exists projects_user_txid_idx on public.projects (user_id, txid);
+alter table public.drawings add column if not exists rev bigint not null default 1;
+alter table public.drawings add column if not exists field_times jsonb not null default '{}'::jsonb;
+alter table public.drawings add column if not exists txid xid8;
+create index if not exists drawings_user_txid_idx on public.drawings (user_id, txid);
+alter table public.sketch_folders add column if not exists rev bigint not null default 1;
+alter table public.sketch_folders add column if not exists field_times jsonb not null default '{}'::jsonb;
+alter table public.sketch_folders add column if not exists txid xid8;
+create index if not exists sketch_folders_user_txid_idx on public.sketch_folders (user_id, txid);
+
+create or replace function public.bump_rev()
+returns trigger language plpgsql as $$
+begin
+  if tg_op = 'UPDATE' then
+    new.rev := coalesce(old.rev, 0) + 1;
+  end if;
+  new.txid := pg_current_xact_id();
+  return new;
+end;
+$$;
+drop trigger if exists bump_rev on public.tasks;
+create trigger bump_rev before insert or update on public.tasks
+  for each row execute function public.bump_rev();
+drop trigger if exists bump_rev on public.habits;
+create trigger bump_rev before insert or update on public.habits
+  for each row execute function public.bump_rev();
+drop trigger if exists bump_rev on public.habit_logs;
+create trigger bump_rev before insert or update on public.habit_logs
+  for each row execute function public.bump_rev();
+drop trigger if exists bump_rev on public.goals;
+create trigger bump_rev before insert or update on public.goals
+  for each row execute function public.bump_rev();
+drop trigger if exists bump_rev on public.reviews;
+create trigger bump_rev before insert or update on public.reviews
+  for each row execute function public.bump_rev();
+drop trigger if exists bump_rev on public.projects;
+create trigger bump_rev before insert or update on public.projects
+  for each row execute function public.bump_rev();
+drop trigger if exists bump_rev on public.drawings;
+create trigger bump_rev before insert or update on public.drawings
+  for each row execute function public.bump_rev();
+drop trigger if exists bump_rev on public.sketch_folders;
+create trigger bump_rev before insert or update on public.sketch_folders
+  for each row execute function public.bump_rev();
+
+-- Every synced field of a table (matches SYNC_FIELDS in frontend/src/sync/fields.ts).
+create or replace function public.all_fields(tbl text)
+returns text[]
+language sql
+immutable
+as $$
+  select case tbl
+    when 'task' then array['title', 'notes', 'state', 'priority', 'due', 'timeBlockStart', 'timeBlockEnd', 'estimatedHours', 'actualHours', 'goalId', 'projectId', 'isMit', 'sortOrder', 'reminderDaysBefore', 'recurrence', 'seriesId', 'deleted']
+    when 'habit' then array['name', 'emoji', 'frequency', 'targetPerDay', 'active', 'deleted']
+    when 'habit_log' then array['habitId', 'date', 'count', 'deleted']
+    when 'goal' then array['title', 'type', 'parentId', 'lifeArea', 'whyItMatters', 'progress', 'status', 'targetDate', 'deleted']
+    when 'review' then array['type', 'periodStart', 'periodEnd', 'wins', 'failures', 'lesson', 'mood', 'energy', 'nextPriorities', 'attachments', 'deleted']
+    when 'project' then array['title', 'color', 'archived', 'deleted']
+    when 'drawing' then array['title', 'kind', 'dataUrl', 'text', 'format', 'attachments', 'folderId', 'deleted']
+    when 'folder' then array['name', 'parentId', 'cover', 'coverY', 'coverH', 'deleted']
+  end;
+$$;
+
+-- Attachment lists merge by id: drop removed ids, replace updated items in
+-- place, append new ones — so files added on two devices are both kept.
+create or replace function public.merge_attachments(cur jsonb, up jsonb, rm text[])
+returns jsonb
+language sql
+immutable
+as $$
+  select coalesce(jsonb_agg(x order by ord), '[]'::jsonb) from (
+    select coalesce((select u from jsonb_array_elements(coalesce(up, '[]'::jsonb)) u
+                     where u->>'id' = e->>'id' limit 1), e) as x, ord
+      from jsonb_array_elements(coalesce(cur, '[]'::jsonb)) with ordinality as t(e, ord)
+     where not ((e->>'id') = any(coalesce(rm, '{}')))
+    union all
+    select u, 1000000 + ord
+      from jsonb_array_elements(coalesce(up, '[]'::jsonb)) with ordinality as t(u, ord)
+     where not exists (select 1 from jsonb_array_elements(coalesce(cur, '[]'::jsonb)) e where e->>'id' = u->>'id')
+  ) s;
+$$;
+
+-- ------------------------------------------------------------
 -- recalc_goal — recompute a goal's progress, then every ancestor's.
 -- Mirrors rollUpGoal in frontend/src/db/db.ts; keep the two in step.
 -- Any level can have tasks linked directly, so a goal's progress is the
@@ -384,13 +497,25 @@ end;
 $$;
 
 -- ------------------------------------------------------------
--- sync_push — same contract as POST /sync/push. items: jsonb array of
--- {table, client_uuid, payload, edited_at}. payload always carries every
--- syncable field (buildPayload() in engine.ts sends '' for anything
--- undefined, never omits it) — that '' is what makes CLEARING a field
--- actually propagate, exactly like the ServiceNow version, so every cast
--- below goes through nullif(x,'') first: an empty string means "clear
--- this", never "0" and never "crash the cast".
+-- sync_push — items: jsonb array of
+--   {table, client_uuid, payload, edited_at, base_rev, fields, field_times, att_up, att_rm}
+-- payload always carries every syncable field ('' = cleared; every cast goes
+-- through nullif(x,'') so '' means "clear this", never "0" or a cast error).
+--
+-- Field-level merge (current app): `fields` lists only what the device
+-- changed; each is applied only if its edit time (field_times[f]) is at
+-- least as recent as the server's time for that field — so a device holding
+-- an older copy never overwrites changes it didn't make, and for any one
+-- field the most recent edit wins whatever order devices sync in.
+-- Attachments merge item by item: att_up = ids added/replaced (taken from
+-- payload.attachments), att_rm = ids removed.
+-- Older app versions send no `fields`: every field is claimed at the edit
+-- time, so anything edited more recently elsewhere still wins, and their
+-- attachment list can only add files.
+-- Results carry the row's new `rev`; `foreign` = the row holds changes the
+-- device hasn't seen (from elsewhere since its base_rev, or one of its own
+-- fields lost to a newer edit), so it must pull the row rather than skip it
+-- as its own echo. outcome 'rejected' = the id belongs to another account.
 -- ------------------------------------------------------------
 create or replace function public.sync_push(items jsonb)
 returns jsonb
@@ -402,11 +527,22 @@ declare
   tbl text;
   rid uuid;
   p jsonb;
+  edited_ms bigint;
   edited_ts timestamptz;
   existing_updated timestamptz;
+  base_rev bigint;
+  flds text[];
+  fts jsonb;
+  att_up text[];
+  att_rm text[];
+  win text[];
+  ex_rev bigint;
+  ex_ft jsonb;
+  ex_goal uuid;
+  new_goal uuid;
+  new_rev bigint;
   results jsonb := '[]'::jsonb;
   affected_goals uuid[] := '{}';
-  goal_id_val uuid;
   g uuid;
 begin
   for item in select * from jsonb_array_elements(items)
@@ -414,222 +550,534 @@ begin
     tbl := item->>'table';
     rid := (item->>'client_uuid')::uuid;
     p := item->'payload';
-    edited_ts := to_timestamp((item->>'edited_at')::bigint / 1000.0);
-    goal_id_val := null;
+    edited_ms := (item->>'edited_at')::bigint;
+    edited_ts := to_timestamp(edited_ms / 1000.0);
+    base_rev := nullif(item->>'base_rev', '')::bigint;
+    flds := case when jsonb_typeof(item->'fields') = 'array'
+                 then array(select jsonb_array_elements_text(item->'fields')) else null end;
+    fts := case when jsonb_typeof(item->'field_times') = 'object' then item->'field_times' else '{}'::jsonb end;
+    att_up := array(select jsonb_array_elements_text(case when jsonb_typeof(item->'att_up') = 'array' then item->'att_up' else '[]'::jsonb end));
+    att_rm := array(select jsonb_array_elements_text(case when jsonb_typeof(item->'att_rm') = 'array' then item->'att_rm' else '[]'::jsonb end));
+    ex_goal := null; new_goal := null; new_rev := null; win := '{}';
+    if flds is null then
+      -- An older app version (sends whole records, no `fields`): treat it as
+      -- changing every field at its edit time. The per-field times below
+      -- then still protect anything edited more recently elsewhere, and its
+      -- attachment list can only add files, never drop ones added elsewhere.
+      flds := all_fields(tbl);
+      att_up := array(select a->>'id' from jsonb_array_elements(case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end) a);
+      att_rm := '{}';
+      base_rev := null;
+    end if;
 
     if tbl = 'task' then
-      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.tasks where id = rid and user_id = auth.uid();
-      if found and existing_updated > edited_ts then
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
-      else
-        goal_id_val := nullif(p->>'goalId', '')::uuid;
-        insert into public.tasks (id, user_id, edited_at, title, notes, state, priority, due,
-          time_block_start, time_block_end, estimated_hours, actual_hours,
-          goal_id, project_id, is_mit, sort_order, reminder_days_before,
-          recurrence, series_id, deleted)
+      select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz), goal_id
+        into ex_rev, ex_ft, existing_updated, ex_goal
+        from public.tasks where id = rid and user_id = auth.uid() for update;
+      if not found then
+        -- new record: insert every column, but stamp edit times only on the
+        -- fields this device actually filled — an empty field it never wrote
+        -- must not outrank another device's earlier edit of that field
+        insert into public.tasks (id, user_id, edited_at, field_times, title, notes, state, priority, due, time_block_start, time_block_end, estimated_hours, actual_hours, goal_id, project_id, is_mit, sort_order, reminder_days_before, recurrence, series_id, deleted)
         values (rid, auth.uid(), edited_ts,
-          coalesce(nullif(p->>'title', ''), ''),
-          nullif(p->>'notes', ''),
-          coalesce(nullif(p->>'state', ''), 'open'),
-          coalesce(nullif(p->>'priority', '')::int, 3),
-          nullif(p->>'due', '')::date,
-          nullif(p->>'timeBlockStart', '')::timestamptz,
-          nullif(p->>'timeBlockEnd', '')::timestamptz,
-          nullif(p->>'estimatedHours', '')::numeric,
-          nullif(p->>'actualHours', '')::numeric,
-          goal_id_val,
-          nullif(p->>'projectId', '')::uuid,
-          coalesce(nullif(p->>'isMit', '')::boolean, false),
-          nullif(p->>'sortOrder', '')::int,
-          nullif(p->>'reminderDaysBefore', '')::int,
-          nullif(p->>'recurrence', ''),
-          nullif(p->>'seriesId', '')::uuid,
-          coalesce(nullif(p->>'deleted', '')::boolean, false)
-        )
-        on conflict (id) do update set
-          edited_at = excluded.edited_at,
-          title = excluded.title, notes = excluded.notes, state = excluded.state,
-          priority = excluded.priority, due = excluded.due,
-          time_block_start = excluded.time_block_start, time_block_end = excluded.time_block_end,
-          estimated_hours = excluded.estimated_hours, actual_hours = excluded.actual_hours,
-          goal_id = excluded.goal_id, project_id = excluded.project_id,
-          is_mit = excluded.is_mit, sort_order = excluded.sort_order,
-          reminder_days_before = excluded.reminder_days_before,
-          recurrence = excluded.recurrence, series_id = excluded.series_id,
-          deleted = excluded.deleted
-        where public.tasks.user_id = auth.uid();
-
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
-        if goal_id_val is not null then
-          affected_goals := affected_goals || goal_id_val;
+            coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
+            coalesce(nullif(p->>'title', ''), ''),
+            nullif(p->>'notes', ''),
+            coalesce(nullif(p->>'state', ''), 'open'),
+            coalesce(nullif(p->>'priority', '')::int, 3),
+            nullif(p->>'due', '')::date,
+            nullif(p->>'timeBlockStart', '')::timestamptz,
+            nullif(p->>'timeBlockEnd', '')::timestamptz,
+            nullif(p->>'estimatedHours', '')::numeric,
+            nullif(p->>'actualHours', '')::numeric,
+            nullif(p->>'goalId', '')::uuid,
+            nullif(p->>'projectId', '')::uuid,
+            coalesce(nullif(p->>'isMit', '')::boolean, false),
+            nullif(p->>'sortOrder', '')::int,
+            nullif(p->>'reminderDaysBefore', '')::int,
+            nullif(p->>'recurrence', ''),
+            nullif(p->>'seriesId', '')::uuid,
+            coalesce(nullif(p->>'deleted', '')::boolean, false))
+        on conflict (id) do nothing
+        returning rev, goal_id into new_rev, new_goal;
+        if new_rev is not null then
+          results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied', 'rev', new_rev, 'foreign', false);
+        if new_goal is not null then affected_goals := affected_goals || new_goal; end if;
+        if ex_goal is not null and ex_goal is distinct from new_goal then affected_goals := affected_goals || ex_goal; end if;
+        else
+          -- another device created this same record (same id: a day's
+          -- review, a habit's day) between the lookup above and this
+          -- insert — merge into it below rather than drop this one
+          select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz), goal_id
+            into ex_rev, ex_ft, existing_updated, ex_goal
+            from public.tasks where id = rid and user_id = auth.uid() for update;
+        end if;
+      end if;
+      if new_rev is null and ex_rev is null then
+        -- the id belongs to a row this account can't see: say so (the app
+        -- keeps the change and reports it) instead of claiming it saved
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'rejected');
+      elsif new_rev is null then
+        -- field-level merge: apply only the fields this device changed, and
+        -- for each, only if its edit is at least as recent as the server's
+        win := array(select f from unnest(flds) f
+                     where coalesce((fts->>f)::bigint, edited_ms) >= coalesce((ex_ft->>f)::bigint, 0));
+        update public.tasks set
+            title = case when 'title' = any(win) then coalesce(nullif(p->>'title', ''), '') else title end,
+            notes = case when 'notes' = any(win) then nullif(p->>'notes', '') else notes end,
+            state = case when 'state' = any(win) then coalesce(nullif(p->>'state', ''), 'open') else state end,
+            priority = case when 'priority' = any(win) then coalesce(nullif(p->>'priority', '')::int, 3) else priority end,
+            due = case when 'due' = any(win) then nullif(p->>'due', '')::date else due end,
+            time_block_start = case when 'timeBlockStart' = any(win) then nullif(p->>'timeBlockStart', '')::timestamptz else time_block_start end,
+            time_block_end = case when 'timeBlockEnd' = any(win) then nullif(p->>'timeBlockEnd', '')::timestamptz else time_block_end end,
+            estimated_hours = case when 'estimatedHours' = any(win) then nullif(p->>'estimatedHours', '')::numeric else estimated_hours end,
+            actual_hours = case when 'actualHours' = any(win) then nullif(p->>'actualHours', '')::numeric else actual_hours end,
+            goal_id = case when 'goalId' = any(win) then nullif(p->>'goalId', '')::uuid else goal_id end,
+            project_id = case when 'projectId' = any(win) then nullif(p->>'projectId', '')::uuid else project_id end,
+            is_mit = case when 'isMit' = any(win) then coalesce(nullif(p->>'isMit', '')::boolean, false) else is_mit end,
+            sort_order = case when 'sortOrder' = any(win) then nullif(p->>'sortOrder', '')::int else sort_order end,
+            reminder_days_before = case when 'reminderDaysBefore' = any(win) then nullif(p->>'reminderDaysBefore', '')::int else reminder_days_before end,
+            recurrence = case when 'recurrence' = any(win) then nullif(p->>'recurrence', '') else recurrence end,
+            series_id = case when 'seriesId' = any(win) then nullif(p->>'seriesId', '')::uuid else series_id end,
+            deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
+            field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
+            edited_at = greatest(existing_updated, edited_ts)
+          where id = rid and user_id = auth.uid()
+          returning rev, goal_id into new_rev, new_goal;
+        -- foreign: the row holds something this device hasn't seen — changes
+        -- from elsewhere since its base, or one of its own fields lost to a
+        -- newer edit — so it must pull the row instead of skipping its echo
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied',
+          'rev', new_rev, 'foreign', ex_rev is distinct from base_rev
+            or coalesce(array_length(win, 1), 0) < coalesce(array_length(flds, 1), 0));
+        if win && array['goalId', 'state', 'deleted'] then
+          if ex_goal is not null then affected_goals := affected_goals || ex_goal; end if;
+          if new_goal is not null then affected_goals := affected_goals || new_goal; end if;
         end if;
       end if;
 
-    elsif tbl = 'goal' then
-      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.goals where id = rid and user_id = auth.uid();
-      if found and existing_updated > edited_ts then
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
-      else
-        insert into public.goals (id, user_id, edited_at, title, type, parent_id, life_area,
-          why_it_matters, progress, status, target_date, deleted)
-        values (rid, auth.uid(), edited_ts,
-          coalesce(nullif(p->>'title', ''), ''),
-          coalesce(nullif(p->>'type', ''), 'week'),
-          nullif(p->>'parentId', '')::uuid,
-          nullif(p->>'lifeArea', ''),
-          nullif(p->>'whyItMatters', ''),
-          coalesce(nullif(p->>'progress', '')::int, 0),
-          coalesce(nullif(p->>'status', ''), 'not_started'),
-          nullif(p->>'targetDate', '')::date,
-          coalesce(nullif(p->>'deleted', '')::boolean, false)
-        )
-        on conflict (id) do update set
-          edited_at = excluded.edited_at,
-          title = excluded.title, type = excluded.type, parent_id = excluded.parent_id,
-          life_area = excluded.life_area, why_it_matters = excluded.why_it_matters,
-          progress = excluded.progress, status = excluded.status,
-          target_date = excluded.target_date, deleted = excluded.deleted
-        where public.goals.user_id = auth.uid();
-
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
-        affected_goals := affected_goals || rid;
-      end if;
-
     elsif tbl = 'habit' then
-      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.habits where id = rid and user_id = auth.uid();
-      if found and existing_updated > edited_ts then
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
-      else
-        insert into public.habits (id, user_id, edited_at, name, emoji, frequency, target_per_day, active, deleted)
+      select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+        into ex_rev, ex_ft, existing_updated
+        from public.habits where id = rid and user_id = auth.uid() for update;
+      if not found then
+        -- new record: insert every column, but stamp edit times only on the
+        -- fields this device actually filled — an empty field it never wrote
+        -- must not outrank another device's earlier edit of that field
+        insert into public.habits (id, user_id, edited_at, field_times, name, emoji, frequency, target_per_day, active, deleted)
         values (rid, auth.uid(), edited_ts,
-          coalesce(nullif(p->>'name', ''), ''),
-          nullif(p->>'emoji', ''),
-          coalesce(nullif(p->>'frequency', ''), 'daily'),
-          coalesce(nullif(p->>'targetPerDay', '')::int, 1),
-          coalesce(nullif(p->>'active', '')::boolean, true),
-          coalesce(nullif(p->>'deleted', '')::boolean, false)
-        )
-        on conflict (id) do update set
-          edited_at = excluded.edited_at,
-          name = excluded.name, emoji = excluded.emoji, frequency = excluded.frequency,
-          target_per_day = excluded.target_per_day, active = excluded.active, deleted = excluded.deleted
-        where public.habits.user_id = auth.uid();
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
+            coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
+            coalesce(nullif(p->>'name', ''), ''),
+            nullif(p->>'emoji', ''),
+            coalesce(nullif(p->>'frequency', ''), 'daily'),
+            coalesce(nullif(p->>'targetPerDay', '')::int, 1),
+            coalesce(nullif(p->>'active', '')::boolean, true),
+            coalesce(nullif(p->>'deleted', '')::boolean, false))
+        on conflict (id) do nothing
+        returning rev into new_rev;
+        if new_rev is not null then
+          results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied', 'rev', new_rev, 'foreign', false);
+        else
+          -- another device created this same record (same id: a day's
+          -- review, a habit's day) between the lookup above and this
+          -- insert — merge into it below rather than drop this one
+          select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+            into ex_rev, ex_ft, existing_updated
+            from public.habits where id = rid and user_id = auth.uid() for update;
+        end if;
+      end if;
+      if new_rev is null and ex_rev is null then
+        -- the id belongs to a row this account can't see: say so (the app
+        -- keeps the change and reports it) instead of claiming it saved
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'rejected');
+      elsif new_rev is null then
+        -- field-level merge: apply only the fields this device changed, and
+        -- for each, only if its edit is at least as recent as the server's
+        win := array(select f from unnest(flds) f
+                     where coalesce((fts->>f)::bigint, edited_ms) >= coalesce((ex_ft->>f)::bigint, 0));
+        update public.habits set
+            name = case when 'name' = any(win) then coalesce(nullif(p->>'name', ''), '') else name end,
+            emoji = case when 'emoji' = any(win) then nullif(p->>'emoji', '') else emoji end,
+            frequency = case when 'frequency' = any(win) then coalesce(nullif(p->>'frequency', ''), 'daily') else frequency end,
+            target_per_day = case when 'targetPerDay' = any(win) then coalesce(nullif(p->>'targetPerDay', '')::int, 1) else target_per_day end,
+            active = case when 'active' = any(win) then coalesce(nullif(p->>'active', '')::boolean, true) else active end,
+            deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
+            field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
+            edited_at = greatest(existing_updated, edited_ts)
+          where id = rid and user_id = auth.uid()
+          returning rev into new_rev;
+        -- foreign: the row holds something this device hasn't seen — changes
+        -- from elsewhere since its base, or one of its own fields lost to a
+        -- newer edit — so it must pull the row instead of skipping its echo
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied',
+          'rev', new_rev, 'foreign', ex_rev is distinct from base_rev
+            or coalesce(array_length(win, 1), 0) < coalesce(array_length(flds, 1), 0));
       end if;
 
     elsif tbl = 'habit_log' then
-      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.habit_logs where id = rid and user_id = auth.uid();
-      if found and existing_updated > edited_ts then
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
-      else
-        insert into public.habit_logs (id, user_id, edited_at, habit_id, date, count, deleted)
+      select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+        into ex_rev, ex_ft, existing_updated
+        from public.habit_logs where id = rid and user_id = auth.uid() for update;
+      if not found then
+        -- new record: insert every column, but stamp edit times only on the
+        -- fields this device actually filled — an empty field it never wrote
+        -- must not outrank another device's earlier edit of that field
+        insert into public.habit_logs (id, user_id, edited_at, field_times, habit_id, date, count, deleted)
         values (rid, auth.uid(), edited_ts,
-          nullif(p->>'habitId', '')::uuid,
-          nullif(p->>'date', '')::date,
-          coalesce(nullif(p->>'count', '')::int, 0),
-          coalesce(nullif(p->>'deleted', '')::boolean, false)
-        )
-        on conflict (id) do update set
-          edited_at = excluded.edited_at,
-          habit_id = excluded.habit_id, date = excluded.date, count = excluded.count, deleted = excluded.deleted
-        where public.habit_logs.user_id = auth.uid();
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
+            coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
+            nullif(p->>'habitId', '')::uuid,
+            nullif(p->>'date', '')::date,
+            coalesce(nullif(p->>'count', '')::int, 0),
+            coalesce(nullif(p->>'deleted', '')::boolean, false))
+        on conflict (id) do nothing
+        returning rev into new_rev;
+        if new_rev is not null then
+          results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied', 'rev', new_rev, 'foreign', false);
+        else
+          -- another device created this same record (same id: a day's
+          -- review, a habit's day) between the lookup above and this
+          -- insert — merge into it below rather than drop this one
+          select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+            into ex_rev, ex_ft, existing_updated
+            from public.habit_logs where id = rid and user_id = auth.uid() for update;
+        end if;
+      end if;
+      if new_rev is null and ex_rev is null then
+        -- the id belongs to a row this account can't see: say so (the app
+        -- keeps the change and reports it) instead of claiming it saved
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'rejected');
+      elsif new_rev is null then
+        -- field-level merge: apply only the fields this device changed, and
+        -- for each, only if its edit is at least as recent as the server's
+        win := array(select f from unnest(flds) f
+                     where coalesce((fts->>f)::bigint, edited_ms) >= coalesce((ex_ft->>f)::bigint, 0));
+        update public.habit_logs set
+            habit_id = case when 'habitId' = any(win) then nullif(p->>'habitId', '')::uuid else habit_id end,
+            date = case when 'date' = any(win) then nullif(p->>'date', '')::date else date end,
+            count = case when 'count' = any(win) then coalesce(nullif(p->>'count', '')::int, 0) else count end,
+            deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
+            field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
+            edited_at = greatest(existing_updated, edited_ts)
+          where id = rid and user_id = auth.uid()
+          returning rev into new_rev;
+        -- foreign: the row holds something this device hasn't seen — changes
+        -- from elsewhere since its base, or one of its own fields lost to a
+        -- newer edit — so it must pull the row instead of skipping its echo
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied',
+          'rev', new_rev, 'foreign', ex_rev is distinct from base_rev
+            or coalesce(array_length(win, 1), 0) < coalesce(array_length(flds, 1), 0));
+      end if;
+
+    elsif tbl = 'goal' then
+      select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+        into ex_rev, ex_ft, existing_updated
+        from public.goals where id = rid and user_id = auth.uid() for update;
+      if not found then
+        -- new record: insert every column, but stamp edit times only on the
+        -- fields this device actually filled — an empty field it never wrote
+        -- must not outrank another device's earlier edit of that field
+        insert into public.goals (id, user_id, edited_at, field_times, title, type, parent_id, life_area, why_it_matters, progress, status, target_date, deleted)
+        values (rid, auth.uid(), edited_ts,
+            coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
+            coalesce(nullif(p->>'title', ''), ''),
+            coalesce(nullif(p->>'type', ''), 'week'),
+            nullif(p->>'parentId', '')::uuid,
+            nullif(p->>'lifeArea', ''),
+            nullif(p->>'whyItMatters', ''),
+            coalesce(nullif(p->>'progress', '')::int, 0),
+            coalesce(nullif(p->>'status', ''), 'not_started'),
+            nullif(p->>'targetDate', '')::date,
+            coalesce(nullif(p->>'deleted', '')::boolean, false))
+        on conflict (id) do nothing
+        returning rev into new_rev;
+        if new_rev is not null then
+          results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied', 'rev', new_rev, 'foreign', false);
+        affected_goals := affected_goals || rid;
+        else
+          -- another device created this same record (same id: a day's
+          -- review, a habit's day) between the lookup above and this
+          -- insert — merge into it below rather than drop this one
+          select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+            into ex_rev, ex_ft, existing_updated
+            from public.goals where id = rid and user_id = auth.uid() for update;
+        end if;
+      end if;
+      if new_rev is null and ex_rev is null then
+        -- the id belongs to a row this account can't see: say so (the app
+        -- keeps the change and reports it) instead of claiming it saved
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'rejected');
+      elsif new_rev is null then
+        -- field-level merge: apply only the fields this device changed, and
+        -- for each, only if its edit is at least as recent as the server's
+        win := array(select f from unnest(flds) f
+                     where coalesce((fts->>f)::bigint, edited_ms) >= coalesce((ex_ft->>f)::bigint, 0));
+        update public.goals set
+            title = case when 'title' = any(win) then coalesce(nullif(p->>'title', ''), '') else title end,
+            type = case when 'type' = any(win) then coalesce(nullif(p->>'type', ''), 'week') else type end,
+            parent_id = case when 'parentId' = any(win) then nullif(p->>'parentId', '')::uuid else parent_id end,
+            life_area = case when 'lifeArea' = any(win) then nullif(p->>'lifeArea', '') else life_area end,
+            why_it_matters = case when 'whyItMatters' = any(win) then nullif(p->>'whyItMatters', '') else why_it_matters end,
+            progress = case when 'progress' = any(win) then coalesce(nullif(p->>'progress', '')::int, 0) else progress end,
+            status = case when 'status' = any(win) then coalesce(nullif(p->>'status', ''), 'not_started') else status end,
+            target_date = case when 'targetDate' = any(win) then nullif(p->>'targetDate', '')::date else target_date end,
+            deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
+            field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
+            edited_at = greatest(existing_updated, edited_ts)
+          where id = rid and user_id = auth.uid()
+          returning rev into new_rev;
+        -- foreign: the row holds something this device hasn't seen — changes
+        -- from elsewhere since its base, or one of its own fields lost to a
+        -- newer edit — so it must pull the row instead of skipping its echo
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied',
+          'rev', new_rev, 'foreign', ex_rev is distinct from base_rev
+            or coalesce(array_length(win, 1), 0) < coalesce(array_length(flds, 1), 0));
+        affected_goals := affected_goals || rid;
       end if;
 
     elsif tbl = 'review' then
-      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.reviews where id = rid and user_id = auth.uid();
-      if found and existing_updated > edited_ts then
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
-      else
-        insert into public.reviews (id, user_id, edited_at, type, period_start, period_end, wins,
-          failures, lesson, mood, energy, next_priorities, attachments, deleted)
+      select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+        into ex_rev, ex_ft, existing_updated
+        from public.reviews where id = rid and user_id = auth.uid() for update;
+      if not found then
+        -- new record: insert every column, but stamp edit times only on the
+        -- fields this device actually filled — an empty field it never wrote
+        -- must not outrank another device's earlier edit of that field
+        insert into public.reviews (id, user_id, edited_at, field_times, type, period_start, period_end, wins, failures, lesson, mood, energy, next_priorities, attachments, deleted)
         values (rid, auth.uid(), edited_ts,
-          coalesce(nullif(p->>'type', ''), 'daily'),
-          nullif(p->>'periodStart', '')::date,
-          nullif(p->>'periodEnd', '')::date,
-          nullif(p->>'wins', ''),
-          nullif(p->>'failures', ''),
-          nullif(p->>'lesson', ''),
-          nullif(p->>'mood', ''),
-          nullif(p->>'energy', '')::int,
-          nullif(p->>'nextPriorities', ''),
-          case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end,
-          coalesce(nullif(p->>'deleted', '')::boolean, false)
-        )
-        on conflict (id) do update set
-          edited_at = excluded.edited_at,
-          type = excluded.type, period_start = excluded.period_start, period_end = excluded.period_end,
-          wins = excluded.wins, failures = excluded.failures, lesson = excluded.lesson,
-          mood = excluded.mood, energy = excluded.energy, next_priorities = excluded.next_priorities,
-          attachments = excluded.attachments, deleted = excluded.deleted
-        where public.reviews.user_id = auth.uid();
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
+            coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
+            coalesce(nullif(p->>'type', ''), 'daily'),
+            nullif(p->>'periodStart', '')::date,
+            nullif(p->>'periodEnd', '')::date,
+            nullif(p->>'wins', ''),
+            nullif(p->>'failures', ''),
+            nullif(p->>'lesson', ''),
+            nullif(p->>'mood', ''),
+            nullif(p->>'energy', '')::int,
+            nullif(p->>'nextPriorities', ''),
+            case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end,
+            coalesce(nullif(p->>'deleted', '')::boolean, false))
+        on conflict (id) do nothing
+        returning rev into new_rev;
+        if new_rev is not null then
+          results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied', 'rev', new_rev, 'foreign', false);
+        else
+          -- another device created this same record (same id: a day's
+          -- review, a habit's day) between the lookup above and this
+          -- insert — merge into it below rather than drop this one
+          select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+            into ex_rev, ex_ft, existing_updated
+            from public.reviews where id = rid and user_id = auth.uid() for update;
+        end if;
+      end if;
+      if new_rev is null and ex_rev is null then
+        -- the id belongs to a row this account can't see: say so (the app
+        -- keeps the change and reports it) instead of claiming it saved
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'rejected');
+      elsif new_rev is null then
+        -- field-level merge: apply only the fields this device changed, and
+        -- for each, only if its edit is at least as recent as the server's
+        win := array(select f from unnest(flds) f
+                     where coalesce((fts->>f)::bigint, edited_ms) >= coalesce((ex_ft->>f)::bigint, 0));
+        update public.reviews set
+            type = case when 'type' = any(win) then coalesce(nullif(p->>'type', ''), 'daily') else type end,
+            period_start = case when 'periodStart' = any(win) then nullif(p->>'periodStart', '')::date else period_start end,
+            period_end = case when 'periodEnd' = any(win) then nullif(p->>'periodEnd', '')::date else period_end end,
+            wins = case when 'wins' = any(win) then nullif(p->>'wins', '') else wins end,
+            failures = case when 'failures' = any(win) then nullif(p->>'failures', '') else failures end,
+            lesson = case when 'lesson' = any(win) then nullif(p->>'lesson', '') else lesson end,
+            mood = case when 'mood' = any(win) then nullif(p->>'mood', '') else mood end,
+            energy = case when 'energy' = any(win) then nullif(p->>'energy', '')::int else energy end,
+            next_priorities = case when 'nextPriorities' = any(win) then nullif(p->>'nextPriorities', '') else next_priorities end,
+            attachments = case when 'attachments' = any(flds) then public.merge_attachments(attachments,
+              (select coalesce(jsonb_agg(a), '[]'::jsonb) from jsonb_array_elements(case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end) a where a->>'id' = any(att_up)),
+              att_rm) else attachments end,
+            deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
+            field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
+            edited_at = greatest(existing_updated, edited_ts)
+          where id = rid and user_id = auth.uid()
+          returning rev into new_rev;
+        -- foreign: the row holds something this device hasn't seen — changes
+        -- from elsewhere since its base, or one of its own fields lost to a
+        -- newer edit — so it must pull the row instead of skipping its echo
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied',
+          'rev', new_rev, 'foreign', ex_rev is distinct from base_rev
+            or coalesce(array_length(win, 1), 0) < coalesce(array_length(flds, 1), 0));
       end if;
 
     elsif tbl = 'project' then
-      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.projects where id = rid and user_id = auth.uid();
-      if found and existing_updated > edited_ts then
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
-      else
-        insert into public.projects (id, user_id, edited_at, title, color, archived, deleted)
+      select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+        into ex_rev, ex_ft, existing_updated
+        from public.projects where id = rid and user_id = auth.uid() for update;
+      if not found then
+        -- new record: insert every column, but stamp edit times only on the
+        -- fields this device actually filled — an empty field it never wrote
+        -- must not outrank another device's earlier edit of that field
+        insert into public.projects (id, user_id, edited_at, field_times, title, color, archived, deleted)
         values (rid, auth.uid(), edited_ts,
-          coalesce(nullif(p->>'title', ''), ''),
-          coalesce(nullif(p->>'color', ''), 'coral'),
-          coalesce(nullif(p->>'archived', '')::boolean, false),
-          coalesce(nullif(p->>'deleted', '')::boolean, false)
-        )
-        on conflict (id) do update set
-          edited_at = excluded.edited_at,
-          title = excluded.title, color = excluded.color, archived = excluded.archived, deleted = excluded.deleted
-        where public.projects.user_id = auth.uid();
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
+            coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
+            coalesce(nullif(p->>'title', ''), ''),
+            coalesce(nullif(p->>'color', ''), 'coral'),
+            coalesce(nullif(p->>'archived', '')::boolean, false),
+            coalesce(nullif(p->>'deleted', '')::boolean, false))
+        on conflict (id) do nothing
+        returning rev into new_rev;
+        if new_rev is not null then
+          results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied', 'rev', new_rev, 'foreign', false);
+        else
+          -- another device created this same record (same id: a day's
+          -- review, a habit's day) between the lookup above and this
+          -- insert — merge into it below rather than drop this one
+          select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+            into ex_rev, ex_ft, existing_updated
+            from public.projects where id = rid and user_id = auth.uid() for update;
+        end if;
+      end if;
+      if new_rev is null and ex_rev is null then
+        -- the id belongs to a row this account can't see: say so (the app
+        -- keeps the change and reports it) instead of claiming it saved
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'rejected');
+      elsif new_rev is null then
+        -- field-level merge: apply only the fields this device changed, and
+        -- for each, only if its edit is at least as recent as the server's
+        win := array(select f from unnest(flds) f
+                     where coalesce((fts->>f)::bigint, edited_ms) >= coalesce((ex_ft->>f)::bigint, 0));
+        update public.projects set
+            title = case when 'title' = any(win) then coalesce(nullif(p->>'title', ''), '') else title end,
+            color = case when 'color' = any(win) then coalesce(nullif(p->>'color', ''), 'coral') else color end,
+            archived = case when 'archived' = any(win) then coalesce(nullif(p->>'archived', '')::boolean, false) else archived end,
+            deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
+            field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
+            edited_at = greatest(existing_updated, edited_ts)
+          where id = rid and user_id = auth.uid()
+          returning rev into new_rev;
+        -- foreign: the row holds something this device hasn't seen — changes
+        -- from elsewhere since its base, or one of its own fields lost to a
+        -- newer edit — so it must pull the row instead of skipping its echo
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied',
+          'rev', new_rev, 'foreign', ex_rev is distinct from base_rev
+            or coalesce(array_length(win, 1), 0) < coalesce(array_length(flds, 1), 0));
       end if;
 
     elsif tbl = 'drawing' then
-      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.drawings where id = rid and user_id = auth.uid();
-      if found and existing_updated > edited_ts then
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
-      else
-        insert into public.drawings (id, user_id, edited_at, title, kind, data_url, text, format, attachments, folder_id, deleted)
+      select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+        into ex_rev, ex_ft, existing_updated
+        from public.drawings where id = rid and user_id = auth.uid() for update;
+      if not found then
+        -- new record: insert every column, but stamp edit times only on the
+        -- fields this device actually filled — an empty field it never wrote
+        -- must not outrank another device's earlier edit of that field
+        insert into public.drawings (id, user_id, edited_at, field_times, title, kind, data_url, text, format, attachments, folder_id, deleted)
         values (rid, auth.uid(), edited_ts,
-          coalesce(nullif(p->>'title', ''), ''),
-          coalesce(nullif(p->>'kind', ''), 'draw'),
-          nullif(p->>'dataUrl', ''),
-          nullif(p->>'text', ''),
-          nullif(p->>'format', ''),
-          case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end,
-          nullif(p->>'folderId', '')::uuid,
-          coalesce(nullif(p->>'deleted', '')::boolean, false)
-        )
-        on conflict (id) do update set
-          edited_at = excluded.edited_at,
-          title = excluded.title, kind = excluded.kind, data_url = excluded.data_url,
-          text = excluded.text, format = excluded.format, attachments = excluded.attachments,
-          folder_id = excluded.folder_id, deleted = excluded.deleted
-        where public.drawings.user_id = auth.uid();
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
+            coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
+            coalesce(nullif(p->>'title', ''), ''),
+            coalesce(nullif(p->>'kind', ''), 'draw'),
+            nullif(p->>'dataUrl', ''),
+            nullif(p->>'text', ''),
+            nullif(p->>'format', ''),
+            case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end,
+            nullif(p->>'folderId', '')::uuid,
+            coalesce(nullif(p->>'deleted', '')::boolean, false))
+        on conflict (id) do nothing
+        returning rev into new_rev;
+        if new_rev is not null then
+          results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied', 'rev', new_rev, 'foreign', false);
+        else
+          -- another device created this same record (same id: a day's
+          -- review, a habit's day) between the lookup above and this
+          -- insert — merge into it below rather than drop this one
+          select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+            into ex_rev, ex_ft, existing_updated
+            from public.drawings where id = rid and user_id = auth.uid() for update;
+        end if;
+      end if;
+      if new_rev is null and ex_rev is null then
+        -- the id belongs to a row this account can't see: say so (the app
+        -- keeps the change and reports it) instead of claiming it saved
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'rejected');
+      elsif new_rev is null then
+        -- field-level merge: apply only the fields this device changed, and
+        -- for each, only if its edit is at least as recent as the server's
+        win := array(select f from unnest(flds) f
+                     where coalesce((fts->>f)::bigint, edited_ms) >= coalesce((ex_ft->>f)::bigint, 0));
+        update public.drawings set
+            title = case when 'title' = any(win) then coalesce(nullif(p->>'title', ''), '') else title end,
+            kind = case when 'kind' = any(win) then coalesce(nullif(p->>'kind', ''), 'draw') else kind end,
+            data_url = case when 'dataUrl' = any(win) then nullif(p->>'dataUrl', '') else data_url end,
+            text = case when 'text' = any(win) then nullif(p->>'text', '') else text end,
+            format = case when 'format' = any(win) then nullif(p->>'format', '') else format end,
+            attachments = case when 'attachments' = any(flds) then public.merge_attachments(attachments,
+              (select coalesce(jsonb_agg(a), '[]'::jsonb) from jsonb_array_elements(case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end) a where a->>'id' = any(att_up)),
+              att_rm) else attachments end,
+            folder_id = case when 'folderId' = any(win) then nullif(p->>'folderId', '')::uuid else folder_id end,
+            deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
+            field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
+            edited_at = greatest(existing_updated, edited_ts)
+          where id = rid and user_id = auth.uid()
+          returning rev into new_rev;
+        -- foreign: the row holds something this device hasn't seen — changes
+        -- from elsewhere since its base, or one of its own fields lost to a
+        -- newer edit — so it must pull the row instead of skipping its echo
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied',
+          'rev', new_rev, 'foreign', ex_rev is distinct from base_rev
+            or coalesce(array_length(win, 1), 0) < coalesce(array_length(flds, 1), 0));
       end if;
 
     elsif tbl = 'folder' then
-      select coalesce(edited_at, '-infinity'::timestamptz) into existing_updated from public.sketch_folders where id = rid and user_id = auth.uid();
-      if found and existing_updated > edited_ts then
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'server_won');
-      else
-        insert into public.sketch_folders (id, user_id, edited_at, name, parent_id, cover, cover_y, cover_h, deleted)
+      select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+        into ex_rev, ex_ft, existing_updated
+        from public.sketch_folders where id = rid and user_id = auth.uid() for update;
+      if not found then
+        -- new record: insert every column, but stamp edit times only on the
+        -- fields this device actually filled — an empty field it never wrote
+        -- must not outrank another device's earlier edit of that field
+        insert into public.sketch_folders (id, user_id, edited_at, field_times, name, parent_id, cover, cover_y, cover_h, deleted)
         values (rid, auth.uid(), edited_ts,
-          coalesce(nullif(p->>'name', ''), ''),
-          nullif(p->>'parentId', '')::uuid,
-          nullif(p->>'cover', ''),
-          nullif(p->>'coverY', '')::int,
-          nullif(p->>'coverH', '')::real,
-          coalesce(nullif(p->>'deleted', '')::boolean, false)
-        )
-        on conflict (id) do update set
-          edited_at = excluded.edited_at,
-          name = excluded.name, parent_id = excluded.parent_id, cover = excluded.cover, cover_y = excluded.cover_y, cover_h = excluded.cover_h,
-          deleted = excluded.deleted
-        where public.sketch_folders.user_id = auth.uid();
-        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied');
+            coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
+            coalesce(nullif(p->>'name', ''), ''),
+            nullif(p->>'parentId', '')::uuid,
+            nullif(p->>'cover', ''),
+            nullif(p->>'coverY', '')::int,
+            nullif(p->>'coverH', '')::real,
+            coalesce(nullif(p->>'deleted', '')::boolean, false))
+        on conflict (id) do nothing
+        returning rev into new_rev;
+        if new_rev is not null then
+          results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied', 'rev', new_rev, 'foreign', false);
+        else
+          -- another device created this same record (same id: a day's
+          -- review, a habit's day) between the lookup above and this
+          -- insert — merge into it below rather than drop this one
+          select rev, coalesce(field_times, '{}'::jsonb), coalesce(edited_at, '-infinity'::timestamptz)
+            into ex_rev, ex_ft, existing_updated
+            from public.sketch_folders where id = rid and user_id = auth.uid() for update;
+        end if;
+      end if;
+      if new_rev is null and ex_rev is null then
+        -- the id belongs to a row this account can't see: say so (the app
+        -- keeps the change and reports it) instead of claiming it saved
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'rejected');
+      elsif new_rev is null then
+        -- field-level merge: apply only the fields this device changed, and
+        -- for each, only if its edit is at least as recent as the server's
+        win := array(select f from unnest(flds) f
+                     where coalesce((fts->>f)::bigint, edited_ms) >= coalesce((ex_ft->>f)::bigint, 0));
+        update public.sketch_folders set
+            name = case when 'name' = any(win) then coalesce(nullif(p->>'name', ''), '') else name end,
+            parent_id = case when 'parentId' = any(win) then nullif(p->>'parentId', '')::uuid else parent_id end,
+            cover = case when 'cover' = any(win) then nullif(p->>'cover', '') else cover end,
+            cover_y = case when 'coverY' = any(win) then nullif(p->>'coverY', '')::int else cover_y end,
+            cover_h = case when 'coverH' = any(win) then nullif(p->>'coverH', '')::real else cover_h end,
+            deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
+            field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
+            edited_at = greatest(existing_updated, edited_ts)
+          where id = rid and user_id = auth.uid()
+          returning rev into new_rev;
+        -- foreign: the row holds something this device hasn't seen — changes
+        -- from elsewhere since its base, or one of its own fields lost to a
+        -- newer edit — so it must pull the row instead of skipping its echo
+        results := results || jsonb_build_object('client_uuid', rid, 'sys_id', rid::text, 'outcome', 'applied',
+          'rev', new_rev, 'foreign', ex_rev is distinct from base_rev
+            or coalesce(array_length(win, 1), 0) < coalesce(array_length(flds, 1), 0));
       end if;
     end if;
   end loop;
@@ -643,118 +1091,160 @@ end;
 $$;
 
 -- ------------------------------------------------------------
--- sync_pull — same contract as GET /sync/pull?since=. Returns every row
--- across all 6 tables changed after `since`, plus a fresh cursor (now()).
--- updatedAt is emitted as epoch-milliseconds to match Task.updatedAt's
--- existing type (a number, from Date.now() historically) — engine.ts's
--- client-side LWW guard compares it directly against local.updatedAt.
+-- sync_pull — every row changed since the device's last pull, and the
+-- cursor to send next time.
+--
+-- The cursor is the database snapshot this pull read from ("xmin:xmax:
+-- xip,…"). Next time, rows written by any transaction that snapshot could
+-- not see come back — including a save that was still committing while
+-- this pull ran. (A timestamp cursor lost those for good: such a save is
+-- stamped with its start time, earlier than the pull's, yet wasn't visible
+-- to it.) Each row records the transaction that last wrote it in `txid`.
+-- A timestamp cursor — older app versions, or the first pull after this
+-- change — still works: rows changed since then, stepping back 2 minutes
+-- for saves that were mid-commit (a statement can run up to 60s).
+--
+-- `skip`: "<id>#<rev>" of rows this device just pushed, so it doesn't
+-- re-download its own save (a note full of images is MBs per autosave).
+-- A key matches only that exact version — any later write bumps rev, so a
+-- change from another device always comes through. (Older app versions
+-- send "<id>:<ms>" keys; those match nothing now, so they re-download their
+-- own saves — wasteful but always correct.)
+-- updatedAt is epoch-milliseconds, like the app's Date.now() stamps.
 -- ------------------------------------------------------------
--- `skip`: "<id>:<edited_at ms>" for records this device just pushed — the
--- server leaves those out so a device doesn't re-download its own save
--- (a note full of images is MBs per autosave). A key only matches that
--- exact version, so a later edit from another device still comes through.
 drop function if exists public.sync_pull(timestamptz);
-create or replace function public.sync_pull(since timestamptz, skip text[] default '{}')
+drop function if exists public.sync_pull(timestamptz, text[]);
+create or replace function public.sync_pull(since text default null, skip text[] default '{}')
 returns jsonb
-language sql
+language plpgsql
 security invoker
 as $$
+declare
+  snap pg_snapshot;  -- the previous pull's snapshot (the normal cursor)
+  lo xid8;           -- …and the oldest transaction still running then
+  ts timestamptz;    -- or a timestamp cursor
+  res jsonb;
+begin
+  begin
+    if since ~ '^\d+:\d+:' then
+      snap := since::pg_snapshot;
+      lo := pg_snapshot_xmin(snap);
+    elsif coalesce(since, '') <> '' then
+      ts := since::timestamptz - interval '2 minutes';
+    end if;
+  exception when others then
+    -- an unreadable cursor: send everything rather than fail every sync
+    snap := null; lo := null; ts := null;
+  end;
   select jsonb_build_object(
-    'cursor', now(),
-    'records', coalesce(jsonb_agg(rec), '[]'::jsonb)
-  )
-  from (
-    select jsonb_build_object(
-      'table', 'task', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
-      'data', jsonb_build_object(
-        'title', title, 'notes', notes, 'state', state, 'priority', priority,
-        'due', due, 'timeBlockStart', time_block_start, 'timeBlockEnd', time_block_end,
-        'estimatedHours', estimated_hours, 'actualHours', actual_hours,
-        'goalId', goal_id, 'projectId', project_id, 'isMit', is_mit,
-        'sortOrder', sort_order, 'reminderDaysBefore', reminder_days_before,
-        'recurrence', recurrence, 'seriesId', series_id,
-        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
-      )
-    ) as rec
-    from public.tasks where user_id = auth.uid() and updated_at > since
-      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
-    union all
-    select jsonb_build_object(
-      'table', 'goal', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
-      'data', jsonb_build_object(
-        'title', title, 'type', type, 'parentId', parent_id,
-        'lifeArea', life_area, 'whyItMatters', why_it_matters,
-        'progress', progress, 'status', status, 'targetDate', target_date,
-        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
-      )
-    )
-    from public.goals where user_id = auth.uid() and updated_at > since
-      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
-    union all
-    select jsonb_build_object(
-      'table', 'habit', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
-      'data', jsonb_build_object(
-        'name', name, 'emoji', emoji, 'frequency', frequency,
-        'targetPerDay', target_per_day, 'active', active,
-        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
-      )
-    )
-    from public.habits where user_id = auth.uid() and updated_at > since
-      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
-    union all
-    select jsonb_build_object(
-      'table', 'habit_log', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
-      'data', jsonb_build_object(
-        'habitId', habit_id, 'date', date, 'count', count,
-        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
-      )
-    )
-    from public.habit_logs where user_id = auth.uid() and updated_at > since
-      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
-    union all
-    select jsonb_build_object(
-      'table', 'review', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
-      'data', jsonb_build_object(
-        'type', type, 'periodStart', period_start, 'periodEnd', period_end,
-        'wins', wins, 'failures', failures, 'lesson', lesson, 'mood', mood,
-        'energy', energy, 'nextPriorities', next_priorities, 'attachments', attachments,
-        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
-      )
-    )
-    from public.reviews where user_id = auth.uid() and updated_at > since
-      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
-    union all
-    select jsonb_build_object(
-      'table', 'project', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
-      'data', jsonb_build_object(
-        'title', title, 'color', color, 'archived', archived,
-        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
-      )
-    )
-    from public.projects where user_id = auth.uid() and updated_at > since
-      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
-    union all
-    select jsonb_build_object(
-      'table', 'drawing', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
-      'data', jsonb_build_object(
-        'title', title, 'kind', kind, 'dataUrl', data_url, 'text', text,
-        'format', format, 'attachments', attachments, 'folderId', folder_id,
-        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
-      )
-    )
-    from public.drawings where user_id = auth.uid() and updated_at > since
-      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
-    union all
-    select jsonb_build_object(
-      'table', 'folder', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
-      'data', jsonb_build_object(
-        'name', name, 'parentId', parent_id, 'cover', cover, 'coverY', cover_y, 'coverH', cover_h,
-        'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint
-      )
-    )
-    from public.sketch_folders where user_id = auth.uid() and updated_at > since
-      and not ((id::text || ':' || (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint) = any(skip))
-  ) all_records;
+      'cursor', pg_current_snapshot()::text,
+      'records', coalesce(jsonb_agg(rec), '[]'::jsonb))
+    into res
+    from (
+      select jsonb_build_object(
+        'table', 'task', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+        'data', jsonb_build_object(
+          'title', title, 'notes', notes, 'state', state,
+          'priority', priority, 'due', due, 'timeBlockStart', time_block_start,
+          'timeBlockEnd', time_block_end, 'estimatedHours', estimated_hours, 'actualHours', actual_hours,
+          'goalId', goal_id, 'projectId', project_id, 'isMit', is_mit,
+          'sortOrder', sort_order, 'reminderDaysBefore', reminder_days_before, 'recurrence', recurrence,
+          'seriesId', series_id,
+          'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
+        from public.tasks
+       where user_id = auth.uid()
+         and (snap is null or (txid >= lo and not pg_visible_in_snapshot(txid, snap)))
+         and (ts is null or updated_at > ts)
+         and not ((id::text || '#' || rev) = any(skip))
+      union all
+      select jsonb_build_object(
+        'table', 'habit', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+        'data', jsonb_build_object(
+          'name', name, 'emoji', emoji, 'frequency', frequency,
+          'targetPerDay', target_per_day, 'active', active,
+          'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
+        from public.habits
+       where user_id = auth.uid()
+         and (snap is null or (txid >= lo and not pg_visible_in_snapshot(txid, snap)))
+         and (ts is null or updated_at > ts)
+         and not ((id::text || '#' || rev) = any(skip))
+      union all
+      select jsonb_build_object(
+        'table', 'habit_log', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+        'data', jsonb_build_object(
+          'habitId', habit_id, 'date', date, 'count', count,
+          'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
+        from public.habit_logs
+       where user_id = auth.uid()
+         and (snap is null or (txid >= lo and not pg_visible_in_snapshot(txid, snap)))
+         and (ts is null or updated_at > ts)
+         and not ((id::text || '#' || rev) = any(skip))
+      union all
+      select jsonb_build_object(
+        'table', 'goal', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+        'data', jsonb_build_object(
+          'title', title, 'type', type, 'parentId', parent_id,
+          'lifeArea', life_area, 'whyItMatters', why_it_matters, 'progress', progress,
+          'status', status, 'targetDate', target_date,
+          'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
+        from public.goals
+       where user_id = auth.uid()
+         and (snap is null or (txid >= lo and not pg_visible_in_snapshot(txid, snap)))
+         and (ts is null or updated_at > ts)
+         and not ((id::text || '#' || rev) = any(skip))
+      union all
+      select jsonb_build_object(
+        'table', 'review', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+        'data', jsonb_build_object(
+          'type', type, 'periodStart', period_start, 'periodEnd', period_end,
+          'wins', wins, 'failures', failures, 'lesson', lesson,
+          'mood', mood, 'energy', energy, 'nextPriorities', next_priorities,
+          'attachments', attachments,
+          'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
+        from public.reviews
+       where user_id = auth.uid()
+         and (snap is null or (txid >= lo and not pg_visible_in_snapshot(txid, snap)))
+         and (ts is null or updated_at > ts)
+         and not ((id::text || '#' || rev) = any(skip))
+      union all
+      select jsonb_build_object(
+        'table', 'project', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+        'data', jsonb_build_object(
+          'title', title, 'color', color, 'archived', archived,
+          'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
+        from public.projects
+       where user_id = auth.uid()
+         and (snap is null or (txid >= lo and not pg_visible_in_snapshot(txid, snap)))
+         and (ts is null or updated_at > ts)
+         and not ((id::text || '#' || rev) = any(skip))
+      union all
+      select jsonb_build_object(
+        'table', 'drawing', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+        'data', jsonb_build_object(
+          'title', title, 'kind', kind, 'dataUrl', data_url,
+          'text', text, 'format', format, 'attachments', attachments,
+          'folderId', folder_id,
+          'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
+        from public.drawings
+       where user_id = auth.uid()
+         and (snap is null or (txid >= lo and not pg_visible_in_snapshot(txid, snap)))
+         and (ts is null or updated_at > ts)
+         and not ((id::text || '#' || rev) = any(skip))
+      union all
+      select jsonb_build_object(
+        'table', 'folder', 'client_uuid', id, 'sys_id', id::text, 'deleted', deleted,
+        'data', jsonb_build_object(
+          'name', name, 'parentId', parent_id, 'cover', cover,
+          'coverY', cover_y, 'coverH', cover_h,
+          'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
+        from public.sketch_folders
+       where user_id = auth.uid()
+         and (snap is null or (txid >= lo and not pg_visible_in_snapshot(txid, snap)))
+         and (ts is null or updated_at > ts)
+         and not ((id::text || '#' || rev) = any(skip))
+    ) all_records;
+  return res;
+end;
 $$;
 
 -- ------------------------------------------------------------
@@ -766,8 +1256,9 @@ grant select, insert, update on public.profiles, public.tasks, public.goals,
   public.habits, public.habit_logs, public.reviews, public.projects,
   public.drawings, public.sketch_folders to authenticated;
 grant execute on function public.sync_push(jsonb) to authenticated;
-grant execute on function public.sync_pull(timestamptz, text[]) to authenticated;
+grant execute on function public.sync_pull(text, text[]) to authenticated;
 grant execute on function public.recalc_goal(uuid) to authenticated;
+grant execute on function public.merge_attachments(jsonb, jsonb, text[]) to authenticated;
 
 -- ------------------------------------------------------------
 -- Security advisor hardening (idempotent).
@@ -778,9 +1269,12 @@ grant execute on function public.recalc_goal(uuid) to authenticated;
 -- profiles.username is typed citext and moving the extension breaks it.
 -- ------------------------------------------------------------
 alter function public.sync_push(jsonb) set search_path = public;
-alter function public.sync_pull(timestamptz, text[]) set search_path = public;
+alter function public.sync_pull(text, text[]) set search_path = public;
 alter function public.recalc_goal(uuid) set search_path = public;
 alter function public.set_updated_at() set search_path = public;
+alter function public.bump_rev() set search_path = public;
+alter function public.merge_attachments(jsonb, jsonb, text[]) set search_path = public;
+alter function public.all_fields(text) set search_path = public;
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 

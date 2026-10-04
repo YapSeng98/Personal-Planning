@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { db, uuid, writeAndQueue, type SketchFolder } from '../db/db'
+import { db, uuid, writeAndQueue, patchAndQueue, type SketchFolder } from '../db/db'
+import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { folderOptions } from '../lib/folders'
@@ -43,7 +44,10 @@ export default function FolderForm({
         deleted: 0,
         updatedAt: Date.now(),
       }
-      await writeAndQueue(db.folders, 'folder', record)
+      // Renaming/moving touches only name and parent — never the cover,
+      // which another device may have changed meanwhile.
+      if (folder) await patchAndQueue(db.folders, 'folder', folder.id, patchFrom(folder, record, ['name', 'parentId']))
+      else await writeAndQueue(db.folders, 'folder', record)
       syncNow()
       onClose()
     } finally {

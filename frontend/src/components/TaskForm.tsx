@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { db, uuid, todayStr, writeAndQueue, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState, type GoalType } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, patchAndQueue, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState, type GoalType } from '../db/db'
+import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
 import { useLang } from '../lib/i18n'
@@ -38,6 +39,9 @@ function daysBetween(from: string, to: string): number {
 
 const REMINDER_MAX_DAYS = 3
 const REMINDER_LABELS = ['task.reminderOnDueDay', 'task.reminder1Day', 'task.reminder2Days', 'task.reminder3Days']
+/** Fields this form edits — only those that differ from the task as opened are saved. */
+const EDITABLE: (keyof Task)[] = ['title', 'state', 'due', 'timeBlockStart', 'timeBlockEnd', 'estimatedHours',
+  'completedAt', 'goalId', 'projectId', 'isMit', 'reminderDaysBefore', 'recurrence', 'seriesId']
 
 
 const GOAL_LEVELS: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
@@ -171,11 +175,10 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       // the series the next day. They keep their history, minus the badge.
       if (task && task.recurrence && !recurrence && task.seriesId) {
         const series = await db.tasks.filter((x) => x.seriesId === task.seriesId && x.id !== task.id && !x.deleted && !!x.recurrence).toArray()
-        for (const row of series) await writeAndQueue(db.tasks, 'task', { ...row, recurrence: undefined, updatedAt: Date.now() })
+        for (const row of series) await patchAndQueue(db.tasks, 'task', row.id, { recurrence: undefined })
       }
       if (task && task.recurrence && !recurrence && task.state !== 'done') {
-        const tombstone: Task = { ...task, deleted: 1, updatedAt: Date.now() }
-        await writeAndQueue(db.tasks, 'task', tombstone)
+        await patchAndQueue(db.tasks, 'task', task.id, { deleted: 1 })
         if (task.goalId) await rollUpGoal(task.goalId)
         syncNow()
         onClose()
@@ -205,9 +208,14 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
         deleted: 0,
         updatedAt: Date.now(),
       }
-      await writeAndQueue(db.tasks, 'task', record)
-      if (task?.goalId && task.goalId !== record.goalId) await rollUpGoal(task.goalId)
-      if (record.goalId) await rollUpGoal(record.goalId)
+      // Editing: save only what changed in this form, on top of the task as
+      // stored now — fields edited on another device meanwhile are kept.
+      const saved = task
+        ? await patchAndQueue(db.tasks, 'task', id, patchFrom(task, record, EDITABLE))
+        : (await writeAndQueue(db.tasks, 'task', record), record)
+      const goalNow = saved?.goalId
+      if (task?.goalId && task.goalId !== goalNow) await rollUpGoal(task.goalId)
+      if (goalNow) await rollUpGoal(goalNow)
       syncNow()
       onClose()
     } finally {
@@ -221,8 +229,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   async function remove() {
     if (!task) return
     if (!window.confirm(t('task.deleteConfirm', { title: task.title }))) return
-    const tombstone: Task = { ...task, deleted: 1, updatedAt: Date.now() }
-    await writeAndQueue(db.tasks, 'task', tombstone)
+    await patchAndQueue(db.tasks, 'task', task.id, { deleted: 1 })
     if (task.goalId) await rollUpGoal(task.goalId)
     syncNow()
     onClose()

@@ -3,12 +3,13 @@
 // and applies delta pulls when a connection and login exist. If the SN side
 // isn't built yet (404) or we're offline, the app keeps working locally.
 
-import { db, notifyChange, cleanEmoji, writeAndQueue, type DrawingNote, type Review } from '../db/db'
+import { db, notifyChange, cleanEmoji, type DrawingNote, type Review, type OutboxEntry, type NoteAttachment } from '../db/db'
+import { SYNC_FIELDS, applyAttachmentOps, type SyncTable } from './fields'
 import { isAuthed, syncPush, syncPull, localDataOwner, setLocalDataOwner, type PushItem } from './api'
 import { supabase } from './supabase'
 import { syncAiUrl } from '../lib/ai'
 import { uploadPendingFiles } from '../lib/files'
-import { slimDrawing, slimReview, sizeBreakdown, MAX_SLIM_LEVEL } from '../lib/compact'
+import { slimDrawing, slimReview, saveSlimmed, sizeBreakdown, MAX_SLIM_LEVEL } from '../lib/compact'
 import { startLiveSync } from './live'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
@@ -42,24 +43,9 @@ const tableMap = {
   folder: db.folders,
 } as const
 
-// Every syncable field per table (matches the ServiceNow FIELD_MAPS). We push
-// ALL of these every time, sending '' for anything the local record doesn't
-// have — that's what makes CLEARING a field (time block, notes, hours, a goal
-// link…) actually propagate. If we only sent the keys that were present, a
-// cleared value would simply be omitted and the server would keep the old one.
-const SYNC_FIELDS: Record<keyof typeof tableMap, string[]> = {
-  task: ['title', 'notes', 'state', 'priority', 'due', 'timeBlockStart', 'timeBlockEnd',
-    'estimatedHours', 'actualHours', 'goalId', 'projectId', 'isMit', 'sortOrder',
-    'reminderDaysBefore', 'recurrence', 'seriesId', 'deleted'],
-  habit: ['name', 'emoji', 'frequency', 'targetPerDay', 'active', 'deleted'],
-  habit_log: ['habitId', 'date', 'count', 'deleted'],
-  goal: ['title', 'type', 'parentId', 'lifeArea', 'whyItMatters', 'progress', 'status', 'targetDate', 'deleted'],
-  review: ['type', 'periodStart', 'periodEnd', 'wins', 'failures', 'lesson', 'mood', 'energy', 'nextPriorities', 'attachments', 'deleted'],
-  project: ['title', 'color', 'archived', 'deleted'],
-  drawing: ['title', 'kind', 'dataUrl', 'text', 'format', 'attachments', 'folderId', 'deleted'],
-  folder: ['name', 'parentId', 'cover', 'coverY', 'coverH', 'deleted'],
-}
-
+// The payload always carries every synced field (sync/fields.ts), '' for
+// anything unset — that's what makes CLEARING a field propagate. Which of
+// them the server actually applies is decided by `fields` (see pushItem).
 function buildPayload(table: keyof typeof tableMap, rec: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   for (const f of SYNC_FIELDS[table]) out[f] = rec[f] == null ? '' : rec[f]
@@ -80,6 +66,83 @@ function describe(table: string, rec: Record<string, unknown>): string {
   const name = rec.title || rec.name || rec.periodStart || ''
   const kind = table === 'drawing' ? 'sketch' : table
   return name ? `${kind} "${String(name).slice(0, 40)}"` : kind
+}
+
+/** Outbox entries grouped per record, in queue order. */
+function groupEntries(entries: OutboxEntry[]): Map<string, OutboxEntry[]> {
+  const m = new Map<string, OutboxEntry[]>()
+  for (const e of [...entries].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))) {
+    const k = `${e.table}:${e.recordId}`
+    m.set(k, [...(m.get(k) ?? []), e])
+  }
+  return m
+}
+
+/** Net attachment changes across a record's queued writes. */
+function attachmentChanges(group: OutboxEntry[]): { up: Set<string>; rm: Set<string> } {
+  const up = new Set<string>(), rm = new Set<string>()
+  for (const e of group) {
+    for (const id of e.attUp ?? []) { up.add(id); rm.delete(id) }
+    for (const id of e.attRm ?? []) { rm.add(id); up.delete(id) }
+  }
+  return { up, rm }
+}
+
+/** What to send for one record: the whole payload (older servers and new
+    records need it) plus exactly which fields this device changed, when
+    each was last edited here, and the attachment adds/removals — so the
+    server applies only those, field by field. Entries queued by an older
+    app version don't say what changed: they claim every field, stamped
+    with their edit time — so anything edited more recently elsewhere
+    still wins on the server. */
+function pushItem(table: SyncTable, id: string, rec: Record<string, unknown>, group: OutboxEntry[]): PushItem {
+  const all = SYNC_FIELDS[table]
+  const legacy = group.some((e) => !e.fields)
+  const isNew = group.some((e) => e.fields?.includes('*'))
+  const fieldTimes: Record<string, number> = {}
+  for (const e of group) {
+    for (const f of !e.fields || e.fields.includes('*') ? all : e.fields) fieldTimes[f] = Math.max(fieldTimes[f] ?? 0, e.editedAt)
+  }
+  const { up, rm } = attachmentChanges(group)
+  if (isNew) for (const a of (rec.attachments as NoteAttachment[] | undefined) ?? []) up.add(a.id)
+  return {
+    table,
+    client_uuid: id,
+    payload: buildPayload(table, rec),
+    edited_at: Math.max(...group.map((e) => e.editedAt)),
+    base_rev: typeof rec.rev === 'number' ? rec.rev : null,
+    fields: legacy || isNew ? all : [...new Set(group.flatMap((e) => e.fields!))],
+    field_times: fieldTimes,
+    att_up: [...up],
+    att_rm: [...rm],
+  }
+}
+
+/** A pulled record that still has unsent local edits: keep the locally
+    edited fields (and attachment adds/removals), take the rest from the
+    server. A whole-record local write (new record / older app version)
+    keeps the local copy as is. */
+function mergePending(table: SyncTable, local: Record<string, unknown>, remote: Record<string, unknown>, group: OutboxEntry[]): Record<string, unknown> {
+  if (group.some((e) => !e.fields || e.fields.includes('*'))) return { ...local, rev: remote.rev }
+  const dirty = new Set(group.flatMap((e) => e.fields!))
+  const out: Record<string, unknown> = { ...local }
+  for (const f of SYNC_FIELDS[table]) {
+    if (f === 'attachments') {
+      const remoteList = (remote.attachments as NoteAttachment[] | undefined) ?? []
+      if (dirty.has(f)) {
+        const { up, rm } = attachmentChanges(group)
+        const localUp = ((local.attachments as NoteAttachment[] | undefined) ?? []).filter((a) => up.has(a.id))
+        out.attachments = applyAttachmentOps(remoteList, localUp, [...rm])
+      } else {
+        out.attachments = remoteList
+      }
+    } else if (!dirty.has(f)) {
+      if (f in remote) out[f] = remote[f]
+      else delete out[f]
+    }
+  }
+  out.rev = remote.rev
+  return out
 }
 
 let running = false
@@ -137,10 +200,10 @@ export async function syncNow(): Promise<void> {
             if (slim) cur = slim
             if (JSON.stringify(buildPayload('drawing', cur as never)).length <= MAX_RECORD_BYTES) break
           }
-          if (cur !== rec) await writeAndQueue(db.drawings, 'drawing', cur)
+          if (cur !== rec) await saveSlimmed('drawing', rec as DrawingNote, cur)
         } else {
           const slim = await slimReview(rec as Review)
-          if (slim) await writeAndQueue(db.reviews, 'review', slim)
+          if (slim) await saveSlimmed('review', rec as Review, slim)
         }
       } catch {
         // leave it — the size check below reports it
@@ -153,29 +216,22 @@ export async function syncNow(): Promise<void> {
     if (uploadErr) problems.push(`Couldn't upload an attachment: ${uploadErr}`)
 
     // 1. Push: drain the outbox.
-    const pushedKeys: string[] = [] // "<id>:<edited_at>" applied this sync — the pull skips them
+    const pushedKeys: string[] = [] // "<id>#<rev>" applied this sync — the pull skips them
     const entries = await db.outbox.orderBy('seq').toArray()
     if (entries.length > 0) {
-      // One push per record: an auto-saving form queues an entry per pause
-      // in typing, and each would otherwise re-send the whole record
-      // (attachments included). The record itself is read fresh below, so
-      // only the latest entry's editedAt matters.
-      const latest = new Map<string, (typeof entries)[number]>()
-      for (const e of entries) latest.set(`${e.table}:${e.recordId}`, e)
+      // One push per record, however many writes are queued for it (an
+      // auto-saving form queues one per pause in typing).
+      const byRecord = groupEntries(entries)
       const batches: { items: PushItem[]; keys: string[]; bytes: number }[] = []
       const done: string[] = [] // record keys whose entries can be cleared
-      for (const [key, e] of latest) {
+      for (const [key, group] of byRecord) {
+        const e = group[0]
         const rec = await tableMap[e.table].get(e.recordId)
         if (!rec) {
           done.push(key)
           continue
         }
-        const item: PushItem = {
-          table: e.table,
-          client_uuid: e.recordId,
-          payload: buildPayload(e.table, rec as unknown as Record<string, unknown>),
-          edited_at: e.editedAt,
-        }
+        const item = pushItem(e.table, e.recordId, rec as unknown as Record<string, unknown>, group)
         const bytes = JSON.stringify(item).length
         if (bytes > MAX_RECORD_BYTES) {
           const where = sizeBreakdown(rec as never)
@@ -194,14 +250,34 @@ export async function syncNow(): Promise<void> {
       for (const b of batches) {
         try {
           const res = await syncPush(b.items)
+          const kept = new Set<string>()
           for (const r of res.results) {
+            const it = b.items.find((i) => i.client_uuid === r.client_uuid)!
+            if (r.outcome === 'rejected') {
+              // The id is taken by a record this account can't see. Keep the
+              // change queued and say so, rather than drop it silently.
+              kept.add(`${it.table}:${r.client_uuid}`)
+              problems.push(`Couldn't sync ${describe(it.table, it.payload)}: the server refused it`)
+              continue
+            }
             // Record the server-assigned sys_id; conflicts (server_won) get
             // overwritten by the pull below.
-            const it = b.items.find((i) => i.client_uuid === r.client_uuid)!
-            await tableMap[it.table as keyof typeof tableMap].update(r.client_uuid, { sysId: r.sys_id } as never)
-            if (r.outcome === 'applied') pushedKeys.push(`${r.client_uuid}:${it.edited_at}`)
+            const upd: Record<string, unknown> = { sysId: r.sys_id }
+            const current = r.outcome === 'applied' && !r.foreign
+            // The row's new version, only when this copy now matches it. After
+            // a merge with changes made elsewhere (`foreign`) the old version
+            // stays until the pull below brings the merged row — if that pull
+            // fails, the next push still reports the old base, so the merged
+            // row is still fetched rather than skipped as our own echo.
+            if (current && r.rev != null) upd.rev = Number(r.rev)
+            await tableMap[it.table as keyof typeof tableMap].update(r.client_uuid, upd as never)
+            // Skip downloading our own write — keyed by the row's version,
+            // which any later write (another device) bumps, so that still
+            // comes through. Servers older than field-level merging send no
+            // rev and match the edit time instead.
+            if (current) pushedKeys.push(r.rev != null ? `${r.client_uuid}#${r.rev}` : `${r.client_uuid}:${it.edited_at}`)
           }
-          done.push(...b.keys)
+          done.push(...b.keys.filter((k) => !kept.has(k)))
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
           if (msg.includes('404')) throw err
@@ -221,69 +297,76 @@ export async function syncNow(): Promise<void> {
     // 2. Pull: apply everything changed since our cursor.
     const cursorMeta = await db.meta.get('syncCursor')
     const pull = await syncPull(cursorMeta?.value ?? '1970-01-01 00:00:00', pushedKeys)
-    // Records edited locally since the push above (still queued) are newer
-    // than anything the server has — their next push will carry them.
-    const pending = new Set((await db.outbox.toArray()).map((e) => `${e.table}:${e.recordId}`))
-    for (const r of pull.records) {
-      const table = tableMap[r.table as keyof typeof tableMap]
-      if (!table) continue
-      if (pending.has(`${r.table}:${r.client_uuid}`)) continue
-      // Client-side LWW guard: never let an older server copy clobber a
-      // newer local one (e.g. a local goal roll-up racing a pull). The
-      // server wins later once its copy is genuinely newer.
-      const local = (await table.get(r.client_uuid)) as { updatedAt?: number; emoji?: string } | undefined
-      const data = r.data as Record<string, unknown>
-      // A field the server doesn't send at all (as opposed to sending null)
-      // means its schema predates that field — schema.sql not re-run yet.
-      // Keep the local value instead of letting the pull wipe it. Must run
-      // before the null-stripping below, which would make a cleared field
-      // look missing.
-      for (const f of SYNC_FIELDS[r.table as keyof typeof tableMap]) {
-        const lv = (local as Record<string, unknown> | undefined)?.[f]
-        if (f !== 'deleted' && !(f in data) && lv !== undefined) data[f] = lv
-      }
-      // Postgres sends empty columns as null; the app's records model "not
-      // set" as a missing key (fields are optional, never null). A stray null
-      // breaks checks like `reminderDaysBefore !== undefined` — it made every
-      // synced task without a reminder reopen as "remind on due day".
-      for (const k of Object.keys(data)) if (data[k] === null) delete data[k]
-      const serverAt = Number(data.updatedAt ?? 0)
-      if (local?.updatedAt && local.updatedAt > serverAt) continue
-      if (r.table === 'task') {
-        // hours come back as strings from ServiceNow; normalise to number|undefined
-        for (const k of ['estimatedHours', 'actualHours'] as const) {
-          const v = data[k]
-          data[k] = v === '' || v == null ? undefined : Number(v)
+    // Applied in one local transaction with the outbox, so an edit made on
+    // this device meanwhile lands either before it (and is merged below) or
+    // after it — never in between, where the pulled copy would overwrite
+    // it. The cursor is saved in the same transaction: all or nothing.
+    await db.transaction('rw', [...Object.values(tableMap), db.outbox, db.meta], async () => {
+      // Records with local edits not yet sent (made during the push above, or
+      // in a batch that failed) are merged field by field: the fields edited
+      // here keep their local value (the next push sends them), everything
+      // else takes the server's — so neither side's changes are lost.
+      const pending = groupEntries(await db.outbox.toArray())
+      for (const r of pull.records) {
+        const table = tableMap[r.table as keyof typeof tableMap]
+        if (!table) continue
+        const local = (await table.get(r.client_uuid)) as { updatedAt?: number; emoji?: string } | undefined
+        const data = r.data as Record<string, unknown>
+        // A field the server doesn't send at all (as opposed to sending null)
+        // means its schema predates that field — schema.sql not re-run yet.
+        // Keep the local value instead of letting the pull wipe it. Must run
+        // before the null-stripping below, which would make a cleared field
+        // look missing.
+        for (const f of SYNC_FIELDS[r.table as keyof typeof tableMap]) {
+          const lv = (local as Record<string, unknown> | undefined)?.[f]
+          if (f !== 'deleted' && !(f in data) && lv !== undefined) data[f] = lv
         }
-      }
-      if (r.deleted) {
-        if (r.table === 'task' && (data.seriesId || (local as { seriesId?: string } | undefined)?.seriesId)) {
-          // Keep a tombstone for recurring occurrences: their ids are derived
-          // from series + date (uuidFrom), so with the row gone this device
-          // would regenerate — and resurrect — the occurrence just deleted.
-          await table.put({ ...(local ?? {}), ...data, id: r.client_uuid, sysId: r.sys_id, deleted: 1 } as never)
-        } else {
-          await table.delete(r.client_uuid)
-        }
-      } else {
-        if (r.table === 'habit') {
-          // The app has no "deactivate" — a non-deleted habit is active.
-          // Guards against a ServiceNow boolean round-trip quirk that can
-          // return active:0 and make the habit vanish.
-          data.active = 1
-          // Keep a good local emoji if the server's came back mangled;
-          // otherwise fall back to a name-based guess so it never shows garbage.
-          const emojiOk = (s: unknown) => /\p{Extended_Pictographic}/u.test(String(s ?? ''))
-          if (!emojiOk(data.emoji)) {
-            data.emoji = local?.emoji && emojiOk(local.emoji)
-              ? local.emoji
-              : cleanEmoji(String(data.emoji ?? ''), String(data.name ?? ''))
+        // Postgres sends empty columns as null; the app's records model "not
+        // set" as a missing key (fields are optional, never null). A stray null
+        // breaks checks like `reminderDaysBefore !== undefined` — it made every
+        // synced task without a reminder reopen as "remind on due day".
+        for (const k of Object.keys(data)) if (data[k] === null) delete data[k]
+        if (data.rev != null) data.rev = Number(data.rev)
+        if (r.table === 'task') {
+          // hours come back as strings from ServiceNow; normalise to number|undefined
+          for (const k of ['estimatedHours', 'actualHours'] as const) {
+            const v = data[k]
+            data[k] = v === '' || v == null ? undefined : Number(v)
           }
         }
-        await table.put({ ...data, id: r.client_uuid, sysId: r.sys_id } as never)
+        if (r.deleted) {
+          if (r.table === 'task' && (data.seriesId || (local as { seriesId?: string } | undefined)?.seriesId)) {
+            // Keep a tombstone for recurring occurrences: their ids are derived
+            // from series + date (uuidFrom), so with the row gone this device
+            // would regenerate — and resurrect — the occurrence just deleted.
+            await table.put({ ...(local ?? {}), ...data, id: r.client_uuid, sysId: r.sys_id, deleted: 1 } as never)
+          } else {
+            await table.delete(r.client_uuid)
+          }
+        } else {
+          if (r.table === 'habit') {
+            // The app has no "deactivate" — a non-deleted habit is active.
+            // Guards against a ServiceNow boolean round-trip quirk that can
+            // return active:0 and make the habit vanish.
+            data.active = 1
+            // Keep a good local emoji if the server's came back mangled;
+            // otherwise fall back to a name-based guess so it never shows garbage.
+            const emojiOk = (s: unknown) => /\p{Extended_Pictographic}/u.test(String(s ?? ''))
+            if (!emojiOk(data.emoji)) {
+              data.emoji = local?.emoji && emojiOk(local.emoji)
+                ? local.emoji
+                : cleanEmoji(String(data.emoji ?? ''), String(data.name ?? ''))
+            }
+          }
+          const group = pending.get(`${r.table}:${r.client_uuid}`)
+          const merged = group && local
+            ? mergePending(r.table as SyncTable, local as Record<string, unknown>, data, group)
+            : { ...data }
+          await table.put({ ...merged, id: r.client_uuid, sysId: r.sys_id } as never)
+        }
       }
-    }
-    await db.meta.put({ key: 'syncCursor', value: pull.cursor })
+      await db.meta.put({ key: 'syncCursor', value: pull.cursor })
+    })
     const aiChanged = await syncAiUrl().catch(() => false)
     if (pull.records.length > 0 || aiChanged) notifyChange()
     if (problems.length) setState('error', problems.join('\n'))

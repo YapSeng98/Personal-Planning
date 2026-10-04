@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { db, uuid, writeAndQueue, type Project, type ProjectColor } from '../db/db'
+import { db, uuid, writeAndQueue, patchAndQueue, type Project, type ProjectColor } from '../db/db'
+import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import { PROJECT_COLORS, projectColorVar } from '../lib/projectColors'
 import { useLang } from '../lib/i18n'
@@ -35,7 +36,8 @@ export default function ProjectForm({
         deleted: 0,
         updatedAt: Date.now(),
       }
-      await writeAndQueue(db.projects, 'project', record)
+      if (project) await patchAndQueue(db.projects, 'project', project.id, patchFrom(project, record, ['title', 'color']))
+      else await writeAndQueue(db.projects, 'project', record)
       syncNow()
       onSaved(record.id)
       onClose()
@@ -46,8 +48,7 @@ export default function ProjectForm({
 
   async function toggleArchive() {
     if (!project) return
-    const updated: Project = { ...project, archived: project.archived ? 0 : 1, updatedAt: Date.now() }
-    await writeAndQueue(db.projects, 'project', updated)
+    await patchAndQueue(db.projects, 'project', project.id, { archived: project.archived ? 0 : 1 })
     syncNow()
     onClose()
   }
@@ -55,8 +56,7 @@ export default function ProjectForm({
   async function remove() {
     if (!project) return
     if (!window.confirm(t('project.deleteConfirm', { title: project.title }))) return
-    const tombstone: Project = { ...project, deleted: 1, updatedAt: Date.now() }
-    await writeAndQueue(db.projects, 'project', tombstone)
+    await patchAndQueue(db.projects, 'project', project.id, { deleted: 1 })
     syncNow()
     onClose()
   }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { db, writeAndQueue, type SketchFolder } from '../db/db'
+import { db, patchAndQueue, type SketchFolder } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { shrinkImage } from '../lib/attach'
 import { useLang } from '../lib/i18n'
@@ -28,7 +28,7 @@ export default function FolderCover({ folder }: { folder: SketchFolder }) {
   }, [folder.cover])
 
   async function save(patch: Partial<SketchFolder>) {
-    await writeAndQueue(db.folders, 'folder', { ...folder, ...patch, updatedAt: Date.now() })
+    await patchAndQueue(db.folders, 'folder', folder.id, patch)
     syncNow()
   }
 

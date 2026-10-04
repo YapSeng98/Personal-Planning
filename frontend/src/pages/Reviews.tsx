@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { db, uuid, todayStr, writeAndQueue, CHANGED, type Review, type NoteAttachment } from '../db/db'
+import { db, uuid, uuidFrom, todayStr, writeAndQueue, patchAndQueue, CHANGED, type Review, type NoteAttachment } from '../db/db'
+import { applyAttachmentOps } from '../sync/fields'
 import { syncNow } from '../sync/engine'
+import { accountId } from '../sync/api'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 import { useLang } from '../lib/i18n'
 import AutoTextarea from '../components/AutoTextarea'
@@ -49,6 +51,40 @@ const formKey = (f: Form) =>
   JSON.stringify([f.wins, f.failures, f.lesson, f.next, f.mood ?? '', f.energy, f.attachments.map((a) => a.id)])
 const isEmpty = (f: Form) => formKey(f) === formKey(blank)
 
+const toForm = (r: Review): Form => ({
+  wins: r.wins ?? '',
+  failures: r.failures ?? '',
+  lesson: r.lesson ?? '',
+  next: r.nextPriorities ?? '',
+  mood: r.mood,
+  energy: r.energy ?? 0,
+  attachments: r.attachments ?? [],
+})
+
+const TEXT_KEYS = ['wins', 'failures', 'lesson', 'next', 'mood', 'energy'] as const
+
+/** Attachments added / removed on this screen since `base`. */
+function attachmentEdits(base: Form, cur: Form): { up: NoteAttachment[]; rm: string[] } {
+  const baseIds = new Set(base.attachments.map((a) => a.id))
+  const curIds = new Set(cur.attachments.map((a) => a.id))
+  return {
+    up: cur.attachments.filter((a) => !baseIds.has(a.id)),
+    rm: base.attachments.filter((a) => !curIds.has(a.id)).map((a) => a.id),
+  }
+}
+
+/** The stored review changed while this screen has it open: keep what was
+    edited here since `base` (the copy last loaded/saved), take everything
+    else from `stored` — so another device's changes appear without losing
+    what's being typed here, and the next save can't undo them. */
+function mergeForm(base: Form, cur: Form, stored: Form): Form {
+  const out: Form = { ...stored }
+  for (const k of TEXT_KEYS) if (cur[k] !== base[k]) (out as Record<string, unknown>)[k] = cur[k]
+  const { up, rm } = attachmentEdits(base, cur)
+  out.attachments = applyAttachmentOps(stored.attachments, up, rm)
+  return out
+}
+
 const AUTOSAVE_MS = 800
 const AUTOSYNC_MS = 2000
 
@@ -74,19 +110,37 @@ export default function Reviews() {
 
   // Auto-save bookkeeping. Refs, not state: the flush on period switch /
   // unmount runs in an effect cleanup and must see the values being left.
+  // formRef is the form's source of truth: every change goes through
+  // updateForm, which builds on it — never on a render's possibly older
+  // `form` — so typing at the moment another device's change is merged in
+  // can't drop that change (e.g. a file attached elsewhere, which the next
+  // save would then remove).
   const formRef = useRef(form)
-  formRef.current = form
+  const updateForm = useCallback((fn: (f: Form) => Form) => {
+    const next = fn(formRef.current)
+    formRef.current = next
+    setForm(next)
+  }, [])
   const savedKeyRef = useRef(formKey(blank)) // form as last loaded/saved
+  const savedFormRef = useRef<Form>({ ...blank }) // …and the form itself (the merge base)
   const idRef = useRef<string | null>(null)
   const loadedPeriodRef = useRef('')
   const syncTimer = useRef<number | undefined>(undefined)
+  // Loads (a stored change coming in) and saves run one at a time, in order,
+  // so a load never merges a stored copy older than a save in flight.
+  const chainRef = useRef<Promise<unknown>>(Promise.resolve())
+  const serial = useCallback(<T,>(fn: () => Promise<T>): Promise<T> => {
+    const run = chainRef.current.then(fn)
+    chainRef.current = run.catch(() => {})
+    return run
+  }, [])
 
   const period = useMemo(
     () => periodFor(type, anchorDate ? new Date(anchorDate + 'T00:00') : new Date()),
     [type, anchorDate],
   )
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => serial(async () => {
     const { start, end } = period
 
     // Pre-fill the numbers so reflection starts from facts, not recall.
@@ -107,35 +161,35 @@ export default function Reviews() {
       .filter((r) => !r.deleted && r.type === type && r.periodStart === start)
       .first()
     const periodKey = `${type}:${start}`
-    // Same period, and the user has typed since the last save: keep their
-    // edits rather than resetting the form to what's stored (this reload is
-    // usually just our own auto-save echoing back).
-    const editing = loadedPeriodRef.current === periodKey && formKey(formRef.current) !== savedKeyRef.current
-    if (!editing) {
-      const next: Form = existing
-        ? {
-            wins: existing.wins ?? '',
-            failures: existing.failures ?? '',
-            lesson: existing.lesson ?? '',
-            next: existing.nextPriorities ?? '',
-            mood: existing.mood,
-            energy: existing.energy ?? 0,
-            attachments: existing.attachments ?? [],
-          }
-        : { ...blank }
-      if (loadedPeriodRef.current !== periodKey) setFlash('')
+    const stored: Form = existing ? toForm(existing) : { ...blank }
+    if (loadedPeriodRef.current !== periodKey) {
+      // A different period: show what's stored for it.
+      setFlash('')
       loadedPeriodRef.current = periodKey
-      savedKeyRef.current = formKey(next)
-      formRef.current = next
+      savedFormRef.current = stored
+      savedKeyRef.current = formKey(stored)
+      formRef.current = stored
       idRef.current = existing?.id ?? null
       setExistingId(idRef.current)
-      setForm(next)
+      setForm(stored)
+    } else {
+      // Same period, stored copy changed (our own save coming back, or
+      // another device's change synced in): merge, don't overwrite.
+      const merged = mergeForm(savedFormRef.current, formRef.current, stored)
+      savedFormRef.current = stored
+      savedKeyRef.current = formKey(stored)
+      idRef.current = existing?.id ?? null
+      setExistingId(idRef.current)
+      if (JSON.stringify(merged) !== JSON.stringify(formRef.current)) {
+        formRef.current = merged
+        setForm(merged)
+      }
     }
 
     const all = await db.reviews.filter((r) => !r.deleted).toArray()
     all.sort((a, b) => b.periodStart.localeCompare(a.periodStart))
     setPast(all.slice(0, 6))
-  }, [type, period, t])
+  }), [type, period, t, serial])
 
   useEffect(() => {
     load()
@@ -162,12 +216,12 @@ export default function Reviews() {
         added.push(await storeFile(file))
       }
     }
-    if (added.length) setForm((f) => ({ ...f, attachments: [...f.attachments, ...added] }))
+    if (added.length) updateForm((f) => ({ ...f, attachments: [...f.attachments, ...added] }))
   }
 
   function removeAttachment(id: string) {
-    deleteStoredFiles(form.attachments.filter((a) => a.id === id))
-    setForm((f) => ({ ...f, attachments: f.attachments.filter((a) => a.id !== id) }))
+    deleteStoredFiles(formRef.current.attachments.filter((a) => a.id === id))
+    updateForm((f) => ({ ...f, attachments: f.attachments.filter((a) => a.id !== id) }))
   }
 
   // Paste a screenshot anywhere on the page (incl. while typing in a field).
@@ -231,12 +285,12 @@ export default function Reviews() {
     // Make sure the flush on leaving this period doesn't re-create it.
     idRef.current = null
     formRef.current = { ...blank }
+    savedFormRef.current = { ...blank }
     savedKeyRef.current = formKey(blank)
     setForm({ ...blank })
     setExistingId(null)
     deleteStoredFiles(r.attachments)
-    const tombstone: Review = { ...r, deleted: 1, updatedAt: Date.now() }
-    await writeAndQueue(db.reviews, 'review', tombstone)
+    await patchAndQueue(db.reviews, 'review', r.id, { deleted: 1 })
     setAnchorDate(null)
     syncNow()
   }
@@ -250,8 +304,9 @@ export default function Reviews() {
       const done = tasks.filter((x) => x.state === 'done')
       const notDone = tasks.filter((x) => x.state !== 'done' && x.state !== 'cancelled')
       const checkins = await db.habitLogs.filter((l) => !l.deleted && l.count > 0 && l.date >= start && l.date <= end).count()
-      const moodStr = form.mood ? `Mood: ${form.mood}.` : ''
-      const energyStr = form.energy ? `Energy: ${form.energy}/5.` : ''
+      const { mood, energy } = formRef.current
+      const moodStr = mood ? `Mood: ${mood}.` : ''
+      const energyStr = energy ? `Energy: ${energy}/5.` : ''
       const prompt = `Reflection period: ${type} (${start}${end !== start ? ` to ${end}` : ''}).\n`
         + `Tasks: ${done.length} of ${tasks.length} done. Habit check-ins: ${checkins}.\n${moodStr} ${energyStr}\n`
         + `Completed: ${done.slice(0, 8).map((x) => x.title).join('; ') || '(none)'}\n`
@@ -261,7 +316,7 @@ export default function Reviews() {
         ? '你帮助用户回顾一个时期。只返回一个 JSON 对象，键为 wins、failures、lesson、next。每项用第一人称（“我……”）写1-2句，贴合数据，诚实但鼓励。不要输出任何思考过程、解释或前言 — 第一个字符必须是 {，不要 markdown 代码块，不要多余文字。用中文。'
         : "You help the user reflect on a period. Return ONLY a JSON object with keys wins, failures, lesson, next. Each 1-2 sentences in first person ('I ...'), specific to the data, honest but encouraging. Do not include any reasoning, thinking, or preamble — the first character of your reply must be '{'. No markdown code fences, no extra text."
       const j = await askAIJson<{ wins?: string; failures?: string; lesson?: string; next?: string }>(prompt, system)
-      setForm((f) => ({
+      updateForm((f) => ({
         ...f,
         wins: j.wins || f.wins,
         failures: j.failures || f.failures,
@@ -279,18 +334,15 @@ export default function Reviews() {
   /** Writes the form locally if it changed since the last save. Reads
       everything from refs up front, so it saves the period being left even
       when called from an effect cleanup mid-switch. */
-  const persist = useCallback(async (p: { type: RType; start: string; end: string }) => {
+  const persist = useCallback((p: { type: RType; start: string; end: string }) => serial(async () => {
     const f = formRef.current
     const k = formKey(f)
     if (k === savedKeyRef.current) return false
     if (!idRef.current && isEmpty(f)) return false
-    // Resolve the id once and remember it — a second save racing the
-    // CHANGED-triggered reload would otherwise create a duplicate review
-    // for the same period instead of updating the first.
-    const id = idRef.current ?? uuid()
-    idRef.current = id
+    const base = savedFormRef.current
     savedKeyRef.current = k
-    await writeAndQueue(db.reviews, 'review', {
+    savedFormRef.current = f
+    const whole = (id: string): Review => ({
       id,
       type: p.type,
       periodStart: p.start,
@@ -305,8 +357,32 @@ export default function Reviews() {
       deleted: 0,
       updatedAt: Date.now(),
     })
+    if (idRef.current) {
+      // Save only what was edited here, on top of the review as stored now.
+      const patch: Partial<Review> = {}
+      if (f.wins !== base.wins) patch.wins = f.wins || undefined
+      if (f.failures !== base.failures) patch.failures = f.failures || undefined
+      if (f.lesson !== base.lesson) patch.lesson = f.lesson || undefined
+      if (f.next !== base.next) patch.nextPriorities = f.next || undefined
+      if (f.mood !== base.mood) patch.mood = f.mood
+      if (f.energy !== base.energy) patch.energy = f.energy || undefined
+      const { up, rm } = attachmentEdits(base, f)
+      const saved = await patchAndQueue(db.reviews, 'review', idRef.current, patch, up.length || rm.length ? { up, rm } : undefined)
+      if (saved) return true
+      // It was deleted on another device while this was being edited —
+      // keep what was typed here rather than losing it.
+    }
+    // A new review: its id comes from the account and the period, so two
+    // devices starting the same day's review offline fill in one record
+    // instead of two (signed out nothing syncs, so any id will do).
+    // Resolved once and remembered — a later save must update it, not start
+    // another.
+    const owner = accountId()
+    const id = idRef.current ?? (owner ? await uuidFrom(`review:${owner}:${p.type}:${p.start}`) : uuid())
+    idRef.current = id
+    await writeAndQueue(db.reviews, 'review', whole(id))
     return true
-  }, [])
+  }), [serial])
 
   // Auto-save: a short pause after any change writes it locally; syncing to
   // the server waits for a longer pause so typing doesn't spam uploads.
@@ -407,15 +483,15 @@ export default function Reviews() {
 
         <div>
           <div className="section-h">{t('rev.wins')}</div>
-          <AutoTextarea className="field" value={form.wins} onChange={(e) => setForm({ ...form, wins: e.target.value })} placeholder={t('rev.winsPh')} />
+          <AutoTextarea className="field" value={form.wins} onChange={(e) => { const v = e.target.value; updateForm((f) => ({ ...f, wins: v })) }} placeholder={t('rev.winsPh')} />
         </div>
         <div>
           <div className="section-h">{t('rev.fails')}</div>
-          <AutoTextarea className="field" value={form.failures} onChange={(e) => setForm({ ...form, failures: e.target.value })} placeholder={t('rev.failsPh')} />
+          <AutoTextarea className="field" value={form.failures} onChange={(e) => { const v = e.target.value; updateForm((f) => ({ ...f, failures: v })) }} placeholder={t('rev.failsPh')} />
         </div>
         <div>
           <div className="section-h">{t('rev.lesson')}</div>
-          <AutoTextarea className="field" value={form.lesson} onChange={(e) => setForm({ ...form, lesson: e.target.value })} placeholder={t('rev.lessonPh')} />
+          <AutoTextarea className="field" value={form.lesson} onChange={(e) => { const v = e.target.value; updateForm((f) => ({ ...f, lesson: v })) }} placeholder={t('rev.lessonPh')} />
         </div>
 
         <div>
@@ -464,13 +540,13 @@ export default function Reviews() {
           <div className="section-h">{t('rev.moodEnergy')}</div>
           <div className="card mood-row">
             {MOODS.map(([m, emoji]) => (
-              <button key={m} className={`mood-btn ${form.mood === m ? 'on' : ''}`} onClick={() => setForm({ ...form, mood: m })} aria-label={`Mood: ${m}`}>
+              <button key={m} className={`mood-btn ${form.mood === m ? 'on' : ''}`} onClick={() => updateForm((f) => ({ ...f, mood: m }))} aria-label={`Mood: ${m}`}>
                 {emoji}
               </button>
             ))}
             <span className="energy-row" aria-label="Energy level">
               {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} className={`dot ${form.energy >= n ? 'on' : ''}`} onClick={() => setForm({ ...form, energy: n })} aria-label={`Energy ${n} of 5`} />
+                <button key={n} className={`dot ${form.energy >= n ? 'on' : ''}`} onClick={() => updateForm((f) => ({ ...f, energy: n }))} aria-label={`Energy ${n} of 5`} />
               ))}
             </span>
           </div>
@@ -478,7 +554,7 @@ export default function Reviews() {
 
         <div>
           <div className="section-h">{type === 'daily' ? t('rev.nextDaily') : t('rev.nextOther')}</div>
-          <AutoTextarea className="field" value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} placeholder={t('rev.nextPh')} />
+          <AutoTextarea className="field" value={form.next} onChange={(e) => { const v = e.target.value; updateForm((f) => ({ ...f, next: v })) }} placeholder={t('rev.nextPh')} />
         </div>
 
         <div className="row" style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>

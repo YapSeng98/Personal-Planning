@@ -5,7 +5,8 @@ import { storeFile, deleteStoredFiles, MAX_STORED_BYTES } from '../lib/files'
 import AttachmentChip from '../components/AttachmentChip'
 import DrawPad from '../components/DrawPad'
 import { folderOptions } from '../lib/folders'
-import { db, writeAndQueue, CHANGED, type DrawingNote, type NoteAttachment, type SketchFolder } from '../db/db'
+import { db, writeAndQueue, patchAndQueue, CHANGED, type DrawingNote, type NoteAttachment, type SketchFolder, type AttachmentOps } from '../db/db'
+import { applyAttachmentOps } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { toEditorHtml } from '../lib/noteHtml'
@@ -62,6 +63,19 @@ export default function SketchDetail() {
   const savedDataUrlRef = useRef<string | undefined>(undefined)
   const titleRef = useRef('')
   const canvasDirtyRef = useRef(false)
+  // Counts changes to the canvas, so a save only marks it clean if no
+  // stroke landed while that save was being written.
+  const canvasGenRef = useRef(0)
+  // Saves and refreshes (another device's change coming in) run one at a
+  // time, in order: a refresh can't swap in remote text between a save
+  // reading the page and writing it — which would write the old text back
+  // over the remote change.
+  const chainRef = useRef<Promise<unknown>>(Promise.resolve())
+  const serial = <T,>(fn: () => Promise<T>): Promise<T> => {
+    const run = chainRef.current.then(fn)
+    chainRef.current = run.catch(() => {})
+    return run
+  }
   // Last known content, for saving after the editor/canvas has unmounted.
   const lastHtmlRef = useRef<string | null>(null)
   const lastCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -144,7 +158,7 @@ export default function SketchDetail() {
   // update if you haven't changed them here since the last save.
   useEffect(() => {
     if (!id) return
-    const refresh = async () => {
+    const refresh = () => serial(async () => {
       const rec = await db.drawings.get(id)
       if (!rec || rec.deleted) return
       setAttachments(rec.attachments ?? [])
@@ -172,7 +186,7 @@ export default function SketchDetail() {
         }
         img.src = rec.dataUrl
       }
-    }
+    })
     window.addEventListener(CHANGED, refresh)
     return () => window.removeEventListener(CHANGED, refresh)
   }, [id])
@@ -223,7 +237,7 @@ export default function SketchDetail() {
     lastHtmlRef.current = html
     setImgSel(null)
     setTextHist({ undo: pastRef.current.length > 0, redo: textFutureRef.current.length > 0 })
-    await autosaveText(html)
+    await saveText({ html })
   }
   function onEditorKey(e: React.KeyboardEvent) {
     if (!(e.metaKey || e.ctrlKey)) return
@@ -302,7 +316,7 @@ export default function SketchDetail() {
     lastPoint.current = null
     // Saving re-encodes the whole canvas — do it once you pause, not after
     // every stroke, so drawing stays smooth.
-    canvasDirtyRef.current = true
+    markCanvasDirty()
     lastCanvasRef.current = canvasRef.current
     scheduleSave()
   }
@@ -315,7 +329,8 @@ export default function SketchDetail() {
     img.onload = async () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.drawImage(img, 0, 0)
-      await autosaveDrawing()
+      markCanvasDirty()
+      await saveDrawing()
     }
     img.src = dataUrl
   }
@@ -347,47 +362,84 @@ export default function SketchDetail() {
     const ctx = canvas.getContext('2d')!
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    await autosaveDrawing()
+    markCanvasDirty()
+    await saveDrawing()
   }
 
-  async function autosaveDrawing(fid: string | undefined = folderId) {
-    const canvas = canvasRef.current ?? lastCanvasRef.current
-    if (!canvas || !id) return
-    const record: DrawingNote = {
-      id,
-      title: titleRef.current,
-      kind: 'draw',
-      dataUrl: canvas.toDataURL('image/png'),
-      folderId: fid,
-      deleted: 0,
-      updatedAt: Date.now(),
-    }
-    canvasDirtyRef.current = false
-    savedTitleRef.current = record.title
-    savedDataUrlRef.current = record.dataUrl
-    await writeAndQueue(db.drawings, 'drawing', record)
-    syncNow()
+  function markCanvasDirty() {
+    canvasDirtyRef.current = true
+    canvasGenRef.current++
   }
 
-  async function autosaveText(nextText?: string, nextAttachments?: NoteAttachment[], fid: string | undefined = folderId) {
-    if (!id) return
-    if (nextText !== undefined) snapshot() // an edit made in code: one undo step
-    const record: DrawingNote = {
-      id,
-      title: titleRef.current,
-      kind: 'text',
-      text: nextText ?? editorRef.current?.innerHTML ?? lastHtmlRef.current ?? text,
-      format: 'html',
-      attachments: nextAttachments ?? attachments,
-      folderId: fid,
-      deleted: 0,
-      updatedAt: Date.now(),
-    }
-    savedHtmlRef.current = record.text ?? ''
-    savedTitleRef.current = record.title
-    await writeAndQueue(db.drawings, 'drawing', record)
-    wasHtmlRef.current = true
-    syncNow()
+  /** Save a drawing note. The first save creates it; after that only what
+      changed is saved — the picture if the canvas changed, the title if it
+      was edited, a folder move — on top of the note as stored, so changes
+      made on another device meanwhile are kept. What's saved is read before
+      anything is awaited, and only that is marked saved: a stroke or a
+      title edit made while this save is being written stays unsaved, and
+      the next save picks it up. */
+  function saveDrawing(opts: { folder?: { id: string | undefined } } = {}) {
+    return serial(async () => {
+      const canvas = canvasRef.current ?? lastCanvasRef.current
+      if (!canvas || !id) return
+      const gen = canvasGenRef.current
+      const title = titleRef.current
+      const titleChanged = title !== savedTitleRef.current
+      let dataUrl = canvasDirtyRef.current ? canvas.toDataURL('image/png') : undefined
+      const exists = await db.drawings.get(id)
+      if (!exists) {
+        dataUrl ??= canvas.toDataURL('image/png')
+        await writeAndQueue(db.drawings, 'drawing', {
+          id, title, kind: 'draw', dataUrl,
+          folderId: opts.folder ? opts.folder.id : folderId, deleted: 0, updatedAt: Date.now(),
+        })
+      } else {
+        const patch: Partial<DrawingNote> = {}
+        if (dataUrl !== undefined) patch.dataUrl = dataUrl
+        if (titleChanged) patch.title = title
+        if (opts.folder) patch.folderId = opts.folder.id
+        await patchAndQueue(db.drawings, 'drawing', id, patch)
+      }
+      if (canvasGenRef.current === gen) canvasDirtyRef.current = false
+      if (titleChanged || !exists) savedTitleRef.current = title
+      if (dataUrl !== undefined) savedDataUrlRef.current = dataUrl
+      syncNow()
+    })
+  }
+
+  /** Save a typed note. The first save creates it; after that only what
+      changed is saved — the text if it was edited (or `html` is given: an
+      edit made in code), the title if edited, attachment adds/removals, a
+      folder move — on top of the note as stored, so another device's
+      changes to the rest (its own attachments, a rename…) are kept. As with
+      drawings, only what was read up front is marked saved. */
+  function saveText(opts: { html?: string; att?: AttachmentOps; folder?: { id: string | undefined } } = {}) {
+    if (!id) return Promise.resolve()
+    if (opts.html !== undefined) snapshot() // an edit made in code: one undo step
+    return serial(async () => {
+      const html = opts.html ?? editorRef.current?.innerHTML ?? lastHtmlRef.current ?? text
+      const title = titleRef.current
+      const textChanged = html !== savedHtmlRef.current
+      const titleChanged = title !== savedTitleRef.current
+      const exists = await db.drawings.get(id)
+      if (!exists) {
+        await writeAndQueue(db.drawings, 'drawing', {
+          id, title, kind: 'text', text: html, format: 'html',
+          attachments: applyAttachmentOps([], opts.att?.up ?? [], []),
+          folderId: opts.folder ? opts.folder.id : folderId, deleted: 0, updatedAt: Date.now(),
+        })
+      } else {
+        const patch: Partial<DrawingNote> = {}
+        if (textChanged) { patch.text = html; patch.format = 'html' }
+        if (titleChanged) patch.title = title
+        if (opts.folder) patch.folderId = opts.folder.id
+        await patchAndQueue(db.drawings, 'drawing', id, patch, opts.att)
+      }
+      if (textChanged || !exists) savedHtmlRef.current = html
+      if (titleChanged || !exists) savedTitleRef.current = title
+      wasHtmlRef.current = true
+      syncNow()
+    })
   }
 
   /** Blur / typing pause / leaving: save only if something here changed. */
@@ -398,10 +450,10 @@ export default function SketchDetail() {
     if (kind === 'text') {
       const html = editorRef.current?.innerHTML ?? lastHtmlRef.current
       if (html === savedHtmlRef.current && !titleChanged) return
-      autosaveText()
+      saveText()
     } else {
       if (!canvasDirtyRef.current && !titleChanged) return
-      autosaveDrawing()
+      saveDrawing()
     }
   }
   function scheduleSave() {
@@ -427,8 +479,8 @@ export default function SketchDetail() {
   async function changeFolder(newFolderId: string) {
     const fid = newFolderId || undefined
     setFolderId(fid)
-    if (kind === 'text') await autosaveText(undefined, undefined, fid)
-    else await autosaveDrawing(fid)
+    if (kind === 'text') await saveText({ folder: { id: fid } })
+    else await saveDrawing({ folder: { id: fid } })
   }
 
   function exec(cmd: string) {
@@ -447,7 +499,7 @@ export default function SketchDetail() {
     img.src = dataUrl
     el.appendChild(img)
     el.appendChild(document.createElement('br'))
-    await autosaveText(el.innerHTML)
+    await saveText({ html: el.innerHTML })
   }
 
   /** Files from anywhere — the 📎 picker, a paste, a drop. Images go into
@@ -474,11 +526,11 @@ export default function SketchDetail() {
         added.push(await storeFile(file))
       }
     }
-    // Read the latest list from the ref — several files arrive in one go, and
-    // each add awaits, so the `attachments` state captured here is stale.
-    const next = added.length ? [...attachmentsRef.current, ...added] : undefined
-    if (next) setAttachments(next)
-    if (next || insertedImage) await autosaveText(editorRef.current?.innerHTML, next)
+    // New files are added to the note as stored now (not to this screen's
+    // copy), so files another device attached meanwhile stay.
+    if (added.length || insertedImage) {
+      await saveText({ html: insertedImage ? editorRef.current?.innerHTML : undefined, att: added.length ? { up: added } : undefined })
+    }
   }
 
   function placeImgSel(img: HTMLImageElement) {
@@ -496,13 +548,13 @@ export default function SketchDetail() {
     imgSel.img.style.width = width
     imgSel.img.style.height = 'auto'
     placeImgSel(imgSel.img)
-    await autosaveText(editorRef.current?.innerHTML)
+    await saveText({ html: editorRef.current?.innerHTML })
   }
   async function removeImage() {
     if (!imgSel) return
     imgSel.img.remove()
     setImgSel(null)
-    await autosaveText(editorRef.current?.innerHTML)
+    await saveText({ html: editorRef.current?.innerHTML })
   }
 
   function openDrawPad() {
@@ -534,14 +586,13 @@ export default function SketchDetail() {
     // it two or three times too big. Tap it to resize.
     const placed = [...el.querySelectorAll('img')].reverse().find((i) => i.getAttribute('src') === dataUrl)
     if (placed) placed.style.width = `${Math.round(cssWidth)}px`
-    await autosaveText(el.innerHTML)
+    await saveText({ html: el.innerHTML })
   }
 
   async function removeAttachment(attId: string) {
     deleteStoredFiles(attachments.filter((a) => a.id === attId))
-    const next = attachments.filter((a) => a.id !== attId)
-    setAttachments(next)
-    await autosaveText(undefined, next)
+    setAttachments((list) => list.filter((a) => a.id !== attId))
+    await saveText({ att: { rm: [attId] } })
   }
 
   // Paste a file anywhere on the page (text, title, toolbar). Only file
@@ -567,7 +618,7 @@ export default function SketchDetail() {
     const existing = await db.drawings.get(id)
     if (existing) {
       deleteStoredFiles(existing.attachments)
-      await writeAndQueue(db.drawings, 'drawing', { ...existing, deleted: 1, updatedAt: Date.now() })
+      await patchAndQueue(db.drawings, 'drawing', id, { deleted: 1 })
       syncNow()
     }
     navigate(folderId ? `/sketches/folder/${folderId}` : '/sketches')

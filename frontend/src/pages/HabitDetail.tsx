@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { db, todayStr, uuid, writeAndQueue, cleanEmoji, habitStats, CHANGED, type Habit, type HabitStats, type HabitDay } from '../db/db'
+import { db, todayStr, writeAndQueue, uuidFrom, patchAndQueue, cleanEmoji, habitStats, CHANGED, type Habit, type HabitStats, type HabitDay } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { aiEnabled, askAI } from '../lib/ai'
 import HabitEdit from '../components/HabitEdit'
@@ -68,10 +68,8 @@ export default function HabitDetail() {
     if (!habit || !popover) return
     const { date, count } = popover
     const existing = await db.habitLogs.where('[habitId+date]').equals([habit.id, date]).first()
-    const next = existing
-      ? { ...existing, count, updatedAt: Date.now() }
-      : { id: uuid(), habitId: habit.id, date, count, deleted: 0 as const, updatedAt: Date.now() }
-    await writeAndQueue(db.habitLogs, 'habit_log', next)
+    if (existing) await patchAndQueue(db.habitLogs, 'habit_log', existing.id, { count })
+    else await writeAndQueue(db.habitLogs, 'habit_log', { id: await uuidFrom(`log:${habit.id}:${date}`), habitId: habit.id, date, count, deleted: 0, updatedAt: Date.now() })
     setPopover(null)
     await load()
     syncNow()

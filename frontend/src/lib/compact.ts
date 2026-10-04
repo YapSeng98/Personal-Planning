@@ -6,7 +6,7 @@
 // Runs at startup over everything, and from the sync engine on any record
 // that's too big to send. Cheap when nothing is big: it only measures
 // string lengths until it finds something worth touching.
-import { db, writeAndQueue, type DrawingNote, type NoteAttachment, type Review } from '../db/db'
+import { db, patchAndQueue, type DrawingNote, type NoteAttachment, type Review } from '../db/db'
 import { shrinkDataUrl } from './attach'
 
 const BIG = 400 * 1024 // only touch images whose data URL is larger than this
@@ -82,13 +82,31 @@ export async function slimReview(r: Review): Promise<Review | null> {
   return attachments ? { ...r, attachments, updatedAt: Date.now() } : null
 }
 
+/** Save a slimmed copy as a patch of just what slimming changed (note
+    text/drawing, and the attachments it moved or shrank — replaced by id),
+    so it can't undo anything else that changed meanwhile. */
+export async function saveSlimmed<T extends DrawingNote | Review>(table: 'drawing' | 'review', before: T, after: T) {
+  const prev = new Map((before.attachments ?? []).map((a) => [a.id, JSON.stringify(a)]))
+  const changedAtts = (after.attachments ?? []).filter((a) => prev.get(a.id) !== JSON.stringify(a))
+  const att = changedAtts.length ? { up: changedAtts } : undefined
+  if (table === 'drawing') {
+    const d = before as DrawingNote, s = after as DrawingNote
+    const patch: Partial<DrawingNote> = {}
+    if (s.text !== d.text) patch.text = s.text
+    if (s.dataUrl !== d.dataUrl) patch.dataUrl = s.dataUrl
+    await patchAndQueue(db.drawings, 'drawing', before.id, patch, att)
+  } else {
+    await patchAndQueue(db.reviews, 'review', before.id, {}, att)
+  }
+}
+
 export async function compactImages(): Promise<number> {
   let changed = 0
   for (const d of await db.drawings.toArray()) {
     if (d.deleted) continue
     const slim = await slimDrawing(d)
     if (slim) {
-      await writeAndQueue(db.drawings, 'drawing', slim)
+      await saveSlimmed('drawing', d, slim)
       changed++
     }
   }
@@ -96,7 +114,7 @@ export async function compactImages(): Promise<number> {
     if (r.deleted) continue
     const slim = await slimReview(r)
     if (slim) {
-      await writeAndQueue(db.reviews, 'review', slim)
+      await saveSlimmed('review', r, slim)
       changed++
     }
   }

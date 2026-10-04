@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { db, uuid, writeAndQueue, cleanEmoji, type Habit } from '../db/db'
+import { db, uuid, writeAndQueue, patchAndQueue, cleanEmoji, type Habit } from '../db/db'
+import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 
@@ -29,7 +30,10 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
         deleted: 0,
         updatedAt: Date.now(),
       }
-      await writeAndQueue(db.habits, 'habit', h)
+      // Editing: only what changed in this form (another device may have
+      // changed the habit since it was opened).
+      if (habit) await patchAndQueue(db.habits, 'habit', habit.id, patchFrom(habit, h, ['name', 'emoji', 'targetPerDay']))
+      else await writeAndQueue(db.habits, 'habit', h)
       syncNow()
       onClose()
     } finally {
@@ -40,8 +44,7 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
   async function remove() {
     if (!habit) return
     if (!window.confirm(t('habit.deleteConfirm', { name: habit.name }))) return
-    const tombstone: Habit = { ...habit, deleted: 1, active: 0, updatedAt: Date.now() }
-    await writeAndQueue(db.habits, 'habit', tombstone)
+    await patchAndQueue(db.habits, 'habit', habit.id, { deleted: 1, active: 0 })
     syncNow()
     onClose()
   }

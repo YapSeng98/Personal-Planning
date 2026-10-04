@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { db, uuid, writeAndQueue, rollUpGoal, CHANGED, type Goal, type GoalType } from '../db/db'
+import { db, uuid, writeAndQueue, patchAndQueue, rollUpGoal, CHANGED, type Goal, type GoalType } from '../db/db'
+import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
 import { useLang } from '../lib/i18n'
@@ -21,6 +22,9 @@ export default function Goals() {
   const [goals, setGoals] = useState<Goal[]>([])
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  // The goal as it was when the sheet opened — saving sends only what the
+  // form changed relative to it.
+  const openedRef = useRef<Goal | null>(null)
   const [form, setForm] = useState({ ...blank })
   const [submitting, setSubmitting] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -52,6 +56,7 @@ export default function Goals() {
   }
 
   function startEdit(g: Goal) {
+    openedRef.current = g
     setEditingId(g.id)
     setForm({
       title: g.title,
@@ -68,11 +73,8 @@ export default function Goals() {
     if (!form.title.trim() || submitting) return
     setSubmitting(true)
     try {
-      const existing = editingId ? await db.goals.get(editingId) : undefined
       const goal: Goal = {
         id: editingId ?? uuid(),
-        lifeArea: existing?.lifeArea,
-        whyItMatters: existing?.whyItMatters,
         title: form.title.trim(),
         type: form.type,
         parentId: form.parentId || undefined,
@@ -82,7 +84,14 @@ export default function Goals() {
         deleted: 0,
         updatedAt: Date.now(),
       }
-      await writeAndQueue(db.goals, 'goal', goal)
+      if (editingId && openedRef.current) {
+        const opened = openedRef.current
+        const saved = await patchAndQueue(db.goals, 'goal', editingId,
+          patchFrom(opened, goal, ['title', 'type', 'parentId', 'targetDate', 'status', 'progress']))
+        if (opened.parentId && opened.parentId !== saved?.parentId) await rollUpGoal(opened.parentId)
+      } else {
+        await writeAndQueue(db.goals, 'goal', goal)
+      }
       await rollUpGoal(goal.id) // refresh: from linked tasks if any, then ancestors
       setOpen(false)
       syncNow()
@@ -95,8 +104,7 @@ export default function Goals() {
     if (!editingId) return
     const g = await db.goals.get(editingId)
     if (!g) return
-    const tombstone: Goal = { ...g, deleted: 1, updatedAt: Date.now() }
-    await writeAndQueue(db.goals, 'goal', tombstone)
+    await patchAndQueue(db.goals, 'goal', g.id, { deleted: 1 })
     if (g.parentId) await rollUpGoal(g.parentId)
     setOpen(false)
     syncNow()
