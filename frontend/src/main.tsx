@@ -7,9 +7,11 @@ import './styles/app.css'
 import App from './App.tsx'
 import { applyTheme } from './lib/theme'
 import { applyBg } from './lib/bg'
+import { startUpdates } from './lib/pwaUpdate'
 
 applyTheme() // before first paint, so the saved theme doesn't flash
 applyBg()
+startUpdates()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

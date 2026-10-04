@@ -3,6 +3,7 @@ import { db, cleanupDuplicateRecurringTasks } from '../db/db'
 import { isAuthed, currentUser, clearTokens, serverLogout, changePassword, setLocalDataOwner } from '../sync/api'
 import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { stopLiveSync } from '../sync/live'
+import { buildLabel, updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { getAiUrl, setAiUrl, askAI, clearAiUrlLocal } from '../lib/ai'
@@ -25,6 +26,8 @@ export default function Settings() {
   const [ytUrl, setYtUrlState] = useState(getYoutubeUrl())
   const [sync, setSync] = useState<SyncState>('idle')
   const [syncDetail, setSyncDetail] = useState('')
+  const [hasUpdate, setHasUpdate] = useState(updateReady())
+  useEffect(() => onUpdateReady(() => setHasUpdate(true)), [])
   const [pending, setPending] = useState(0)
   const [cleanup, setCleanup] = useState<{ state: 'idle' | 'running' | 'done'; msg: string }>({ state: 'idle', msg: '' })
   const [newPw, setNewPw] = useState('')
@@ -270,6 +273,15 @@ export default function Settings() {
           {syncDetail && <div className="row-sub sync-detail">{syncDetail}</div>}
         </div>
         {!offlineMode && <button className="btn" onClick={() => syncNow()}>{t('set.syncNow')}</button>}
+      </div>
+
+      <div className="section-h">{t('set.version')}</div>
+      <div className="card settings-row">
+        <div>
+          <b className="num">{buildLabel()}</b>
+          <div className="row-sub">{hasUpdate ? t('set.updateWaiting') : t('set.versionHint')}</div>
+        </div>
+        {hasUpdate && <button className="btn btn-primary" onClick={applyUpdate}>{t('set.updateNow')}</button>}
       </div>
 
       <div className="section-h">{t('set.maintenance')}</div>

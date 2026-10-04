@@ -7,6 +7,7 @@ import TaskForm from './TaskForm'
 import SearchModal from './SearchModal'
 import { VideoProvider } from './VideoPlayer'
 import Icon, { type IconName } from './Icon'
+import { updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
 
 const links: { to: string; key: string; ico: IconName }[] = [
   { to: '/', key: 'nav.today', ico: 'today' },
@@ -31,8 +32,10 @@ export default function Shell() {
   const [searching, setSearching] = useState(false)
   const [searchTask, setSearchTask] = useState<Task | null>(null)
   const [sync, setSync] = useState<SyncState>('idle')
+  const [hasUpdate, setHasUpdate] = useState(updateReady())
   const { t } = useLang()
   useEffect(() => onSyncState(setSync), [])
+  useEffect(() => onUpdateReady(() => setHasUpdate(true)), [])
   useEffect(() => {
     const open = () => setAdding(true)
     window.addEventListener('planner:quickadd', open)
@@ -76,6 +79,12 @@ export default function Shell() {
         </NavLink>
       </nav>
       <main className="shell-main">
+        {hasUpdate && (
+          <div className="update-bar" role="status">
+            <span>{t('app.updateReady')}</span>
+            <button type="button" className="btn btn-primary" onClick={applyUpdate}>{t('app.refresh')}</button>
+          </div>
+        )}
         <Outlet />
       </main>
       <nav className="nav-bottom" aria-label="Main">
