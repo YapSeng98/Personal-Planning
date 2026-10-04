@@ -8,6 +8,29 @@ those.
 
 ## 2026-10-04
 
+- **Fixed: a change made on one device could be undone by another** — e.g.
+  a file attached on the laptop vanished because the iPad, with the same
+  review open, saved its older copy over it. Every save now sends only what
+  was actually changed on that device, and the server merges field by field:
+  different fields edited on different devices are all kept, files attached
+  on two devices are all kept, and when the same field was edited in two
+  places the most recent edit wins, whatever order the devices sync in. Open
+  reviews and notes take in other devices' changes as they arrive instead of
+  overwriting them. Rarer timing gaps fixed along the way: a save still in
+  progress while another device synced could be skipped by that device for
+  good; a fresh edit could be overwritten by a download arriving at the same
+  moment; two devices starting the same day's review or habit tick at the
+  same instant now merge into one; two accounts writing a review for the same
+  day no longer clash. Needs `supabase/schema.sql` re-run.
+  ([d9e73ab](https://github.com/YapSeng98/Personal-Planning/commit/d9e73ab))
+- **New versions reach every device on their own** — a home-screen app on
+  iPad/iPhone could keep running an old version for days. The app now checks
+  for updates whenever you come back to it and switches to the new version
+  when you leave it or return (never while you're typing); a "new version
+  ready" bar offers it right away. Devices on an older version switch on
+  their first launch after a release. Settings → Version shows which version
+  a device runs.
+  ([fa42b57](https://github.com/YapSeng98/Personal-Planning/commit/fa42b57))
 - **Fixed: logging out on one device signed you out everywhere** — your
   other devices silently stopped syncing. Log out now only affects the device
   you're on. A device also remembers whose data it holds: if a different

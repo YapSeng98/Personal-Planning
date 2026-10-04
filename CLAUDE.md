@@ -19,12 +19,40 @@ only — it is not live and should not be treated as current architecture.
 
 | Path | What it is |
 |---|---|
-| `frontend/` | React + TypeScript PWA (Vite). `src/db/db.ts` (Dexie schema + outbox), `src/sync/engine.ts` (push/pull orchestration, field maps, LWW), `src/sync/api.ts`+`supabase.ts` (Supabase client/auth), `src/styles/tokens.css`+`app.css` (design system), `src/components/Icon.tsx` (icon set). |
-| `supabase/schema.sql` | Full Postgres schema: tables, RLS policies, `sync_push`/`sync_pull`/`recalc_goal` functions. Idempotent — safe to paste and re-run whole. This is the source of truth for the backend; there is no migration tool, just re-running this file in the Supabase SQL Editor. |
+| `frontend/` | React + TypeScript PWA (Vite). `src/db/db.ts` (Dexie schema, outbox, `patchAndQueue`), `src/sync/engine.ts` (push/pull orchestration), `src/sync/fields.ts` (which fields sync, change diffing), `src/sync/api.ts`+`supabase.ts` (Supabase client/auth), `src/lib/pwaUpdate.ts`+`public/sw-handoff.js` (how new versions reach devices), `src/styles/tokens.css`+`app.css` (design system), `src/components/Icon.tsx` (icon set). |
+| `supabase/schema.sql` | Full Postgres schema: tables, RLS policies, `sync_push`/`sync_pull`/`recalc_goal` functions. Idempotent — safe to paste and re-run whole. This is the source of truth for the backend; there is no migration tool, just re-running this file in the Supabase SQL Editor. `sync_push`, `sync_pull` and the rev/field_times/txid block are **generated** by `supabase/gen_sync_push.py` (`python3 supabase/gen_sync_push.py apply` rewrites them in place) — edit the generator, not that SQL. |
 | `deploy/publish.sh` | Builds the frontend and publishes it — see Deploy below. |
 | `extension/` | Optional Chrome extension ("Planner Now Playing") — mirrors what's playing in a YouTube / YouTube Music tab onto the Today hero via `postMessage`; the page reads it in `src/lib/nowPlaying.ts`. Desktop only; without it the hero uses the Settings video link. Load unpacked, see its README. |
 | `servicenow/` | Legacy — the pre-Supabase backend. Not live, kept for history. |
 | `CHANGELOG.md` | Human-readable history of what shipped, newest first. |
+
+## Sync model — read before touching sync or any screen that saves
+
+Several devices edit the same data, often while offline or with a screen
+left open. The rule that keeps one device from undoing another's changes:
+
+- **Never write a whole record from a screen's copy.** Save through
+  `patchAndQueue(table, name, id, patch, att?)` (db.ts): the patch is applied
+  to the record as stored *now*, and only the fields that changed are queued.
+  `writeAndQueue` is for brand-new records. Attachments change only by
+  add/remove ops (`att`), never by passing a whole list.
+- `sync_push` applies each pushed field only if its edit time is at least as
+  recent as that field's last applied edit (`field_times`), so the latest
+  edit of a field wins in any sync order. Attachments merge by id.
+- Every row has `rev` (bumped on any write) and `txid` (the writing
+  transaction). A push from a stale `base_rev` comes back `foreign`, and the
+  device pulls the merged row. A device's local `rev` only advances when its
+  copy matches the server's.
+- The pull cursor is a Postgres snapshot, not a timestamp, so a save still
+  committing during a pull is picked up next time. A device skips its own
+  echo by `"<id>#<rev>"`.
+- Records two devices may create independently (a day's review, a habit's
+  day, a repeat's date) get content-derived ids (`uuidFrom`) — include the
+  account id when the content alone isn't account-specific.
+- Screens that stay open while syncs arrive (Reviews, SketchDetail) merge
+  incoming changes into what's on screen and run loads/saves one at a time.
+- Adding a synced field: `SYNC_FIELDS` in src/sync/fields.ts + `TABLES` in
+  supabase/gen_sync_push.py → `apply` → `npm run test:sql`.
 
 ## Git workflow — direct to `main`, no PRs
 
@@ -74,6 +102,17 @@ visual/UI verification. Two verification paths, pick based on what changed:
   the test — never experiment against the owner's real account. Confirm the
   actual round-trip (push a value, pull it back, check it matches), not just
   that the call returned 200.
+- **Schema changes**: `npm run test:sql` (in `frontend/`) before handing the
+  SQL over — it runs the real schema.sql twice (idempotency) in a local
+  Postgres (PGlite) and checks the merge rules. For anything that changes
+  existing objects, also run it over the live version
+  (`git show HEAD:supabase/schema.sql`) with data in it first. Multi-device
+  conflict suite (3 browsers, sync routed to PGlite): see the verify skill.
+
+**New versions on devices**: the app reloads itself into a new version when
+it goes to the background or comes back (`src/lib/pwaUpdate.ts`); Settings →
+Version shows the build a device runs. Devices on a version from before
+2026-10-04 switch on their first launch after a release (`sw-handoff.js`).
 
 **PWA cache gotcha**: after deploying, a tab can still serve the old bundle.
 `navigator.serviceWorker.getRegistrations()` → unregister all, `caches.keys()`
