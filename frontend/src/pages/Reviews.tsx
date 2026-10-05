@@ -9,6 +9,7 @@ import AutoTextarea from '../components/AutoTextarea'
 import { shrinkImage } from '../lib/attach'
 import { storeFile, deleteStoredFiles, MAX_STORED_BYTES } from '../lib/files'
 import AttachmentChip from '../components/AttachmentChip'
+import AttachmentImage from '../components/AttachmentImage'
 import ReviewCalendar from '../components/ReviewCalendar'
 
 type RType = Review['type']
@@ -511,7 +512,7 @@ export default function Reviews() {
                 {form.attachments.filter((a) => a.type.startsWith('image/')).map((a) => (
                   <div key={a.id} className="rev-thumb">
                     <button type="button" className="rev-thumb-img" onClick={() => setViewing(a)} aria-label={a.name}>
-                      <img src={a.dataUrl} alt={a.name} />
+                      <AttachmentImage a={a} />
                     </button>
                     <button type="button" className="rev-thumb-remove" onClick={() => removeAttachment(a.id)} aria-label={t('sketch.removeAttachment')}>×</button>
                   </div>
@@ -575,7 +576,7 @@ export default function Reviews() {
 
       {viewing && (
         <div className="rev-lightbox" onClick={() => setViewing(null)} role="dialog" aria-label={viewing.name}>
-          <img src={viewing.dataUrl} alt={viewing.name} />
+          <AttachmentImage a={viewing} />
         </div>
       )}
     </div>

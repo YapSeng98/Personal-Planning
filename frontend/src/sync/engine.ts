@@ -205,7 +205,7 @@ export async function syncNow(): Promise<void> {
           }
           if (cur !== rec) await saveSlimmed('drawing', rec as DrawingNote, cur)
         } else {
-          const slim = await slimReview(rec as Review)
+          const slim = await slimReview(rec as Review, true)
           if (slim) await saveSlimmed('review', rec as Review, slim)
         }
       } catch {

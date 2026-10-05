@@ -16,8 +16,12 @@ const BIG = 400 * 1024 // only touch images whose data URL is larger than this
 const BIG_JPEG = 1.5 * 1024 * 1024
 const worthShrinking = (dataUrl: string) =>
   dataUrl.length > (dataUrl.startsWith('data:image/jpeg') ? BIG_JPEG : BIG)
-// Inline attachments bigger than this move to Storage.
+// Inline attachments bigger than this move to Storage. Pictures stay inline
+// up to a much larger size: they were already shrunk when attached, and
+// inline they show instantly and offline — except when a record is too big
+// to sync (`squeeze`), when the lower limit applies to them too.
 const MOVE_OVER = 300 * 1024
+const MOVE_IMAGE_OVER = 1.5 * 1024 * 1024
 const IMG_SRC = /src="(data:image\/[a-z0-9.+-]+;base64,[^"]+)"/gi
 
 async function toStorage(a: NoteAttachment): Promise<NoteAttachment> {
@@ -26,14 +30,15 @@ async function toStorage(a: NoteAttachment): Promise<NoteAttachment> {
   return { ...a, stored: 1, size: blob.size, dataUrl: '' }
 }
 
-async function slimAttachments(list: NoteAttachment[] | undefined): Promise<NoteAttachment[] | null> {
-  if (!list?.some((a) => !a.stored && a.dataUrl.length > MOVE_OVER)) return null
+async function slimAttachments(list: NoteAttachment[] | undefined, squeeze = false): Promise<NoteAttachment[] | null> {
+  const limit = (a: NoteAttachment) => (!squeeze && a.type.startsWith('image/') ? MOVE_IMAGE_OVER : MOVE_OVER)
+  if (!list?.some((a) => !a.stored && a.dataUrl.length > limit(a))) return null
   const out: NoteAttachment[] = []
   for (let a of list) {
-    if (!a.stored && a.dataUrl.length > MOVE_OVER) {
+    if (!a.stored && a.dataUrl.length > limit(a)) {
       // Images: shrinking may be enough to stay inline (thumbnails work offline).
       if (a.type.startsWith('image/') && worthShrinking(a.dataUrl)) a = { ...a, dataUrl: await shrinkDataUrl(a.dataUrl) }
-      if (a.dataUrl.length > MOVE_OVER) a = await toStorage(a)
+      if (a.dataUrl.length > limit(a)) a = await toStorage(a)
     }
     out.push(a)
   }
@@ -70,15 +75,16 @@ async function slimNoteHtml(text: string | undefined, level = 0): Promise<string
 /** A slimmer copy of the record, or null if there was nothing to do. */
 export async function slimDrawing(d: DrawingNote, level = 0): Promise<DrawingNote | null> {
   const text = await slimNoteHtml(d.text, level)
-  const attachments = await slimAttachments(d.attachments)
+  const attachments = await slimAttachments(d.attachments, level > 0)
   let dataUrl = d.dataUrl
   if (dataUrl && dataUrl.length > 2 * 1024 * 1024) dataUrl = await shrinkDataUrl(dataUrl, true)
   if (text === d.text && !attachments && dataUrl === d.dataUrl) return null
   return { ...d, text, dataUrl, attachments: attachments ?? d.attachments, updatedAt: Date.now() }
 }
 
-export async function slimReview(r: Review): Promise<Review | null> {
-  const attachments = await slimAttachments(r.attachments)
+/** `squeeze`: the review is too big to sync — move pictures to Storage too. */
+export async function slimReview(r: Review, squeeze = false): Promise<Review | null> {
+  const attachments = await slimAttachments(r.attachments, squeeze)
   return attachments ? { ...r, attachments, updatedAt: Date.now() } : null
 }
 
