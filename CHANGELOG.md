@@ -8,6 +8,13 @@ those.
 
 ## 2026-10-05
 
+- **New look for Sketches folders** — each folder is now a tile that looks
+  like a real folder, in its own colour, with your newest notes peeking out
+  like sheets of paper (they fan out when you hover), or the folder's cover
+  image if it has one; the name and "3 notes · 1 folder" sit underneath.
+  Rename and delete appear on hover; on phones folders sit two to a row
+  with one edit button, and Delete is in the folder's edit sheet.
+  ([f98f074](https://github.com/YapSeng98/Personal-Planning/commit/f98f074))
 - **Today's video follows your YouTube tabs — on any computer** — the
   "Planner Now Playing" browser extension can now be downloaded from
   Settings → YouTube tabs on Today, which also says whether it's installed
