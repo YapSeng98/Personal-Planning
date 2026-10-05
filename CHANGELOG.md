@@ -6,6 +6,22 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-05
+
+- **Fixed: "This file isn't available yet" for an attachment added on
+  another device** — a note could reach your other devices before its file
+  had finished uploading (e.g. the iPad was put away mid-upload), leaving a
+  file nobody could open. Now a file only shows up on other devices once
+  it's actually uploaded; the rest of the note still syncs straight away.
+  Big files (over 6 MB) upload in pieces and carry on where they stopped
+  after an interruption instead of starting over, and uploads no longer
+  hold up other syncing. The device that added a file shows "Uploading 40%"
+  / "Not uploaded yet" on it (Settings shows it too); a file still on its
+  way opens by itself once it arrives. Also fixed: a change saved by the
+  previous app version while offline lost its new attachments once the app
+  updated.
+  ([b0c793d](https://github.com/YapSeng98/Personal-Planning/commit/b0c793d))
+
 ## 2026-10-04
 
 - **Fixed: a change made on one device could be undone by another** — e.g.
