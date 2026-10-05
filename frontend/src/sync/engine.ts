@@ -8,7 +8,7 @@ import { SYNC_FIELDS, applyAttachmentOps, type SyncTable } from './fields'
 import { isAuthed, syncPush, syncPull, localDataOwner, setLocalDataOwner, type PushItem } from './api'
 import { supabase } from './supabase'
 import { syncAiUrl } from '../lib/ai'
-import { uploadPendingFiles } from '../lib/files'
+import { startUploads, notUploadedIds, lastUploadError, setAfterUpload } from '../lib/files'
 import { slimDrawing, slimReview, saveSlimmed, sizeBreakdown, MAX_SLIM_LEVEL } from '../lib/compact'
 import { startLiveSync } from './live'
 
@@ -104,7 +104,10 @@ function pushItem(table: SyncTable, id: string, rec: Record<string, unknown>, gr
     for (const f of !e.fields || e.fields.includes('*') ? all : e.fields) fieldTimes[f] = Math.max(fieldTimes[f] ?? 0, e.editedAt)
   }
   const { up, rm } = attachmentChanges(group)
-  if (isNew) for (const a of (rec.attachments as NoteAttachment[] | undefined) ?? []) up.add(a.id)
+  // A whole-record write (older app version / '*') doesn't say which files
+  // it added: offer every file it has — the server only adds, never drops
+  // files another device attached (same as for older app versions' pushes).
+  if (legacy || isNew) for (const a of (rec.attachments as NoteAttachment[] | undefined) ?? []) up.add(a.id)
   return {
     table,
     client_uuid: id,
@@ -210,10 +213,15 @@ export async function syncNow(): Promise<void> {
       }
     }
 
-    // 0b. Upload attachment files first, so a record never reaches another
-    // device before the file it points at.
-    const uploadErr = await uploadPendingFiles().catch((e) => String(e))
-    if (uploadErr) problems.push(`Couldn't upload an attachment: ${uploadErr}`)
+    // 0b. Attachment files upload in the background (lib/files.ts), never
+    // inside a sync — a big file on a slow connection mustn't hold up every
+    // other change. A file's attachment is held back from the push below
+    // until the file is up, so no device is sent a file it can't open.
+    startUploads()
+    const notUploaded = await notUploadedIds()
+    const uploadErr = lastUploadError()
+    if (uploadErr) problems.push(`An attachment hasn't uploaded yet (retrying): ${uploadErr}`)
+    const heldBack: { table: SyncTable; recordId: string; editedAt: number; attUp: string[] }[] = []
 
     // 1. Push: drain the outbox.
     const pushedKeys: string[] = [] // "<id>#<rev>" applied this sync — the pull skips them
@@ -232,6 +240,18 @@ export async function syncNow(): Promise<void> {
           continue
         }
         const item = pushItem(e.table, e.recordId, rec as unknown as Record<string, unknown>, group)
+        // Files not uploaded yet: their attachments wait (still queued) —
+        // the rest of the record goes now.
+        const held = notUploaded.size ? (item.att_up ?? []).filter((id) => notUploaded.has(id)) : []
+        if (held.length) {
+          item.att_up = item.att_up!.filter((id) => !notUploaded.has(id))
+          if (Array.isArray(item.payload.attachments)) {
+            item.payload = { ...item.payload, attachments: (item.payload.attachments as NoteAttachment[]).filter((a) => !notUploaded.has(a.id)) }
+          }
+          const others = (item.fields ?? []).some((f) => f !== 'attachments') || item.att_up.length > 0 || (item.att_rm ?? []).length > 0
+          if (!others) continue
+          heldBack.push({ table: e.table, recordId: e.recordId, editedAt: item.edited_at, attUp: held })
+        }
         const bytes = JSON.stringify(item).length
         if (bytes > MAX_RECORD_BYTES) {
           const where = sizeBreakdown(rec as never)
@@ -291,7 +311,14 @@ export async function syncNow(): Promise<void> {
       // that failed, stays queued for next time.
       const doneSet = new Set(done)
       const seqs = entries.filter((e) => doneSet.has(`${e.table}:${e.recordId}`)).map((e) => e.seq!)
-      await db.outbox.bulkDelete(seqs)
+      const requeue = heldBack.filter((h) => doneSet.has(`${h.table}:${h.recordId}`))
+      await db.transaction('rw', db.outbox, async () => {
+        await db.outbox.bulkDelete(seqs)
+        // attachments held back above wait here for their upload
+        if (requeue.length) {
+          await db.outbox.bulkAdd(requeue.map((h) => ({ table: h.table, recordId: h.recordId, editedAt: h.editedAt, fields: ['attachments'], attUp: h.attUp, attRm: [] })))
+        }
+      })
     }
 
     // 2. Pull: apply everything changed since our cursor.
@@ -385,6 +412,8 @@ export async function syncNow(): Promise<void> {
 }
 
 export function startSyncLoop() {
+  // a finished upload sends the attachment that was waiting for it
+  setAfterUpload(() => { syncNow() })
   syncNow()
   window.addEventListener('online', () => syncNow())
   window.addEventListener('offline', () => setState('offline'))

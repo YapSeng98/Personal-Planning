@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { NoteAttachment } from '../db/db'
-import { downloadAttachment, getFileBlob, formatBytes } from '../lib/files'
+import { downloadAttachment, getFileBlob, formatBytes, NotUploadedError } from '../lib/files'
 import { useLang } from '../lib/i18n'
 import Icon from './Icon'
 
@@ -33,6 +33,8 @@ export default function FileViewer({ a, onClose }: { a: NoteAttachment; onClose:
   const [url, setUrl] = useState('')
   const [text, setText] = useState('')
   const [err, setErr] = useState('')
+  // not on the server yet: keep trying while the viewer is open
+  const [waiting, setWaiting] = useState(false)
   const [loading, setLoading] = useState(kind !== 'other')
   const pdfRef = useRef<HTMLDivElement>(null)
 
@@ -40,10 +42,12 @@ export default function FileViewer({ a, onClose }: { a: NoteAttachment; onClose:
     if (kind === 'other') return
     let cancelled = false
     let objectUrl = ''
-    ;(async () => {
+    let retry: number | undefined
+    const attempt = async () => {
       try {
         const blob = a.stored ? await getFileBlob(a) : await (await fetch(a.dataUrl)).blob()
         if (cancelled) return
+        setWaiting(false)
         if (kind === 'pdf') {
           const { renderPdf } = await import('../lib/pdfView')
           if (pdfRef.current) {
@@ -62,13 +66,21 @@ export default function FileViewer({ a, onClose }: { a: NoteAttachment; onClose:
           setUrl(objectUrl)
         }
       } catch (e) {
-        if (!cancelled) setErr(e instanceof Error ? e.message : String(e))
+        if (cancelled) return
+        if (e instanceof NotUploadedError) {
+          setWaiting(true)
+          retry = window.setTimeout(attempt, 5000)
+        } else {
+          setErr(e instanceof Error ? e.message : String(e))
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }
-    })()
+    }
+    attempt()
     return () => {
       cancelled = true
+      window.clearTimeout(retry)
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [a, kind])
@@ -93,7 +105,8 @@ export default function FileViewer({ a, onClose }: { a: NoteAttachment; onClose:
         link.click()
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
+      if (e instanceof NotUploadedError) setWaiting(true)
+      else setErr(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -111,6 +124,7 @@ export default function FileViewer({ a, onClose }: { a: NoteAttachment; onClose:
         <div className={`fv-body fv-k-${kind}`}>
           {loading && <div className="fv-msg">{t('fv.loading')}</div>}
           {err && <div className="fv-msg err">{err}</div>}
+          {waiting && <div className="fv-msg fv-waiting">{t('fv.notUploaded')}</div>}
           {kind === 'pdf' && <div ref={pdfRef} className="fv-pdf" />}
           {kind === 'image' && url && <img src={url} alt={a.name} />}
           {kind === 'video' && url && <video src={url} controls playsInline autoPlay />}

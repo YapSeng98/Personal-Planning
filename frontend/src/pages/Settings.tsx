@@ -4,6 +4,7 @@ import { isAuthed, currentUser, clearTokens, serverLogout, changePassword, setLo
 import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { stopLiveSync } from '../sync/live'
 import { buildLabel, updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
+import { onUploadChange } from '../lib/files'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { getAiUrl, setAiUrl, askAI, clearAiUrlLocal } from '../lib/ai'
@@ -29,6 +30,7 @@ export default function Settings() {
   const [hasUpdate, setHasUpdate] = useState(updateReady())
   useEffect(() => onUpdateReady(() => setHasUpdate(true)), [])
   const [pending, setPending] = useState(0)
+  const [filesUp, setFilesUp] = useState(0)
   const [cleanup, setCleanup] = useState<{ state: 'idle' | 'running' | 'done'; msg: string }>({ state: 'idle', msg: '' })
   const [newPw, setNewPw] = useState('')
   const [pwState, setPwState] = useState<{ state: 'idle' | 'saving' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
@@ -46,12 +48,15 @@ export default function Settings() {
   }
 
   useEffect(() => {
+    const countFiles = () => { db.files.where('pending').equals(1).count().then(setFilesUp).catch(() => {}) }
     const off = onSyncState((st, detail) => {
       setSync(st)
       setSyncDetail(st === 'error' ? detail ?? '' : '')
       db.outbox.count().then(setPending)
+      countFiles()
     })
-    return off
+    const offUp = onUploadChange(countFiles)
+    return () => { off(); offUp() }
   }, [])
 
   function pick(th: Theme) {
@@ -270,6 +275,7 @@ export default function Settings() {
           <div className="row-sub">
             {pending > 0 ? t(pending === 1 ? 'set.pending' : 'set.pendingPlural', { n: pending }) : t('set.allSaved')}
           </div>
+          {filesUp > 0 && <div className="row-sub">{t(filesUp === 1 ? 'set.fileUploading' : 'set.filesUploading', { n: filesUp })}</div>}
           {syncDetail && <div className="row-sub sync-detail">{syncDetail}</div>}
         </div>
         {!offlineMode && <button className="btn" onClick={() => syncNow()}>{t('set.syncNow')}</button>}

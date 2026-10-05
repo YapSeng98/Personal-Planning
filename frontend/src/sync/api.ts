@@ -151,7 +151,9 @@ export async function syncPull(cursor: string, skip: string[] = []): Promise<Pul
   let { data, error } = await supabase.rpc('sync_pull', skip.length ? { since: cursor, skip } : { since: cursor })
   // A server whose schema.sql predates `skip` doesn't know the parameter —
   // pull without it (just re-downloads our own save, as before).
-  if (error && skip.length && /sync_pull|function|schema cache/i.test(error.message)) {
+  // (Matched on PostgREST's "function not found", not on the word sync_pull:
+  // a network error message contains the URL, which has that word in it.)
+  if (error && skip.length && (error.code === 'PGRST202' || /could not find the function|schema cache/i.test(error.message))) {
     ;({ data, error } = await supabase.rpc('sync_pull', { since: cursor }))
   }
   if (error) throw new Error(error.message)

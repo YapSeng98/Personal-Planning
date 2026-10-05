@@ -43,7 +43,17 @@ export function startUpdates() {
   })
   const base = import.meta.env.BASE_URL
   sw.register(`${base}sw.js`, { scope: base }).then((reg) => {
-    const check = () => { if (navigator.onLine) reg.update().catch(() => {}) }
+    // Safari can resolve without a registration when service workers are
+    // unavailable (some private modes) — then there's nothing to update.
+    if (!reg) return
+    const check = () => {
+      if (!navigator.onLine) return
+      try {
+        reg.update().catch(() => {})
+      } catch {
+        // registration gone (site data cleared): next launch registers again
+      }
+    }
     window.setInterval(check, 30 * 60_000)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {

@@ -181,6 +181,8 @@ export interface LocalFile {
   type?: string
   blob?: Blob
   pending: 0 | 1
+  /** Where an unfinished resumable upload continues (lib/files.ts). */
+  uploadUrl?: string
 }
 
 export interface SketchFolder {
