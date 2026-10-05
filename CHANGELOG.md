@@ -8,6 +8,14 @@ those.
 
 ## 2026-10-06
 
+- **Fixed: a picture attached to a review was blank after a refresh** — when
+  the app started, it moved any picture over 300 KB (an ordinary screenshot
+  or photo) out of the review into file storage, but the review page only
+  knew how to show pictures kept inside the review. Review pictures now
+  show wherever they're kept (downloaded once, then kept on the device),
+  so ones already moved show again; and pictures now stay inside the review
+  unless it's too big to sync.
+  ([68b7e9b](https://github.com/YapSeng98/Personal-Planning/commit/68b7e9b))
 - **Review page: a mood calendar instead of the past-reviews list** — "Your
   reflections" shows a month at a glance, in one compact card however many
   reviews you have: each day's mood face (tinted by its energy), today
