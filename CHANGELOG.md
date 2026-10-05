@@ -8,6 +8,16 @@ those.
 
 ## 2026-10-05
 
+- **Today's video follows your YouTube tabs — on any computer** — the
+  "Planner Now Playing" browser extension can now be downloaded from
+  Settings → YouTube tabs on Today, which also says whether it's installed
+  and walks through the 4 install steps (Windows or Mac, Chrome or Edge).
+  The display now follows the tab you're watching: the video you most
+  recently started, or the YouTube tab you switch to — an older tab moving
+  on to its next song no longer pulls it back. When a YouTube tab starts
+  playing, or you press ↗ to open Today's video in YouTube, Today's own copy
+  stops instead of both playing at once.
+  ([1f9b654](https://github.com/YapSeng98/Personal-Planning/commit/1f9b654))
 - **Fixed: "This file isn't available yet" for an attachment added on
   another device** — a note could reach your other devices before its file
   had finished uploading (e.g. the iPad was put away mid-upload), leaving a
