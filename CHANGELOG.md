@@ -6,6 +6,16 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-06
+
+- **Review page: a mood calendar instead of the past-reviews list** — "Your
+  reflections" shows a month at a glance, in one compact card however many
+  reviews you have: each day's mood face (tinted by its energy), today
+  ringed, a 🔥 streak and "4 of 6 days reviewed". Tap a day to open its
+  review — or a missed day to write it; W buttons open weekly reviews and
+  badges the monthly and yearly ones; ‹ › to browse months.
+  ([39e6747](https://github.com/YapSeng98/Personal-Planning/commit/39e6747))
+
 ## 2026-10-05
 
 - **New look for Sketches folders** — each folder is now a tile that looks
