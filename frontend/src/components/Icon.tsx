@@ -5,7 +5,7 @@
 export type IconName =
   | 'today' | 'plan' | 'board' | 'goals' | 'reviews' | 'sketches' | 'stats'
   | 'settings' | 'search' | 'close' | 'trash' | 'folder' | 'pencil'
-  | 'chevronLeft' | 'plus' | 'check' | 'sparkle' | 'image' | 'move'
+  | 'chevronLeft' | 'chevronRight' | 'plus' | 'check' | 'sparkle' | 'image' | 'move'
 
 const PATHS: Record<IconName, React.ReactNode> = {
   image: (
@@ -92,6 +92,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   chevronLeft: <path d="M14.8 5 8 12l6.8 7" strokeLinecap="round" strokeLinejoin="round" />,
+  chevronRight: <path d="M9.2 5 16 12l-6.8 7" strokeLinecap="round" strokeLinejoin="round" />,
   plus: <path d="M12 4.5v15M4.5 12h15" strokeLinecap="round" />,
   check: <path d="M4.5 12.5l4.8 4.8L19.5 6.5" strokeLinecap="round" strokeLinejoin="round" />,
   sparkle: (

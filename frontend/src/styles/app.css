@@ -534,13 +534,62 @@ textarea.field { background: var(--glass); border: 1px solid var(--hairline); bo
 .rev-lightbox { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.85); display: flex;
   align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
 .rev-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
-.review-past { display: flex; flex-direction: column; gap: 0.5rem; }
-.review-past .rp {
-  font-size: 0.8rem; color: var(--text-2); padding: 0.65rem 0.9rem;
-  text-align: left; width: 100%; cursor: pointer; transition: transform 140ms var(--ease), border-color 140ms var(--ease);
+/* Reviews → "Your reflections": a month calendar instead of a list. A day's
+   mood is its emoji, its energy the coral tint (coral = data mark); W
+   buttons open the week's review, the badges the month's and year's. */
+.rcal { padding: 1rem 1.1rem 1.1rem; max-width: 760px; }
+.rcal-head { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.rcal-title { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: var(--text-1); min-width: 9.5rem; text-align: center; }
+.rcal-nav {
+  width: 32px; height: 32px; border-radius: 999px; border: 1px solid var(--hairline); background: var(--glass);
+  color: var(--text-2); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
 }
-.review-past .rp:hover { transform: translateY(-1px); }
-.review-past .rp.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.rcal-nav:hover:not(:disabled) { background: var(--glass-strong); color: var(--text-1); }
+.rcal-nav:disabled { opacity: 0.3; cursor: default; }
+.rcal-today { padding: 0.3rem 0.8rem; font-size: 0.78rem; }
+.rcal-badges { margin-left: auto; display: flex; gap: 0.35rem; }
+.rcal-badge {
+  display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.32rem 0.75rem; border-radius: 999px;
+  font-size: 0.74rem; font-weight: 700; font-family: inherit; cursor: pointer;
+  border: 1px dashed color-mix(in srgb, var(--text-3) 45%, transparent); background: none; color: var(--text-3);
+}
+.rcal-badge.done { border-style: solid; border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-wash); color: var(--accent-bright); }
+.rcal-badge.on, .rcal-wk.on { box-shadow: 0 0 0 2px var(--accent) inset; }
+.rcal-stats { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 0.75rem 0 0.85rem; font-size: 0.78rem; font-weight: 600; color: var(--text-3); }
+.rcal-streak { color: var(--text-1); }
+.rcal-count { display: inline-flex; align-items: center; gap: 0.5rem; }
+.rcal-meter { width: 72px; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--text-3) 18%, transparent); overflow: hidden; }
+.rcal-meter > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.rcal-grid { display: grid; grid-template-columns: 30px repeat(7, minmax(0, 1fr)); gap: 5px; }
+.rcal-wh { font-size: 0.68rem; font-weight: 700; color: var(--text-3); text-align: center; padding-bottom: 2px; text-transform: uppercase; }
+.rcal-wk {
+  height: 46px; border-radius: 10px; font-size: 0.66rem; font-weight: 800; font-family: inherit; cursor: pointer;
+  border: 1px dashed color-mix(in srgb, var(--text-3) 40%, transparent); background: none; color: var(--text-3);
+}
+.rcal-wk.done { border-style: solid; border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-wash); color: var(--accent-bright); }
+.rcal-wk:disabled { opacity: 0.25; cursor: default; }
+.rcal-day {
+  height: 46px; border-radius: 12px; border: 1px solid transparent; cursor: pointer; font-family: inherit;
+  background: color-mix(in srgb, var(--text-3) 9%, transparent); color: var(--text-2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  transition: transform 140ms var(--ease), background 140ms var(--ease);
+}
+.rcal-day:hover:not(:disabled) { transform: translateY(-1px); background: color-mix(in srgb, var(--text-3) 17%, transparent); }
+.rcal-day.has, .rcal-day.has:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) calc(8% + var(--e) * 6%), transparent); color: var(--text-1); }
+.rcal-day.out { opacity: 0.38; }
+.rcal-day:disabled { opacity: 0.22; cursor: default; }
+.rcal-day.today { border-color: var(--accent-bright); }
+.rcal-day.on { box-shadow: 0 0 0 2px var(--accent) inset; }
+.rcal-num { font-size: 0.74rem; font-weight: 700; line-height: 1; }
+.rcal-day.has .rcal-num { font-size: 0.64rem; opacity: 0.8; }
+.rcal-mood { font-size: 1.05rem; line-height: 1; }
+@media (max-width: 640px) {
+  .rcal { padding: 0.85rem 0.75rem 0.9rem; }
+  .rcal-title { min-width: 0; flex: 1; }
+  .rcal-badges { margin-left: 0; width: 100%; }
+  .rcal-grid { grid-template-columns: 22px repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .rcal-day, .rcal-wk { height: 42px; border-radius: 10px; }
+}
 .past-banner {
   display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
   background: var(--glass); border: 1px solid var(--hairline); border-radius: var(--radius-card);
@@ -1009,7 +1058,6 @@ button.goal-card:hover { transform: translateY(-2px); }
 .pbar i { box-shadow: 0 0 12px -2px var(--accent-wash); }
 
 /* Reviews: past-review chips get the card lift too */
-.review-past .rp { box-shadow: 0 1px 1px rgba(0,0,0,0.03), 0 10px 24px -20px rgba(0,0,0,0.45); }
 
 /* ---- AI settings ---- */
 .ai-row { display: flex; gap: 0.6rem; align-items: center; }

@@ -9,6 +9,7 @@ import AutoTextarea from '../components/AutoTextarea'
 import { shrinkImage } from '../lib/attach'
 import { storeFile, deleteStoredFiles, MAX_STORED_BYTES } from '../lib/files'
 import AttachmentChip from '../components/AttachmentChip'
+import ReviewCalendar from '../components/ReviewCalendar'
 
 type RType = Review['type']
 const TYPES: RType[] = ['daily', 'weekly', 'monthly', 'yearly']
@@ -97,7 +98,7 @@ export default function Reviews() {
   const [form, setForm] = useState({ ...blank })
   const [existingId, setExistingId] = useState<string | null>(null)
   const [stats, setStats] = useState('')
-  const [past, setPast] = useState<Review[]>([])
+  const [allReviews, setAllReviews] = useState<Review[]>([])
   const [flash, setFlash] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [drafting, setDrafting] = useState(false)
@@ -188,7 +189,7 @@ export default function Reviews() {
 
     const all = await db.reviews.filter((r) => !r.deleted).toArray()
     all.sort((a, b) => b.periodStart.localeCompare(a.periodStart))
-    setPast(all.slice(0, 6))
+    setAllReviews(all)
   }), [type, period, t, serial])
 
   useEffect(() => {
@@ -272,9 +273,12 @@ export default function Reviews() {
     return () => window.removeEventListener('keydown', onKey)
   }, [viewing])
 
-  function openPast(r: Review) {
-    setType(r.type)
-    setAnchorDate(r.periodStart)
+  /** Open a period's review (from the calendar): today's daily review is
+      just "today"; anything else is that date. Then back up to the form. */
+  function openPeriod(rt: RType, date: string) {
+    setType(rt)
+    setAnchorDate(rt === 'daily' && date === todayStr() ? null : date)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function remove() {
@@ -563,26 +567,10 @@ export default function Reviews() {
           {flash && <span className="flash" role="status">{flash}</span>}
         </div>
 
-        {past.length > 0 && (
-          <div>
-            <div className="section-h">{t('rev.past')}</div>
-            <div className="review-past">
-              {past.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  className={`card rp ${anchorDate === r.periodStart && type === r.type ? 'on' : ''}`}
-                  onClick={() => openPast(r)}
-                >
-                  <b>{t('rev.' + r.type)}</b> · {r.periodStart}
-                  {r.mood ? ` · ${MOODS.find(([m]) => m === r.mood)?.[1]}` : ''}
-                  {r.attachments?.length ? ` · 📎${r.attachments.length}` : ''}
-                  {r.wins ? ` — ${r.wins.slice(0, 60)}${r.wins.length > 60 ? '…' : ''}` : ''}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <div>
+          <div className="section-h">{t('rev.past')}</div>
+          <ReviewCalendar reviews={allReviews} selected={{ type, start: period.start }} onOpen={openPeriod} />
+        </div>
       </div>
 
       {viewing && (
