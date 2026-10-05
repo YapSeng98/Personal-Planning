@@ -1123,22 +1123,95 @@ button.goal-card:hover { transform: translateY(-2px); }
 }
 .sketch-del:hover { opacity: 1; background: var(--glass-strong); color: var(--danger); }
 
-/* Wide enough that a folder name like "Product Knowledge Library" shows in full beside its count and buttons. */
-.sketch-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 0.7rem; margin: 0.6rem 0 1.2rem; }
-.sketch-folder-card { padding: 0; display: flex; align-items: center; gap: 0.2rem; transition: transform 180ms var(--ease), border-color 180ms var(--ease); }
-.sketch-folder-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent-bright) 30%, var(--hairline)); }
+/* Folders: gallery tiles. A tinted folder (back panel with a tab, front
+   flap) with the newest notes peeking out like sheets of paper — or the
+   folder's cover image — and the name and counts underneath. Each folder's
+   --tint is one of the app's decorative colours (Sketches.tsx). */
+.sketch-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 0.9rem; margin: 0.6rem 0 1.4rem; }
+.sketch-folder-card {
+  --tint: var(--accent-bright);
+  position: relative; padding: 0; overflow: hidden;
+  transition: transform 220ms var(--ease), box-shadow 220ms var(--ease), border-color 220ms var(--ease);
+}
+.sketch-folder-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-float); border-color: color-mix(in srgb, var(--tint) 45%, var(--hairline)); }
 .sketch-folder-open {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.65rem; background: none; border: none;
-  cursor: pointer; padding: 0.75rem 0.5rem 0.75rem 0.8rem; text-align: left; font-family: inherit;
+  display: flex; flex-direction: column; width: 100%; padding: 0; background: none; border: none;
+  cursor: pointer; text-align: left; font-family: inherit; color: inherit;
 }
-.sketch-folder-icon {
-  flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
-  background: var(--accent-wash); color: var(--accent-bright);
-  display: flex; align-items: center; justify-content: center;
+.sketch-folder-open:focus-visible { outline: 2px solid var(--tint); outline-offset: -2px; border-radius: var(--radius-card); }
+.sketch-folder-cover {
+  position: relative; display: block; height: 124px; overflow: hidden;
+  background:
+    radial-gradient(130% 100% at 0% 0%, color-mix(in srgb, var(--tint) var(--fold-panel), transparent), transparent 72%),
+    linear-gradient(165deg, color-mix(in srgb, var(--tint) calc(var(--fold-panel) * 0.7), transparent), color-mix(in srgb, var(--tint) 8%, transparent));
 }
-.sketch-folder-name { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sketch-folder-count { flex-shrink: 0; font-size: 0.76rem; font-weight: 700; color: var(--text-3); }
-.sketch-folder-actions { display: flex; flex-direction: column; gap: 0.1rem; padding-right: 0.5rem; flex-shrink: 0; }
+/* the folder's tab */
+.sketch-folder-cover:not(.has-image)::before {
+  content: ''; position: absolute; top: 12px; left: 14px; width: 38px; height: 7px; border-radius: 4px;
+  background: color-mix(in srgb, var(--tint) 55%, transparent);
+}
+.sketch-folder-cover > img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 500ms var(--ease); }
+.sketch-folder-card:hover .sketch-folder-cover > img { transform: scale(1.05); }
+.sketch-folder-papers { position: absolute; left: 0; right: 0; bottom: 2px; display: flex; justify-content: center; }
+.sketch-folder-paper {
+  position: relative; width: 64px; height: 84px; margin: 0 -9px; border-radius: 7px; overflow: hidden;
+  background: #fff; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
+  transform-origin: 50% 100%; transition: transform 320ms var(--ease-spring);
+}
+.sketch-folder-paper:nth-child(1) { transform: rotate(-10deg) translateY(6px); }
+.sketch-folder-paper:nth-child(2) { transform: translateY(-2px); z-index: 1; }
+.sketch-folder-paper:nth-child(3) { transform: rotate(10deg) translateY(6px); }
+.sketch-folder-card:hover .sketch-folder-paper:nth-child(1) { transform: rotate(-16deg) translate(-6px, 0); }
+.sketch-folder-card:hover .sketch-folder-paper:nth-child(2) { transform: translateY(-10px); }
+.sketch-folder-card:hover .sketch-folder-paper:nth-child(3) { transform: rotate(16deg) translate(6px, 0); }
+.sketch-folder-paper.is-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* tiny text, drawn at twice the size and scaled down (browsers with a
+   minimum font size would otherwise blow it up) */
+.sketch-folder-paper-text {
+  position: absolute; top: 0; left: 0; width: 200%; height: 200%; transform: scale(0.5); transform-origin: 0 0;
+  padding: 10px; box-sizing: border-box; overflow: hidden;
+  font-size: 10px; line-height: 1.4; color: #44444c; word-break: break-word;
+}
+.sketch-folder-paper-text b { display: block; font-size: 11px; color: #1b1b1f; margin-bottom: 3px; }
+.sketch-folder-empty { position: absolute; inset: 0 0 34px; display: flex; align-items: center; justify-content: center; color: var(--tint); opacity: 0.5; }
+/* the front of the folder, in front of the papers */
+.sketch-folder-flap {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 34px; z-index: 2;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) var(--fold-flap-a), var(--surface)), color-mix(in srgb, var(--tint) var(--fold-flap-b), var(--surface)));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 -6px 14px rgba(0, 0, 0, 0.14);
+  border-radius: 14px 14px 0 0;
+}
+.sketch-folder-info { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.75rem 0.9rem 0.85rem; min-width: 0; }
+.sketch-folder-name { display: flex; align-items: flex-start; gap: 0.45rem; font-size: 0.93rem; font-weight: 700; line-height: 1.3; color: var(--text-1); min-width: 0; }
+.sketch-folder-name svg { flex-shrink: 0; margin-top: 2px; color: var(--tint); }
+.sketch-folder-name > span { min-width: 0; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.sketch-folder-count { font-size: 0.75rem; font-weight: 600; color: var(--text-3); }
+/* rename / delete: small round buttons over the folder, shown on hover
+   (always on touch screens, where there's no hover) */
+.sketch-folder-actions {
+  position: absolute; top: 8px; right: 8px; z-index: 3; display: flex; gap: 5px;
+  opacity: 0; transform: translateY(-4px); transition: opacity 160ms var(--ease), transform 160ms var(--ease);
+}
+.sketch-folder-card:hover .sketch-folder-actions,
+.sketch-folder-card:focus-within .sketch-folder-actions { opacity: 1; transform: none; }
+@media (hover: none) { .sketch-folder-actions { opacity: 1; transform: none; } }
+.sketch-folder-actions .sketch-del {
+  opacity: 1; width: 30px; height: 30px; padding: 0; border-radius: 999px;
+  background: rgba(12, 14, 22, 0.5); color: #fff; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.sketch-folder-actions .sketch-del:hover { background: rgba(12, 14, 22, 0.72); color: #fff; }
+.sketch-folder-actions .sketch-del:last-child:hover { color: #ffb4bf; }
+/* phones: two folders a row, a little shorter; one edit button (Delete is
+   in the folder sheet) so the small tile isn't crowded */
+@media (max-width: 640px) {
+  .sketch-folder-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+  .sketch-folder-cover { height: 106px; }
+  .sketch-folder-paper { width: 54px; height: 72px; margin: 0 -8px; }
+  .sketch-folder-flap { height: 28px; }
+  .sketch-folder-empty { inset: 0 0 28px; }
+  .sketch-folder-info { padding: 0.65rem 0.75rem 0.75rem; }
+  .sketch-folder-actions .sketch-folder-trash { display: none; }
+}
 .sketch-name-ico { flex-shrink: 0; vertical-align: -2px; opacity: 0.8; }
 
 .sketch-detail-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 1; min-width: 0; }

@@ -13,11 +13,14 @@ export default function FolderForm({
   folder,
   parentId: initialParent,
   onClose,
+  onDelete,
 }: {
   folder: SketchFolder | null
   /** Where a new folder goes (the folder page it was created from). */
   parentId?: string
   onClose: () => void
+  /** Editing: delete the folder (Sketches asks first and moves its contents up). */
+  onDelete?: () => void
 }) {
   const editing = folder !== null
   const [name, setName] = useState(folder?.name ?? '')
@@ -81,7 +84,10 @@ export default function FolderForm({
             </div>
           )}
         </div>
-        <div className="row sheet-actions" style={{ justifyContent: 'flex-end' }}>
+        <div className="row sheet-actions" style={{ justifyContent: editing && onDelete ? 'space-between' : 'flex-end' }}>
+          {editing && onDelete && (
+            <button className="btn btn-danger" onClick={onDelete} disabled={submitting}>{t('common.delete')}</button>
+          )}
           <span style={{ display: 'flex', gap: '0.6rem' }}>
             <button className="btn" onClick={onClose} disabled={submitting}>{t('common.cancel')}</button>
             <button className="btn btn-primary" onClick={save} disabled={submitting}>
