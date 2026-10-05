@@ -66,6 +66,9 @@ export function VideoProvider({ children }: { children: ReactNode }) {
     const elapsed = playStartRef.current ? Math.round((Date.now() - playStartRef.current) / 1000) : 0
     const ts = elapsed >= 3 ? `&t=${elapsed}s` : ''
     window.open(`https://www.youtube.com/watch?v=${videoId}${ts}`, '_blank', 'noopener,noreferrer')
+    // It carries on in the YouTube tab — stop it here, or both play at once.
+    playStartRef.current = null
+    setPlaying(false)
   }, [videoId])
 
   // Reassert volume/mute once the (freshly mounted) player has loaded — the
@@ -98,6 +101,16 @@ export function VideoProvider({ children }: { children: ReactNode }) {
 
   // A cleared/changed video must not leave an orphaned player running.
   useEffect(() => { if (!videoId) setPlaying(false) }, [videoId])
+
+  // Something started playing in a YouTube tab after the video here did — or
+  // you switched to that tab: hand over. Stop this one and show the tab,
+  // rather than two videos playing at once. (A tab already playing when this
+  // one started, moving on to its next song, doesn't count.)
+  useEffect(() => {
+    const started = playStartRef.current
+    if (!playing || started == null || !nowPlaying?.playing) return
+    if (Math.max(nowPlaying.startedAt ?? 0, nowPlaying.focusedAt ?? 0) > started) stop()
+  }, [playing, nowPlaying, stop])
 
   const setSlot = useCallback((el: HTMLElement | null) => setSlotState(el), [])
 

@@ -5,6 +5,7 @@ import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { stopLiveSync } from '../sync/live'
 import { buildLabel, updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
 import { onUploadChange } from '../lib/files'
+import { useNowPlaying, canUseExtension, olderVersion, EXTENSION_VERSION, EXTENSION_ZIP } from '../lib/nowPlaying'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { getAiUrl, setAiUrl, askAI, clearAiUrlLocal } from '../lib/ai'
@@ -31,6 +32,8 @@ export default function Settings() {
   useEffect(() => onUpdateReady(() => setHasUpdate(true)), [])
   const [pending, setPending] = useState(0)
   const [filesUp, setFilesUp] = useState(0)
+  const { extension } = useNowPlaying()
+  const extCurrent = extension.installed && !olderVersion(extension.version ?? '1.0.0', EXTENSION_VERSION)
   const [cleanup, setCleanup] = useState<{ state: 'idle' | 'running' | 'done'; msg: string }>({ state: 'idle', msg: '' })
   const [newPw, setNewPw] = useState('')
   const [pwState, setPwState] = useState<{ state: 'idle' | 'saving' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
@@ -212,6 +215,32 @@ export default function Settings() {
             : <div className="ai-status err">✕ {t('set.videoBad')}</div>
         )}
       </div>
+
+      {(extension.installed || canUseExtension()) && (
+        <>
+          <div className="section-h">{t('set.ext')}</div>
+          <div className="card ext-card">
+            {extCurrent ? (
+              <div className="ai-status ok">✓ {t('set.extOn', { v: extension.version ?? '' })}</div>
+            ) : (
+              <>
+                <div className="row-sub">
+                  {extension.installed
+                    ? t('set.extOld', { v: extension.version ?? '1.0.0', nv: EXTENSION_VERSION })
+                    : t('set.extWhy')}
+                </div>
+                <ol className="ext-steps">
+                  <li>{t('set.extStep1')}</li>
+                  <li>{t('set.extStep2')}</li>
+                  <li>{t('set.extStep3')}</li>
+                  <li>{t('set.extStep4')}</li>
+                </ol>
+                <a className="btn btn-primary" href={EXTENSION_ZIP} download="planner-now-playing.zip">{t('set.extDownload')}</a>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="section-h">{t('set.language')}</div>
       <div className="card">

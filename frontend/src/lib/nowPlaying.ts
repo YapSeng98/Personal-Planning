@@ -18,6 +18,31 @@ export interface NowPlaying {
   at: number // ms timestamp of the report
   tabId: number
   windowId: number
+  /** When the tab last started playing / you last switched to it (ms) —
+      extension 1.1+. */
+  startedAt?: number
+  focusedAt?: number
+}
+
+/** The version in extension/manifest.json — keep the two in step. The zip
+    of the folder is published with the app (vite.config.ts). */
+export const EXTENSION_VERSION = '1.1.0'
+export const EXTENSION_ZIP = `${import.meta.env.BASE_URL}planner-now-playing.zip`
+
+/** Browser extensions of this kind run in desktop Chrome / Edge / Brave. */
+export function canUseExtension(): boolean {
+  const ua = navigator.userAgent
+  const touchMac = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1 // an iPad asking for the desktop site
+  return /Chrome\//.test(ua) && !/Android|iPhone|iPad|iPod|Mobile/i.test(ua) && !touchMac
+}
+
+/** Is `a` an older version than `b` ("1.0.0" < "1.1.0")? */
+export function olderVersion(a: string, b: string): boolean {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number)
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0)
+  }
+  return false
 }
 
 function isNowPlaying(x: unknown): x is NowPlaying {
@@ -27,12 +52,16 @@ function isNowPlaying(x: unknown): x is NowPlaying {
 
 export function useNowPlaying() {
   const [np, setNp] = useState<NowPlaying | null>(null)
+  // Any message from the extension means it's installed; 1.0 sent no version.
+  const [extension, setExtension] = useState<{ installed: boolean; version: string | null }>({ installed: false, version: null })
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.source !== window || e.origin !== window.location.origin) return
       if (e.data?.type !== 'planner-np') return
       setNp(isNowPlaying(e.data.nowPlaying) ? e.data.nowPlaying : null)
+      const version = typeof e.data.version === 'string' ? e.data.version : '1.0.0'
+      setExtension((x) => (x.installed && x.version === version ? x : { installed: true, version }))
     }
     window.addEventListener('message', onMsg)
     // Ask for the current state in case the extension posted before we mounted.
@@ -44,7 +73,7 @@ export function useNowPlaying() {
     if (np) window.postMessage({ type: 'planner-np-focus', tabId: np.tabId, windowId: np.windowId }, window.location.origin)
   }, [np])
 
-  return { nowPlaying: np, focusTab: focus }
+  return { nowPlaying: np, focusTab: focus, extension }
 }
 
 /** Live position: the report's position plus time elapsed since, while playing. */

@@ -1,19 +1,34 @@
 {
   "manifest_version": 3,
   "name": "Planner Now Playing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shows what's playing in your YouTube / YouTube Music tabs on the Planner's Today page.",
-  "permissions": ["storage"],
-  "background": { "service_worker": "background.js" },
+  "permissions": [
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*", "https://music.youtube.com/*"],
-      "js": ["youtube.js"],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://music.youtube.com/*"
+      ],
+      "js": [
+        "youtube.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://yapseng98.github.io/Personal-Planning/*", "http://localhost/*"],
-      "js": ["planner.js"],
+      "matches": [
+        "https://yapseng98.github.io/Personal-Planning/*",
+        "http://localhost/*",
+        "http://localhost:*/*"
+      ],
+      "js": [
+        "planner.js"
+      ],
       "run_at": "document_start"
     }
   ]
