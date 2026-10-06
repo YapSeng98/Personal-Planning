@@ -8,6 +8,13 @@ those.
 
 ## 2026-10-06
 
+- **Today's display follows YouTube in more situations** (extension 1.2):
+  YouTube's own mini player (keeps playing while you browse YouTube), a
+  video popped out into its own picture-in-picture window, and players
+  without a normal video (like YouTube Music's bar) now show on Today too —
+  before, the display stayed on the Settings video. Update the extension
+  from Settings → YouTube tabs on Today.
+  ([ad25fa8](https://github.com/YapSeng98/Personal-Planning/commit/ad25fa8))
 - **Fixed: a picture attached to a review was blank after a refresh** — when
   the app started, it moved any picture over 300 KB (an ordinary screenshot
   or photo) out of the review into file storage, but the review page only
