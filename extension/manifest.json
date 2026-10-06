@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Planner Now Playing",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Shows what's playing in your YouTube / YouTube Music tabs on the Planner's Today page.",
   "permissions": [
     "storage"

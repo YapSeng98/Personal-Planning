@@ -330,8 +330,10 @@ function TabNowPlaying({ np, onFocus }: { np: NowPlaying; onFocus: () => void })
 
   return (
     <div className={`hv-tab-wrap ${np.playing ? 'is-playing' : 'is-paused'}`}>
-      <img src={np.artwork} alt="" />
-      {!failed && (
+      {np.artwork && <img src={np.artwork} alt="" />}
+      {/* the muted mirror needs the video's id (a player without one — some
+          mini players — shows the cover only) */}
+      {!failed && np.videoId && (
         <iframe
           key={np.videoId}
           ref={iframeRef}

@@ -26,7 +26,7 @@ export interface NowPlaying {
 
 /** The version in extension/manifest.json — keep the two in step. The zip
     of the folder is published with the app (vite.config.ts). */
-export const EXTENSION_VERSION = '1.1.0'
+export const EXTENSION_VERSION = '1.2.0'
 export const EXTENSION_ZIP = `${import.meta.env.BASE_URL}planner-now-playing.zip`
 
 /** Browser extensions of this kind run in desktop Chrome / Edge / Brave. */
