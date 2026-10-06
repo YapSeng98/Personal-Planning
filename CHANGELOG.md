@@ -8,6 +8,12 @@ those.
 
 ## 2026-10-06
 
+- **Extension 1.3: works on tabs that were already open** — installing or
+  updating "Planner Now Playing" used to need a manual reload of the open
+  YouTube tab and the Planner before Today would follow the video; it now
+  reaches them by itself. Settings → YouTube tabs on Today also says how
+  many YouTube tabs it's following, or what to do if it sees none.
+  ([757018e](https://github.com/YapSeng98/Personal-Planning/commit/757018e))
 - **Today's display follows YouTube in more situations** (extension 1.2):
   YouTube's own mini player (keeps playing while you browse YouTube), a
   video popped out into its own picture-in-picture window, and players
