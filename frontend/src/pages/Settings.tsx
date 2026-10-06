@@ -221,7 +221,16 @@ export default function Settings() {
           <div className="section-h">{t('set.ext')}</div>
           <div className="card ext-card">
             {extCurrent ? (
-              <div className="ai-status ok">✓ {t('set.extOn', { v: extension.version ?? '' })}</div>
+              <>
+                <div className="ai-status ok">✓ {t('set.extOn', { v: extension.version ?? '' })}</div>
+                {extension.seen !== null && (
+                  <div className="row-sub" style={{ marginTop: '0.4rem' }}>
+                    {extension.seen > 0
+                      ? t(extension.seen === 1 ? 'set.extSeen' : 'set.extSeenPlural', { n: extension.seen })
+                      : t('set.extNone')}
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <div className="row-sub">

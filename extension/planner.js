@@ -18,7 +18,8 @@
   async function send() {
     try {
       const { tabs } = await chrome.storage.local.get('tabs')
-      window.postMessage({ type: 'planner-np', nowPlaying: pick(tabs), version: VERSION }, ORIGIN)
+      // `seen`: how many YouTube tabs are reporting (Settings uses it)
+      window.postMessage({ type: 'planner-np', nowPlaying: pick(tabs), version: VERSION, seen: Object.keys(tabs || {}).length }, ORIGIN)
     } catch { /* extension reloaded — page keeps the last value */ }
   }
 

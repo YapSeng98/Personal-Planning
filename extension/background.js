@@ -79,4 +79,21 @@ chrome.tabs.onRemoved.addListener((tabId) => edit((tabs) => {
 // Tab ids don't survive a browser restart — start clean.
 const reset = () => chrome.storage.local.set({ [KEY]: {} })
 chrome.runtime.onStartup.addListener(reset)
-chrome.runtime.onInstalled.addListener(reset)
+
+// Chrome only adds content scripts to pages loaded after the extension is
+// installed or updated — a YouTube tab already playing (and an open
+// Planner) stayed invisible until reloaded by hand. Reach them right away.
+// (Any copy already in those tabs belongs to the previous install and has
+// stopped working, so there's no double: it can't reach the extension.)
+const YOUTUBE = ['https://www.youtube.com/*', 'https://music.youtube.com/*']
+const PLANNER = ['https://yapseng98.github.io/Personal-Planning/*', 'http://localhost/*', 'http://localhost:*/*']
+async function reachOpenTabs() {
+  for (const [urls, file] of [[YOUTUBE, 'youtube.js'], [PLANNER, 'planner.js']]) {
+    const tabs = await chrome.tabs.query({ url: urls }).catch(() => [])
+    for (const tab of tabs) {
+      if (tab.id == null || tab.discarded) continue
+      chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [file] }).catch(() => {})
+    }
+  }
+}
+chrome.runtime.onInstalled.addListener(() => { reset().then(reachOpenTabs) })

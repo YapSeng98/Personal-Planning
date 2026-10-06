@@ -26,7 +26,7 @@ export interface NowPlaying {
 
 /** The version in extension/manifest.json — keep the two in step. The zip
     of the folder is published with the app (vite.config.ts). */
-export const EXTENSION_VERSION = '1.2.0'
+export const EXTENSION_VERSION = '1.3.0'
 export const EXTENSION_ZIP = `${import.meta.env.BASE_URL}planner-now-playing.zip`
 
 /** Browser extensions of this kind run in desktop Chrome / Edge / Brave. */
@@ -53,7 +53,8 @@ function isNowPlaying(x: unknown): x is NowPlaying {
 export function useNowPlaying() {
   const [np, setNp] = useState<NowPlaying | null>(null)
   // Any message from the extension means it's installed; 1.0 sent no version.
-  const [extension, setExtension] = useState<{ installed: boolean; version: string | null }>({ installed: false, version: null })
+  // `seen`: YouTube tabs it's following (extension 1.3+; null before).
+  const [extension, setExtension] = useState<{ installed: boolean; version: string | null; seen: number | null }>({ installed: false, version: null, seen: null })
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -61,7 +62,8 @@ export function useNowPlaying() {
       if (e.data?.type !== 'planner-np') return
       setNp(isNowPlaying(e.data.nowPlaying) ? e.data.nowPlaying : null)
       const version = typeof e.data.version === 'string' ? e.data.version : '1.0.0'
-      setExtension((x) => (x.installed && x.version === version ? x : { installed: true, version }))
+      const seen = typeof e.data.seen === 'number' ? e.data.seen : null
+      setExtension((x) => (x.installed && x.version === version && x.seen === seen ? x : { installed: true, version, seen }))
     }
     window.addEventListener('message', onMsg)
     // Ask for the current state in case the extension posted before we mounted.
