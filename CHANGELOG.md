@@ -6,6 +6,28 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-07
+
+- **Fixed: tasks made on one device could go missing on another for good**
+  — when a device woke up (laptop lid opened, tablet unlocked) its sign-in
+  had usually expired, and if the first refresh failed because the network
+  wasn't back yet, the app kept syncing for up to a minute *without* the
+  sign-in. The server answered those syncs "nothing new", and the device
+  then skipped everything changed elsewhere in the meantime — while still
+  showing "Synced". Syncs now always carry the sign-in; when it can't be
+  refreshed the app shows "Offline" and tries again within seconds. Every
+  device downloads everything once after this update, so anything it
+  skipped arrives. Supabase side (re-run `schema.sql`): sync requests
+  without a sign-in are refused instead of answered.
+  ([99b8c0b](https://github.com/YapSeng98/Personal-Planning/commit/99b8c0b))
+- **A signed-out device says so instead of quietly running "Local only"** —
+  if a device's sign-in ends, a banner says so at once (changes are kept on
+  the device), and the next launch asks you to sign in again with your
+  username filled in; everything made meanwhile then syncs. Before, a device
+  that had ever tried the offline demo silently stopped syncing. Brief
+  network drops now show as "Offline" rather than "Sync error".
+  ([99b8c0b](https://github.com/YapSeng98/Personal-Planning/commit/99b8c0b))
+
 ## 2026-10-06
 
 - **Extension 1.3: works on tabs that were already open** — installing or
