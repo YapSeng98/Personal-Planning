@@ -1,18 +1,21 @@
 // Offline-first sync engine (design doc §09).
-// UI reads/writes Dexie only; this engine drains the outbox to ServiceNow
-// and applies delta pulls when a connection and login exist. If the SN side
-// isn't built yet (404) or we're offline, the app keeps working locally.
+// UI reads/writes Dexie only; this engine drains the outbox to Supabase and
+// applies delta pulls when a connection and a sign-in exist. Offline, or
+// signed out, the app keeps working locally and catches up afterwards.
 
 import { db, notifyChange, cleanEmoji, type DrawingNote, type Review, type OutboxEntry, type NoteAttachment } from '../db/db'
 import { SYNC_FIELDS, applyAttachmentOps, type SyncTable } from './fields'
-import { isAuthed, syncPush, syncPull, localDataOwner, setLocalDataOwner, type PushItem } from './api'
+import { isAuthed, accountDevice, syncSession, syncPush, syncPull, NetworkError, localDataOwner, setLocalDataOwner, type PushItem } from './api'
 import { supabase } from './supabase'
 import { syncAiUrl } from '../lib/ai'
 import { startUploads, notUploadedIds, lastUploadError, setAfterUpload } from '../lib/files'
 import { slimDrawing, slimReview, saveSlimmed, sizeBreakdown, MAX_SLIM_LEVEL } from '../lib/compact'
 import { startLiveSync } from './live'
 
-export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only'
+/** 'signed-out': this device's data belongs to an account, but its sign-in
+    ended (revoked or expired) — nothing syncs until you sign in again.
+    'local-only': the offline demo, never signed in. */
+export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only' | 'signed-out'
 
 let listeners: ((s: SyncState, detail?: string) => void)[] = []
 let current: SyncState = 'idle'
@@ -151,9 +154,30 @@ function mergePending(table: SyncTable, local: Record<string, unknown>, remote: 
 let running = false
 let rerun = false
 
+/** No session to sync as right now (see syncSession) — nothing was sent. */
+class NoSession extends Error {}
+
+// Couldn't reach the server (or refresh the sign-in): try again shortly —
+// 3s, 6s, 12s, then every 15s — instead of waiting for the next poll.
+// (After a failed refresh supabase-js waits a minute before trying again.)
+let retryTimer: number | undefined
+let retryDelay = 0
+function retrySoon() {
+  window.clearTimeout(retryTimer)
+  retryDelay = Math.min(retryDelay ? retryDelay * 2 : 3000, 15_000)
+  retryTimer = window.setTimeout(() => syncNow(), retryDelay)
+}
+
+/** Once per device after the 2026-10-07 release, the pull fetches
+    everything: pulls made while the sign-in was being refreshed went out
+    without it, the server answered "nothing changed", and the device then
+    skipped those changes (see syncSession). Merged like any pull, so
+    nothing on the device is lost. */
+const RESYNC = '2026-10-07'
+
 export async function syncNow(): Promise<void> {
   if (!isAuthed()) {
-    setState('local-only')
+    setState(accountDevice() ? 'signed-out' : 'local-only')
     return
   }
   if (!navigator.onLine) {
@@ -169,18 +193,14 @@ export async function syncNow(): Promise<void> {
   running = true
   startLiveSync(() => syncNow())
   setState('syncing')
-  // Installs from before ownership was tracked: the data here belongs to
-  // whoever is signed in now (one account per device until then).
-  if (!localDataOwner()) {
-    try {
-      const { data } = await supabase.auth.getSession()
-      if (data.session) setLocalDataOwner(data.session.user.id)
-    } catch {
-      // try again next sync
-    }
-  }
   const problems: string[] = []
   try {
+    // Nothing goes to the server without the account's sign-in.
+    const sess = await syncSession()
+    if (!sess) throw new NoSession()
+    // Installs from before ownership was tracked: the data here belongs to
+    // whoever is signed in now (one account per device until then).
+    if (!localDataOwner()) setLocalDataOwner(sess.uid)
     // 0a. A queued note/review too big to send (saved before files moved to
     // Storage, or with full-size images) gets slimmed first: inline files
     // move to Storage, oversized images shrink. Done before the uploads
@@ -267,9 +287,16 @@ export async function syncNow(): Promise<void> {
           batches.push({ items: [item], keys: [key], bytes })
         }
       }
+      let stopped: Error | null = null
       for (const b of batches) {
+        // fresh each time: a long push can outlast the token
+        const s = await syncSession()
+        if (!s || s.uid !== sess.uid) {
+          stopped = new NoSession()
+          break
+        }
         try {
-          const res = await syncPush(b.items)
+          const res = await syncPush(b.items, s.token)
           const kept = new Set<string>()
           for (const r of res.results) {
             const it = b.items.find((i) => i.client_uuid === r.client_uuid)!
@@ -299,8 +326,12 @@ export async function syncNow(): Promise<void> {
           }
           done.push(...b.keys.filter((k) => !kept.has(k)))
         } catch (err) {
+          // unreachable: the rest stays queued — no point trying each batch
+          if (err instanceof NetworkError) {
+            stopped = err
+            break
+          }
           const msg = err instanceof Error ? err.message : String(err)
-          if (msg.includes('404')) throw err
           const what = b.items.length === 1
             ? describe(b.items[0].table, b.items[0].payload)
             : `${b.items.length} changes`
@@ -319,11 +350,16 @@ export async function syncNow(): Promise<void> {
           await db.outbox.bulkAdd(requeue.map((h) => ({ table: h.table, recordId: h.recordId, editedAt: h.editedAt, fields: ['attachments'], attUp: h.attUp, attRm: [] })))
         }
       })
+      if (stopped) throw stopped
     }
 
-    // 2. Pull: apply everything changed since our cursor.
-    const cursorMeta = await db.meta.get('syncCursor')
-    const pull = await syncPull(cursorMeta?.value ?? '1970-01-01 00:00:00', pushedKeys)
+    // 2. Pull: apply everything changed since our cursor — only ever as the
+    // account (a pull without its sign-in must never move the cursor on).
+    const ps = await syncSession()
+    if (!ps || ps.uid !== sess.uid) throw new NoSession()
+    const full = (await db.meta.get('resync'))?.value !== RESYNC
+    const cursorMeta = full ? undefined : await db.meta.get('syncCursor')
+    const pull = await syncPull(cursorMeta?.value ?? '1970-01-01 00:00:00', pushedKeys, ps.token)
     // Applied in one local transaction with the outbox, so an edit made on
     // this device meanwhile lands either before it (and is merged below) or
     // after it — never in between, where the pulled copy would overwrite
@@ -393,15 +429,25 @@ export async function syncNow(): Promise<void> {
         }
       }
       await db.meta.put({ key: 'syncCursor', value: pull.cursor })
+      if (full) await db.meta.put({ key: 'resync', value: RESYNC })
     })
     const aiChanged = await syncAiUrl().catch(() => false)
     if (pull.records.length > 0 || aiChanged) notifyChange()
+    retryDelay = 0
     if (problems.length) setState('error', problems.join('\n'))
     else setState('idle')
   } catch (err) {
-    // 404 = SN endpoints not deployed yet; stay usable, just local.
     const msg = err instanceof Error ? err.message : String(err)
-    setState(msg.includes('404') ? 'local-only' : 'error', [msg, ...problems].join('\n'))
+    if (!isAuthed()) {
+      // the sign-in ended during this sync (revoked, or another tab signed out)
+      setState(accountDevice() ? 'signed-out' : 'local-only')
+    } else if (err instanceof NoSession || err instanceof NetworkError) {
+      // offline for a moment (typical right after the device wakes) — not an error
+      setState('offline', "Couldn't reach the server — trying again shortly")
+      retrySoon()
+    } else {
+      setState('error', [msg, ...problems].join('\n'))
+    }
   } finally {
     running = false
     if (rerun) {
@@ -412,6 +458,11 @@ export async function syncNow(): Promise<void> {
 }
 
 export function startSyncLoop() {
+  // The sign-in can end in the background (a refresh token revoked or
+  // expired — the session is then dropped): say so at once, not just stop.
+  supabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') syncNow() })
+  // …or in another tab of this browser (signing in there resumes here too)
+  window.addEventListener('storage', (e) => { if (e.key === null || e.key.endsWith('-auth-token')) syncNow() })
   // a finished upload sends the attachment that was waiting for it
   setAfterUpload(() => { syncNow() })
   syncNow()

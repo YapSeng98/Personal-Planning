@@ -545,6 +545,10 @@ declare
   affected_goals uuid[] := '{}';
   g uuid;
 begin
+  -- no account (a request without a sign-in token): refuse, never "apply"
+  if auth.uid() is null then
+    raise exception 'not signed in' using errcode = '42501';
+  end if;
   for item in select * from jsonb_array_elements(items)
   loop
     tbl := item->>'table';
@@ -1125,6 +1129,12 @@ declare
   ts timestamptz;    -- or a timestamp cursor
   res jsonb;
 begin
+  -- No account: refuse. Answering "nothing changed" with a fresh cursor made
+  -- a device whose sign-in was being refreshed skip every change made
+  -- elsewhere in the meantime — for good.
+  if auth.uid() is null then
+    raise exception 'not signed in' using errcode = '42501';
+  end if;
   begin
     if since ~ '^\d+:\d+:' then
       snap := since::pg_snapshot;
@@ -1259,6 +1269,14 @@ grant execute on function public.sync_push(jsonb) to authenticated;
 grant execute on function public.sync_pull(text, text[]) to authenticated;
 grant execute on function public.recalc_goal(uuid) to authenticated;
 grant execute on function public.merge_attachments(jsonb, jsonb, text[]) to authenticated;
+-- …and only them: Supabase grants new functions to `anon` (a request with
+-- no sign-in) by default. A sync call without a sign-in must be refused —
+-- an anonymous pull used to come back "nothing changed" with a new cursor,
+-- and the device then skipped other devices' changes for good.
+revoke execute on function public.sync_push(jsonb) from public, anon;
+revoke execute on function public.sync_pull(text, text[]) from public, anon;
+revoke execute on function public.recalc_goal(uuid) from public, anon;
+revoke execute on function public.merge_attachments(jsonb, jsonb, text[]) from public, anon;
 
 -- ------------------------------------------------------------
 -- Security advisor hardening (idempotent).

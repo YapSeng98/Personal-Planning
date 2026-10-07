@@ -47,14 +47,14 @@ export default function Settings() {
   ]
   const stateLabel: Record<SyncState, string> = {
     idle: t('set.syncIdle'), syncing: t('set.syncSyncing'), offline: t('set.syncOffline'),
-    'local-only': t('set.syncLocal'), error: t('set.syncError'),
+    'local-only': t('set.syncLocal'), error: t('set.syncError'), 'signed-out': t('set.syncSignedOut'),
   }
 
   useEffect(() => {
     const countFiles = () => { db.files.where('pending').equals(1).count().then(setFilesUp).catch(() => {}) }
     const off = onSyncState((st, detail) => {
       setSync(st)
-      setSyncDetail(st === 'error' ? detail ?? '' : '')
+      setSyncDetail(st === 'error' || st === 'offline' ? detail ?? '' : '')
       db.outbox.count().then(setPending)
       countFiles()
     })
@@ -129,6 +129,7 @@ export default function Settings() {
     clearTokens()
     localStorage.removeItem('offline_mode')
     localStorage.removeItem('planner_user')
+    localStorage.removeItem('planner_login')
     await db.delete()
     window.location.hash = '#/login'
     window.location.reload()

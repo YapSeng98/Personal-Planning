@@ -64,6 +64,13 @@ export function currentUser(): string | null {
   return localStorage.getItem('planner_user')
 }
 
+/** Someone has signed in on this device, so its data belongs to an account
+    — unlike the offline demo. Such a device must never quietly run as
+    "local only" when its sign-in ends; it asks to sign in again. */
+export function accountDevice(): boolean {
+  return !!localStorage.getItem('planner_data_owner') || !!localStorage.getItem('planner_user')
+}
+
 /** Works only while already signed in — no email involved at all, which is
     the whole point: the login email is a fake, never-delivered placeholder
     (see shadowEmail in ./supabase), so Supabase's own dashboard "send
@@ -132,9 +139,29 @@ export interface PushResult {
   results: { client_uuid: string; sys_id: string; outcome: 'applied' | 'server_won' | 'rejected'; rev?: number; foreign?: boolean }[]
 }
 
-export async function syncPush(items: PushItem[]): Promise<PushResult> {
-  const { data, error } = await supabase.rpc('sync_push', { items })
-  if (error) throw new Error(error.message)
+/** The session to sync as, read fresh (supabase-js refreshes it here when
+    it's about to expire) — or null when there's none to be had right now:
+    signed out, or the refresh failed (often just a moment offline after
+    the device wakes). */
+export async function syncSession(): Promise<{ uid: string; token: string } | null> {
+  const { data } = await supabase.auth.getSession()
+  const s = data.session
+  return s ? { uid: s.user.id, token: s.access_token } : null
+}
+
+/** A sync request that never reached the server (offline, the app frozen
+    mid-request, the network still waking up) — not a sync error. */
+export class NetworkError extends Error {}
+
+// Sync requests carry the account's token explicitly. Left to supabase-js,
+// a request made while it couldn't refresh the session went out with no
+// sign-in at all — and the server answered such a pull "nothing changed"
+// with a fresh cursor, so the device skipped other devices' changes for good.
+const rpcError = (message: string, status: number) => (status === 0 ? new NetworkError(message) : new Error(message))
+
+export async function syncPush(items: PushItem[], token: string): Promise<PushResult> {
+  const { data, error, status } = await supabase.rpc('sync_push', { items }).setHeader('Authorization', `Bearer ${token}`)
+  if (error) throw rpcError(error.message, status)
   return data as PushResult
 }
 
@@ -147,15 +174,16 @@ export interface PullResponse {
     timestamp from older servers). `skip`: "<id>#<rev>" of records this
     device just pushed ("<id>:<edited_at ms>" for older servers), so the
     server doesn't send them straight back (see sync_pull in schema.sql). */
-export async function syncPull(cursor: string, skip: string[] = []): Promise<PullResponse> {
-  let { data, error } = await supabase.rpc('sync_pull', skip.length ? { since: cursor, skip } : { since: cursor })
+export async function syncPull(cursor: string, skip: string[], token: string): Promise<PullResponse> {
+  const auth = `Bearer ${token}`
+  let { data, error, status } = await supabase.rpc('sync_pull', skip.length ? { since: cursor, skip } : { since: cursor }).setHeader('Authorization', auth)
   // A server whose schema.sql predates `skip` doesn't know the parameter —
   // pull without it (just re-downloads our own save, as before).
   // (Matched on PostgREST's "function not found", not on the word sync_pull:
   // a network error message contains the URL, which has that word in it.)
   if (error && skip.length && (error.code === 'PGRST202' || /could not find the function|schema cache/i.test(error.message))) {
-    ;({ data, error } = await supabase.rpc('sync_pull', { since: cursor }))
+    ;({ data, error, status } = await supabase.rpc('sync_pull', { since: cursor }).setHeader('Authorization', auth))
   }
-  if (error) throw new Error(error.message)
+  if (error) throw rpcError(error.message, status)
   return data as PullResponse
 }

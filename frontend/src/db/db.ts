@@ -389,6 +389,35 @@ export async function writeAndQueue<T extends SyncRecord>(
   notifyChange()
 }
 
+/** Signing in on a device that ran the offline demo: the sample content it
+    was seeded with isn't the account's. Drop what nobody touched (no
+    queued change) — plus anything generated from it (repeats of a sample
+    task, check-ins of a sample habit) — and keep what was made or changed
+    here, which then syncs into the account. */
+export async function discardUntouchedDemoData() {
+  const tables = [
+    ['task', db.tasks], ['habit', db.habits], ['habit_log', db.habitLogs], ['goal', db.goals],
+    ['review', db.reviews], ['project', db.projects], ['drawing', db.drawings], ['folder', db.folders],
+  ] as unknown as [SyncTable, Table<{ id: string; seriesId?: string; habitId?: string }, string>][]
+  await db.transaction('rw', [...tables.map(([, t]) => t), db.outbox, db.meta], async () => {
+    const queued = await db.outbox.toArray()
+    const touched = new Set(queued.map((e) => `${e.table}:${e.recordId}`))
+    const gone = new Set<string>()
+    for (const [name, table] of tables) {
+      for (const r of await table.toArray()) if (!touched.has(`${name}:${r.id}`)) gone.add(r.id)
+    }
+    for (const [name, table] of tables) {
+      const drop = (await table.toArray()).filter((r) => gone.has(r.id)
+        || (name === 'task' && !!r.seriesId && gone.has(r.seriesId))
+        || (name === 'habit_log' && !!r.habitId && gone.has(r.habitId)))
+      for (const r of drop) gone.add(r.id)
+      await table.bulkDelete(drop.map((r) => r.id))
+    }
+    await db.outbox.bulkDelete(queued.filter((e) => gone.has(e.recordId)).map((e) => e.seq!))
+    await db.meta.delete('seeded')
+  })
+}
+
 export interface AttachmentOps {
   /** Attachments to add, or replace by id. */
   up?: NoteAttachment[]

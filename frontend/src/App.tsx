@@ -12,7 +12,7 @@ import Sketches from './pages/Sketches'
 import SketchDetail from './pages/SketchDetail'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
-import { isAuthed } from './sync/api'
+import { isAuthed, accountDevice } from './sync/api'
 import { startSyncLoop, syncNow } from './sync/engine'
 import { seedIfEmpty } from './db/seed'
 import { compactImages } from './lib/compact'
@@ -20,12 +20,21 @@ import { startRecurringLoop } from './db/db'
 import { LangProvider } from './lib/i18n'
 
 function Guard({ children }: { children: React.ReactNode }) {
-  const allowed = isAuthed() || localStorage.getItem('offline_mode') === '1'
-  return allowed ? <>{children}</> : <Navigate to="/login" replace />
+  if (isAuthed()) return <>{children}</>
+  // A device that has an account's data and lost its sign-in signs in
+  // again (nothing on it is lost) — it must never fall back to the demo's
+  // "local only" and silently stop syncing. Only a device that has never
+  // signed in can be the offline demo.
+  if (accountDevice()) return <Navigate to="/login?signedout=1" replace />
+  return localStorage.getItem('offline_mode') === '1' ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 export default function App() {
   useEffect(() => {
+    // A demo flag left from before this device signed in is stale: it used
+    // to keep a signed-out device in "local only" instead of asking to
+    // sign in again.
+    if (accountDevice()) localStorage.removeItem('offline_mode')
     // Demo users get seed top-ups (new demo content) at startup, not only
     // on the login button they'll never press again.
     if (localStorage.getItem('offline_mode') === '1') seedIfEmpty()

@@ -180,5 +180,18 @@ r = await push([{ table: 'review', client_uuid: rid, payload: reviewPayload({ wi
 check("another account can't write someone else's record — and is told so ('rejected')", (await db.query(`select wins from public.reviews where id = $1`, [rid])).rows[0].wins === 'phone at 10:00' && r[0].outcome === 'rejected', r[0].outcome)
 check("another account's pull sees none of it", (await pull()).length === 0)
 
+console.log('\n— no sign-in')
+// A request without a sign-in token must be refused — an anonymous pull used
+// to answer "nothing changed" with a fresh cursor, and the device that sent
+// it (mid token refresh) then skipped every change made elsewhere.
+const refused = async (fn) => { try { await fn(); return false } catch (e) { return /not signed in|permission denied/i.test(e.message) } }
+await as('')
+check('no account: a pull is refused (not answered "nothing changed")', await refused(() => pullRaw('1970-01-01')))
+check('no account: a push is refused', await refused(() => push([])))
+await as(U1)
+const anonDenied = async (sql) => { await db.exec('set role anon'); try { return await refused(() => db.query(sql)) } finally { await db.exec('reset role') } }
+check("the anonymous role can't even call sync_pull / sync_push", await anonDenied(`select public.sync_pull('1970-01-01', '{}')`) && await anonDenied(`select public.sync_push('[]'::jsonb)`))
+check('…while a signed-in account still syncs', (await pull()).length > 0)
+
 console.log(`\n${results.filter(Boolean).length}/${results.length} SQL checks passed`)
 if (results.some((ok) => !ok)) process.exitCode = 1

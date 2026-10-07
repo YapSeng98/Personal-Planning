@@ -1,14 +1,19 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { login, register, localDataOwner, setLocalDataOwner } from '../sync/api'
-import { db } from '../db/db'
+import { db, discardUntouchedDemoData } from '../db/db'
 import { seedIfEmpty } from '../db/seed'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 
 export default function Login() {
+  const [params] = useSearchParams()
+  // this device has an account's data and its sign-in ended (App.tsx)
+  const signedOut = params.get('signedout') === '1'
   const [mode, setMode] = useState<'signin' | 'register'>('signin')
-  const [username, setUsername] = useState('')
+  // (installs from before the username was remembered: the name shown in
+  // the app, which is the username unless a display name was chosen)
+  const [username, setUsername] = useState(() => (signedOut ? localStorage.getItem('planner_login') ?? localStorage.getItem('planner_user') ?? '' : ''))
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -20,8 +25,15 @@ export default function Login() {
     setBusy(true)
     setErr('')
     try {
+      // the offline demo was running here (its sample data isn't the account's)
+      const wasDemo = localStorage.getItem('offline_mode') === '1'
       const res = mode === 'register' ? await register(username, password) : await login(username, password)
       const uid = res.user?.id
+      // Signed in: never the demo again on this device — a leftover demo flag
+      // used to keep it "local only" (not syncing) once its sign-in ended.
+      localStorage.removeItem('offline_mode')
+      localStorage.setItem('planner_login', username.trim())
+      if (wasDemo) await discardUntouchedDemoData()
       // Data left on this device by a different account (its session ended
       // without a log out) is cleared first — it must never show here, nor
       // its unsynced changes be pushed into this account.
@@ -61,6 +73,7 @@ export default function Login() {
         <h1 className="grad-text">{t('brand')}</h1>
         <p className="tagline">{t('login.tagline')}</p>
         <p className="sub">{mode === 'signin' ? t('login.subSignin') : t('login.subRegister')}</p>
+        {signedOut && <p className="login-note" role="status">{t('login.signedOut')}</p>}
         <input
           type="text"
           placeholder={t('login.username')}
@@ -89,10 +102,15 @@ export default function Login() {
         >
           {mode === 'signin' ? t('login.toRegister') : t('login.toSignin')}
         </button>
-        <div className="divider">{t('login.or')}</div>
-        <button className="btn" type="button" onClick={tryOffline}>
-          {t('login.offline')}
-        </button>
+        {/* not offered on a device that has an account's data: it's signing back in */}
+        {!signedOut && (
+          <>
+            <div className="divider">{t('login.or')}</div>
+            <button className="btn" type="button" onClick={tryOffline}>
+              {t('login.offline')}
+            </button>
+          </>
+        )}
       </form>
     </div>
   )

@@ -244,6 +244,10 @@ declare
   affected_goals uuid[] := '{{}}';
   g uuid;
 begin
+  -- no account (a request without a sign-in token): refuse, never "apply"
+  if auth.uid() is null then
+    raise exception 'not signed in' using errcode = '42501';
+  end if;
   for item in select * from jsonb_array_elements(items)
   loop
     tbl := item->>'table';
@@ -401,6 +405,12 @@ declare
   ts timestamptz;    -- or a timestamp cursor
   res jsonb;
 begin
+  -- No account: refuse. Answering "nothing changed" with a fresh cursor made
+  -- a device whose sign-in was being refreshed skip every change made
+  -- elsewhere in the meantime — for good.
+  if auth.uid() is null then
+    raise exception 'not signed in' using errcode = '42501';
+  end if;
   begin
     if since ~ '^\\d+:\\d+:' then
       snap := since::pg_snapshot;

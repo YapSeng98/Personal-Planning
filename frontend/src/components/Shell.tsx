@@ -24,7 +24,7 @@ export const openQuickAdd = () => window.dispatchEvent(new CustomEvent('planner:
 
 const syncKey: Record<SyncState, string> = {
   idle: 'sync.idle', syncing: 'sync.syncing', offline: 'sync.offline',
-  'local-only': 'sync.local', error: 'sync.error',
+  'local-only': 'sync.local', error: 'sync.error', 'signed-out': 'sync.signedOut',
 }
 
 export default function Shell() {
@@ -79,6 +79,12 @@ export default function Shell() {
         </NavLink>
       </nav>
       <main className="shell-main">
+        {(sync === 'signed-out' || sync === 'local-only') && (
+          <div className={`update-bar ${sync === 'signed-out' ? 'warn-bar' : ''}`} role="status">
+            <span>{t(sync === 'signed-out' ? 'app.signedOut' : 'app.demoBar')}</span>
+            <NavLink className="btn btn-primary" to={sync === 'signed-out' ? '/login?signedout=1' : '/login'}>{t('app.signIn')}</NavLink>
+          </div>
+        )}
         {hasUpdate && (
           <div className="update-bar" role="status">
             <span>{t('app.updateReady')}</span>
