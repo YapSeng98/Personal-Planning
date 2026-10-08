@@ -69,9 +69,12 @@ export default function Sketches() {
   // A note whose folder no longer exists shows at the top level rather than
   // vanishing.
   const folderIds = new Set(folders.map((f) => f.id))
-  const items = folderId
+  // Pinned notes first; within each group still newest first (the filter
+  // keeps allNotes' order, and the sort is stable).
+  const items = (folderId
     ? allNotes.filter((d) => d.folderId === folderId)
     : allNotes.filter((d) => !d.folderId || !folderIds.has(d.folderId))
+  ).sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
   // Everything nested inside a folder, newest first (allNotes is sorted).
   const notesIn = (id: string) => {
     const ids = subtreeIds(id, folders)
@@ -90,6 +93,11 @@ export default function Sketches() {
     if (!window.confirm(t('sketch.deleteConfirm', { title: d.title || t('sketch.untitled') }))) return
     deleteStoredFiles(d.attachments)
     await patchAndQueue(db.drawings, 'drawing', d.id, { deleted: 1 })
+    syncNow()
+  }
+
+  async function togglePin(d: DrawingNote) {
+    await patchAndQueue(db.drawings, 'drawing', d.id, { pinned: !d.pinned })
     syncNow()
   }
 
@@ -206,13 +214,23 @@ export default function Sketches() {
       ) : items.length > 0 && (
         <div className="sketch-grid">
           {items.map((d) => (
-            <div key={d.id} className="card sketch-card">
+            <div key={d.id} className={`card sketch-card ${d.pinned ? 'is-pinned' : ''}`}>
               <button type="button" className="sketch-thumb" onClick={() => navigate(`/sketches/${d.id}`)} aria-label={d.title || t('sketch.untitled')}>
                 {d.kind === 'text' ? (
                   <div className="sketch-thumb-text" dangerouslySetInnerHTML={{ __html: toEditorHtml(d.text || '', d.format === 'html') }} />
                 ) : (
                   <img src={d.dataUrl} alt="" />
                 )}
+              </button>
+              <button
+                type="button"
+                className={`sketch-pin ${d.pinned ? 'on' : ''}`}
+                onClick={() => togglePin(d)}
+                aria-pressed={!!d.pinned}
+                aria-label={t(d.pinned ? 'sketch.unpin' : 'sketch.pin')}
+                title={t(d.pinned ? 'sketch.unpin' : 'sketch.pin')}
+              >
+                <Icon name="pin" size={15} />
               </button>
               <div className="sketch-meta">
                 <button type="button" className="sketch-name" onClick={() => navigate(`/sketches/${d.id}`)}>

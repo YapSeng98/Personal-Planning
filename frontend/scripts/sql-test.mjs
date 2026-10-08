@@ -193,5 +193,35 @@ const anonDenied = async (sql) => { await db.exec('set role anon'); try { return
 check("the anonymous role can't even call sync_pull / sync_push", await anonDenied(`select public.sync_pull('1970-01-01', '{}')`) && await anonDenied(`select public.sync_push('[]'::jsonb)`))
 check('…while a signed-in account still syncs', (await pull()).length > 0)
 
+console.log('\n— a field added later: pinned notes')
+const did = uuid()
+const note = (o = {}) => ({ title: 'Note', kind: 'text', dataUrl: '', text: 'hello', format: 'html', attachments: [], folderId: '', pinned: '', deleted: '', ...o })
+const drawing = async () => row('drawings', did)
+await push([{ table: 'drawing', client_uuid: did, payload: note(), edited_at: 1000, base_rev: null, fields: ['title', 'kind', 'text', 'format', 'deleted'], field_times: {}, att_up: [], att_rm: [] }])
+check('a new note starts unpinned', (await drawing()).pinned === false)
+r = await push([{ table: 'drawing', client_uuid: did, payload: note({ pinned: true }), edited_at: 2000, base_rev: 1, fields: ['pinned'], field_times: { pinned: 2000 }, att_up: [], att_rm: [] }])
+check('pinning syncs as its own field', (await drawing()).pinned === true && r[0].outcome === 'applied')
+// another device, still holding the unpinned copy, edits the text
+await push([{ table: 'drawing', client_uuid: did, payload: note({ text: 'edited elsewhere' }), edited_at: 3000, base_rev: 1, fields: ['text'], field_times: { text: 3000 }, att_up: [], att_rm: [] }])
+let dr = await drawing()
+check('editing the note on a device that never saw the pin keeps it pinned', dr.pinned === true && dr.text === 'edited elsewhere', JSON.stringify({ pinned: dr.pinned, text: dr.text }))
+// an app version from before field lists: whole record, no `fields`, and of course no `pinned`
+await push([{ table: 'drawing', client_uuid: did, payload: { title: 'Renamed by an old app', kind: 'text', dataUrl: '', text: 'old app text', format: 'html', attachments: [], folderId: '', deleted: '' }, edited_at: 4000 }])
+dr = await drawing()
+check("an old app version saving the whole note doesn't unpin it", dr.pinned === true && dr.title === 'Renamed by an old app', JSON.stringify({ pinned: dr.pinned, title: dr.title }))
+const pr = await pullRaw('1970-01-01')
+check('a pull carries the pin', pr.records.find((x) => x.client_uuid === did)?.data.pinned === true)
+await push([{ table: 'drawing', client_uuid: did, payload: note({ pinned: false }), edited_at: 5000, base_rev: Number(dr.rev), fields: ['pinned'], field_times: { pinned: 5000 }, att_up: [], att_rm: [] }])
+check('unpinning syncs', (await drawing()).pinned === false)
+// the app holds back changes to fields the server doesn't list — so the lists must agree
+const { SYNC_FIELDS, LATER_FIELDS } = await import('../src/sync/fields.ts')
+const sameLists = Object.keys(SYNC_FIELDS).length === Object.keys(pr.fields ?? {}).length
+  && Object.keys(SYNC_FIELDS).every((t) => JSON.stringify(pr.fields[t]) === JSON.stringify(SYNC_FIELDS[t]))
+check("the server's field list (sync_pull.fields) matches the app's SYNC_FIELDS", sameLists, JSON.stringify(pr.fields?.drawing))
+const oldApp = {}
+for (const t of Object.keys(SYNC_FIELDS)) oldApp[t] = (await db.query(`select public.all_fields($1) as f`, [t])).rows[0].f
+check("…and the fields old app versions can't touch (all_fields) are exactly the app's LATER_FIELDS",
+  Object.keys(SYNC_FIELDS).every((t) => JSON.stringify(SYNC_FIELDS[t].filter((f) => !oldApp[t].includes(f))) === JSON.stringify(LATER_FIELDS[t] ?? [])))
+
 console.log(`\n${results.filter(Boolean).length}/${results.length} SQL checks passed`)
 if (results.some((ok) => !ok)) process.exitCode = 1

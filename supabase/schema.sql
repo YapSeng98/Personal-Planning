@@ -289,9 +289,12 @@ create table if not exists public.drawings (
   format text,
   attachments jsonb not null default '[]'::jsonb,
   folder_id uuid references public.sketch_folders(id) on delete set null,
+  pinned boolean not null default false,
   deleted boolean not null default false,
   updated_at timestamptz not null default now()
 );
+-- pinned (2026-10-08): a note kept first in the Sketches list
+alter table public.drawings add column if not exists pinned boolean not null default false;
 alter table public.drawings enable row level security;
 drop policy if exists "own rows" on public.drawings;
 create policy "own rows" on public.drawings for all
@@ -395,7 +398,9 @@ drop trigger if exists bump_rev on public.sketch_folders;
 create trigger bump_rev before insert or update on public.sketch_folders
   for each row execute function public.bump_rev();
 
--- Every synced field of a table (matches SYNC_FIELDS in frontend/src/sync/fields.ts).
+-- The fields an older app version's whole-record push covers: every synced
+-- field as of 2026-10-04. Fields added since (drawing.pinned) are left out,
+-- so a device still on such a version can't reset them.
 create or replace function public.all_fields(tbl text)
 returns text[]
 language sql
@@ -970,7 +975,7 @@ begin
         -- new record: insert every column, but stamp edit times only on the
         -- fields this device actually filled — an empty field it never wrote
         -- must not outrank another device's earlier edit of that field
-        insert into public.drawings (id, user_id, edited_at, field_times, title, kind, data_url, text, format, attachments, folder_id, deleted)
+        insert into public.drawings (id, user_id, edited_at, field_times, title, kind, data_url, text, format, attachments, folder_id, pinned, deleted)
         values (rid, auth.uid(), edited_ts,
             coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
             coalesce(nullif(p->>'title', ''), ''),
@@ -980,6 +985,7 @@ begin
             nullif(p->>'format', ''),
             case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end,
             nullif(p->>'folderId', '')::uuid,
+            coalesce(nullif(p->>'pinned', '')::boolean, false),
             coalesce(nullif(p->>'deleted', '')::boolean, false))
         on conflict (id) do nothing
         returning rev into new_rev;
@@ -1013,6 +1019,7 @@ begin
               (select coalesce(jsonb_agg(a), '[]'::jsonb) from jsonb_array_elements(case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end) a where a->>'id' = any(att_up)),
               att_rm) else attachments end,
             folder_id = case when 'folderId' = any(win) then nullif(p->>'folderId', '')::uuid else folder_id end,
+            pinned = case when 'pinned' = any(win) then coalesce(nullif(p->>'pinned', '')::boolean, false) else pinned end,
             deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
             field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
             edited_at = greatest(existing_updated, edited_ts)
@@ -1098,6 +1105,11 @@ $$;
 -- sync_pull — every row changed since the device's last pull, and the
 -- cursor to send next time.
 --
+-- `fields` in the answer lists the fields this schema syncs, per table. The
+-- app deploys by itself but this file is run by hand, so the app can be
+-- ahead: it holds back changes to a field that isn't listed here yet (kept
+-- on the device) and sends them once it is.
+--
 -- The cursor is the database snapshot this pull read from ("xmin:xmax:
 -- xip,…"). Next time, rows written by any transaction that snapshot could
 -- not see come back — including a save that was still committing while
@@ -1148,6 +1160,7 @@ begin
   end;
   select jsonb_build_object(
       'cursor', pg_current_snapshot()::text,
+      'fields', '{"task": ["title", "notes", "state", "priority", "due", "timeBlockStart", "timeBlockEnd", "estimatedHours", "actualHours", "goalId", "projectId", "isMit", "sortOrder", "reminderDaysBefore", "recurrence", "seriesId", "deleted"], "habit": ["name", "emoji", "frequency", "targetPerDay", "active", "deleted"], "habit_log": ["habitId", "date", "count", "deleted"], "goal": ["title", "type", "parentId", "lifeArea", "whyItMatters", "progress", "status", "targetDate", "deleted"], "review": ["type", "periodStart", "periodEnd", "wins", "failures", "lesson", "mood", "energy", "nextPriorities", "attachments", "deleted"], "project": ["title", "color", "archived", "deleted"], "drawing": ["title", "kind", "dataUrl", "text", "format", "attachments", "folderId", "pinned", "deleted"], "folder": ["name", "parentId", "cover", "coverY", "coverH", "deleted"]}'::jsonb,
       'records', coalesce(jsonb_agg(rec), '[]'::jsonb))
     into res
     from (
@@ -1233,7 +1246,7 @@ begin
         'data', jsonb_build_object(
           'title', title, 'kind', kind, 'dataUrl', data_url,
           'text', text, 'format', format, 'attachments', attachments,
-          'folderId', folder_id,
+          'folderId', folder_id, 'pinned', pinned,
           'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
         from public.drawings
        where user_id = auth.uid()

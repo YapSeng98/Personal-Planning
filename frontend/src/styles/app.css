@@ -1143,7 +1143,25 @@ button.goal-card:hover { transform: translateY(-2px); }
 
 /* ---- Sketches ---- */
 .sketch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; margin-top: 0.6rem; }
-.sketch-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.sketch-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+/* Pin: a round button on the corner of the paper. Pinned notes come first
+   and keep it lit; on the others it shows on hover (always on touch). */
+.sketch-pin {
+  position: absolute; top: 8px; right: 8px; z-index: 2; width: 30px; height: 30px; padding: 0; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: rgba(255, 255, 255, 0.92); color: #6f6a72; border: 1px solid rgba(20, 16, 24, 0.10);
+  box-shadow: 0 2px 8px rgba(20, 16, 24, 0.14);
+  opacity: 0; transform: scale(0.9);
+  transition: opacity 160ms var(--ease), transform 160ms var(--ease), background 160ms var(--ease), color 160ms var(--ease);
+}
+.sketch-card:hover .sketch-pin, .sketch-pin:focus-visible, .sketch-pin.on { opacity: 1; transform: none; }
+/* any-pointer: a laptop with a touch screen has hover too, but a finger can't use it */
+@media (hover: none), (any-pointer: coarse) { .sketch-pin { opacity: 1; transform: none; } }
+.sketch-pin:hover { color: var(--accent); }
+.sketch-pin.on { background: var(--grad); color: #fff; border-color: transparent; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-bright) 45%, transparent); }
+.sketch-pin.on svg { fill: currentColor; }
+.sketch-pin:active { transform: scale(0.92); }
+.sketch-card.is-pinned { border-color: color-mix(in srgb, var(--accent-bright) 45%, var(--hairline)); }
 .sketch-thumb {
   aspect-ratio: 3 / 4; background: #fff; overflow: hidden; border: none; border-bottom: 1px solid var(--hairline);
   padding: 0; cursor: pointer; display: block; width: 100%;
@@ -1155,6 +1173,8 @@ button.goal-card:hover { transform: translateY(-2px); }
   overflow: hidden; white-space: pre-wrap; text-align: left;
 }
 .sketch-thumb-text img { max-width: 100%; max-height: 60px; object-fit: cover; border-radius: 4px; }
+/* the first lines wrap around the pin button instead of running under it */
+.sketch-thumb-text::before { content: ''; float: right; width: 28px; height: 26px; }
 .sketch-thumb-text::after {
   content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 35%;
   background: linear-gradient(to bottom, transparent, #fff);
@@ -1277,12 +1297,17 @@ button.goal-card:hover { transform: translateY(-2px); }
 .sketch-detail-actions .sel-btn { max-width: 100%; }
 .sketch-detail-actions .sel-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .sketch-detail-actions .btn { flex-shrink: 0; }
+.sketch-pin-btn { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
+.sketch-pin-btn.on { color: var(--accent-bright); border-color: color-mix(in srgb, var(--accent-bright) 55%, var(--hairline)); background: var(--accent-wash); }
+.sketch-pin-btn.on svg { fill: currentColor; }
 @media (max-width: 640px) {
   /* nowrap: in a wrapping column, "stretch" sizes items to the widest one's
      content (a long folder path) instead of the screen, pushing it sideways. */
   .sketch-detail-head { flex-direction: column; align-items: stretch; gap: 0.6rem; flex-wrap: nowrap; }
   .sketch-detail-head .hd-title-wrap { flex: 0 0 auto; }  /* the 280px basis is a width rule — stacked, it would become a height */
   .sketch-detail-actions .sel { flex: 1; max-width: none; }
+  .sketch-pin-btn span { display: none; }  /* icon only: the room goes to the folder name */
+  .sketch-pin-btn { padding-inline: 0.7rem; }
 }
 .hd-title-icon { color: var(--accent-bright); vertical-align: -3px; margin-right: 0.1rem; }
 

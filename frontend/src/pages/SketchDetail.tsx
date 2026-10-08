@@ -106,6 +106,7 @@ export default function SketchDetail() {
   const [canRedo, setCanRedo] = useState(false)
   const [penMode, setPenMode] = useState(() => localStorage.getItem(HAS_PEN_KEY) === '1')
   const [folderId, setFolderId] = useState<string | undefined>(searchParams.get('folder') || undefined)
+  const [pinned, setPinned] = useState(false)
   const [folders, setFolders] = useState<SketchFolder[]>([])
   const { t } = useLang()
   // Flips true once the stored note (if any) has been read for this id —
@@ -136,6 +137,7 @@ export default function SketchDetail() {
       wasHtmlRef.current = existing.format === 'html'
       setAttachments(existing.attachments ?? [])
       setFolderId(existing.folderId)
+      setPinned(!!existing.pinned)
       if (existing.kind === 'text') return
       const canvas = canvasRef.current
       if (!canvas) return
@@ -163,6 +165,7 @@ export default function SketchDetail() {
       if (!rec || rec.deleted) return
       setAttachments(rec.attachments ?? [])
       setFolderId(rec.folderId)
+      setPinned(!!rec.pinned)
       // Title/text/drawing: only replace what you haven't changed here.
       if (titleRef.current === savedTitleRef.current && (rec.title ?? '') !== titleRef.current) {
         titleRef.current = savedTitleRef.current = rec.title ?? ''
@@ -373,12 +376,12 @@ export default function SketchDetail() {
 
   /** Save a drawing note. The first save creates it; after that only what
       changed is saved — the picture if the canvas changed, the title if it
-      was edited, a folder move — on top of the note as stored, so changes
-      made on another device meanwhile are kept. What's saved is read before
-      anything is awaited, and only that is marked saved: a stroke or a
-      title edit made while this save is being written stays unsaved, and
+      was edited, a folder move, a pin — on top of the note as stored, so
+      changes made on another device meanwhile are kept. What's saved is read
+      before anything is awaited, and only that is marked saved: a stroke or
+      a title edit made while this save is being written stays unsaved, and
       the next save picks it up. */
-  function saveDrawing(opts: { folder?: { id: string | undefined } } = {}) {
+  function saveDrawing(opts: { folder?: { id: string | undefined }; pin?: boolean } = {}) {
     return serial(async () => {
       const canvas = canvasRef.current ?? lastCanvasRef.current
       if (!canvas || !id) return
@@ -391,13 +394,14 @@ export default function SketchDetail() {
         dataUrl ??= canvas.toDataURL('image/png')
         await writeAndQueue(db.drawings, 'drawing', {
           id, title, kind: 'draw', dataUrl,
-          folderId: opts.folder ? opts.folder.id : folderId, deleted: 0, updatedAt: Date.now(),
+          folderId: opts.folder ? opts.folder.id : folderId, pinned: opts.pin ?? pinned, deleted: 0, updatedAt: Date.now(),
         })
       } else {
         const patch: Partial<DrawingNote> = {}
         if (dataUrl !== undefined) patch.dataUrl = dataUrl
         if (titleChanged) patch.title = title
         if (opts.folder) patch.folderId = opts.folder.id
+        if (opts.pin !== undefined) patch.pinned = opts.pin
         await patchAndQueue(db.drawings, 'drawing', id, patch)
       }
       if (canvasGenRef.current === gen) canvasDirtyRef.current = false
@@ -410,10 +414,10 @@ export default function SketchDetail() {
   /** Save a typed note. The first save creates it; after that only what
       changed is saved — the text if it was edited (or `html` is given: an
       edit made in code), the title if edited, attachment adds/removals, a
-      folder move — on top of the note as stored, so another device's
+      folder move, a pin — on top of the note as stored, so another device's
       changes to the rest (its own attachments, a rename…) are kept. As with
       drawings, only what was read up front is marked saved. */
-  function saveText(opts: { html?: string; att?: AttachmentOps; folder?: { id: string | undefined } } = {}) {
+  function saveText(opts: { html?: string; att?: AttachmentOps; folder?: { id: string | undefined }; pin?: boolean } = {}) {
     if (!id) return Promise.resolve()
     if (opts.html !== undefined) snapshot() // an edit made in code: one undo step
     return serial(async () => {
@@ -426,13 +430,14 @@ export default function SketchDetail() {
         await writeAndQueue(db.drawings, 'drawing', {
           id, title, kind: 'text', text: html, format: 'html',
           attachments: applyAttachmentOps([], opts.att?.up ?? [], []),
-          folderId: opts.folder ? opts.folder.id : folderId, deleted: 0, updatedAt: Date.now(),
+          folderId: opts.folder ? opts.folder.id : folderId, pinned: opts.pin ?? pinned, deleted: 0, updatedAt: Date.now(),
         })
       } else {
         const patch: Partial<DrawingNote> = {}
         if (textChanged) { patch.text = html; patch.format = 'html' }
         if (titleChanged) patch.title = title
         if (opts.folder) patch.folderId = opts.folder.id
+        if (opts.pin !== undefined) patch.pinned = opts.pin
         await patchAndQueue(db.drawings, 'drawing', id, patch, opts.att)
       }
       if (textChanged || !exists) savedHtmlRef.current = html
@@ -481,6 +486,14 @@ export default function SketchDetail() {
     setFolderId(fid)
     if (kind === 'text') await saveText({ folder: { id: fid } })
     else await saveDrawing({ folder: { id: fid } })
+  }
+
+  /** Pinning (kept first in the Sketches list) saves immediately too. */
+  async function togglePin() {
+    const on = !pinned
+    setPinned(on)
+    if (kind === 'text') await saveText({ pin: on })
+    else await saveDrawing({ pin: on })
   }
 
   function exec(cmd: string) {
@@ -660,6 +673,16 @@ export default function SketchDetail() {
           </div>
         </div>
         <div className="sketch-detail-actions">
+          <button
+            type="button"
+            className={`btn sketch-pin-btn ${pinned ? 'on' : ''}`}
+            onClick={togglePin}
+            aria-pressed={pinned}
+            aria-label={t(pinned ? 'sketch.unpin' : 'sketch.pin')}
+            title={t(pinned ? 'sketch.unpin' : 'sketch.pin')}
+          >
+            <Icon name="pin" size={16} /><span>{t(pinned ? 'sketch.pinned' : 'sketch.pinShort')}</span>
+          </button>
           <Select
             ariaLabel={t('sketch.folder')}
             value={folderId ?? ''}

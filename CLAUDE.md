@@ -51,8 +51,14 @@ left open. The rule that keeps one device from undoing another's changes:
   account id when the content alone isn't account-specific.
 - Screens that stay open while syncs arrive (Reviews, SketchDetail) merge
   incoming changes into what's on screen and run loads/saves one at a time.
-- Adding a synced field: `SYNC_FIELDS` in src/sync/fields.ts + `TABLES` in
-  supabase/gen_sync_push.py → `apply` → `npm run test:sql`.
+- Adding a synced field: `SYNC_FIELDS` + `LATER_FIELDS` in src/sync/fields.ts,
+  `TABLES` + `LATER` in supabase/gen_sync_push.py, and its column in
+  schema.sql (`add column if not exists`) → `apply` → `npm run test:sql`.
+- The app deploys itself; schema.sql is run by hand — so the app is often
+  ahead of the database. `sync_pull` lists the fields the server has, and a
+  change to a field that isn't listed is held back (stays queued, Settings
+  says what it's waiting for) and sent once it is. Never send a field to a
+  server that can't store it: it would record an edit time and drop the value.
 
 ## Git workflow — direct to `main`, no PRs
 

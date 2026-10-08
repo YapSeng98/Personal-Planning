@@ -167,6 +167,9 @@ export async function syncPush(items: PushItem[], token: string): Promise<PushRe
 
 export interface PullResponse {
   cursor: string
+  /** The fields the server's schema syncs, per table — missing from servers
+      whose schema.sql predates the list (see LATER_FIELDS in ./fields). */
+  fields?: Record<string, string[]>
   records: { table: string; client_uuid: string; sys_id: string; deleted: boolean; data: Record<string, unknown> }[]
 }
 

@@ -54,7 +54,7 @@ export default function Settings() {
     const countFiles = () => { db.files.where('pending').equals(1).count().then(setFilesUp).catch(() => {}) }
     const off = onSyncState((st, detail) => {
       setSync(st)
-      setSyncDetail(st === 'error' || st === 'offline' ? detail ?? '' : '')
+      setSyncDetail(detail ?? '')
       db.outbox.count().then(setPending)
       countFiles()
     })

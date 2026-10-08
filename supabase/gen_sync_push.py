@@ -6,8 +6,9 @@ Usage (from the repo root):
     python3 supabase/gen_sync_push.py pull   # the sync_pull function
     python3 supabase/gen_sync_push.py apply  # rewrite all three blocks in schema.sql
 Then run `npm run test:sql` in frontend/ (real Postgres via PGlite) before
-deploying. Adding a synced field = add it here AND to SYNC_FIELDS in
-frontend/src/sync/fields.ts.
+deploying. Adding a synced field = add it here (TABLES and LATER) AND to
+SYNC_FIELDS / LATER_FIELDS in frontend/src/sync/fields.ts, plus its column
+in schema.sql (`alter table … add column if not exists`).
 
 One spec per synced table: (json field, column, SQL expression reading the
 payload `p`). The field lists MUST match SYNC_FIELDS in
@@ -15,6 +16,13 @@ frontend/src/sync/fields.ts.
 """
 
 ATT = "case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end"
+
+# Fields added after the app started saying which fields it changed
+# (2026-10-04). App versions from before that send whole records and can't
+# know these, so their pushes never claim them (all_fields below) — or an old
+# device saving a note would unpin it. A new field goes in TABLES *and* here
+# (and in LATER_FIELDS in frontend/src/sync/fields.ts).
+LATER = {'drawing': ['pinned']}
 
 TABLES = [
     ('task', 'tasks', [
@@ -88,6 +96,7 @@ TABLES = [
         ('format', 'format', "nullif(p->>'format', '')"),
         ('attachments', 'attachments', ATT),
         ('folderId', 'folder_id', "nullif(p->>'folderId', '')::uuid"),
+        ('pinned', 'pinned', "coalesce(nullif(p->>'pinned', '')::boolean, false)"),
         ('deleted', 'deleted', "coalesce(nullif(p->>'deleted', '')::boolean, false)"),
     ]),
     ('folder', 'sketch_folders', [
@@ -285,8 +294,10 @@ $$;"""
 
 
 def all_fields_fn():
-    cases = "\n".join("    when '%s' then array[%s]" % (k, ", ".join("'%s'" % f for f, _, _ in spec)) for k, _, spec in TABLES)
-    return """-- Every synced field of a table (matches SYNC_FIELDS in frontend/src/sync/fields.ts).
+    cases = "\n".join("    when '%s' then array[%s]" % (k, ", ".join("'%s'" % f for f, _, _ in spec if f not in LATER.get(k, []))) for k, _, spec in TABLES)
+    return """-- The fields an older app version's whole-record push covers: every synced
+-- field as of 2026-10-04. Fields added since (drawing.pinned) are left out,
+-- so a device still on such a version can't reset them.
 create or replace function public.all_fields(tbl text)
 returns text[]
 language sql
@@ -370,9 +381,16 @@ def sync_pull():
          and (ts is null or updated_at > ts)
          and not ((id::text || '#' || rev) = any(skip))""")
     body = "\n      union all\n".join(branches)
+    import json
+    known = json.dumps({k: [f for f, _, _ in spec] for k, _, spec in TABLES})
     return f"""-- ------------------------------------------------------------
 -- sync_pull — every row changed since the device's last pull, and the
 -- cursor to send next time.
+--
+-- `fields` in the answer lists the fields this schema syncs, per table. The
+-- app deploys by itself but this file is run by hand, so the app can be
+-- ahead: it holds back changes to a field that isn't listed here yet (kept
+-- on the device) and sends them once it is.
 --
 -- The cursor is the database snapshot this pull read from ("xmin:xmax:
 -- xip,…"). Next time, rows written by any transaction that snapshot could
@@ -424,6 +442,7 @@ begin
   end;
   select jsonb_build_object(
       'cursor', pg_current_snapshot()::text,
+      'fields', '{known}'::jsonb,
       'records', coalesce(jsonb_agg(rec), '[]'::jsonb))
     into res
     from (

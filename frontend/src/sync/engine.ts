@@ -4,7 +4,7 @@
 // signed out, the app keeps working locally and catches up afterwards.
 
 import { db, notifyChange, cleanEmoji, type DrawingNote, type Review, type OutboxEntry, type NoteAttachment } from '../db/db'
-import { SYNC_FIELDS, applyAttachmentOps, type SyncTable } from './fields'
+import { SYNC_FIELDS, LATER_FIELDS, applyAttachmentOps, norm, type SyncTable } from './fields'
 import { isAuthed, accountDevice, syncSession, syncPush, syncPull, NetworkError, localDataOwner, setLocalDataOwner, type PushItem } from './api'
 import { supabase } from './supabase'
 import { syncAiUrl } from '../lib/ai'
@@ -168,6 +168,16 @@ function retrySoon() {
   retryTimer = window.setTimeout(() => syncNow(), retryDelay)
 }
 
+// The fields the server's schema syncs, as its last pull listed them (null:
+// no list — its schema.sql predates the list). Kept in `meta`, so it's
+// known before a session's first pull.
+let serverFields: Record<string, string[]> | null | undefined
+/** Does the server store this field yet? The app updates itself, but
+    schema.sql is re-run by hand — so the app can be ahead of the server. */
+function serverHas(table: SyncTable, field: string): boolean {
+  return serverFields?.[table]?.includes(field) ?? !(LATER_FIELDS[table] ?? []).includes(field)
+}
+
 /** Once per device after the 2026-10-07 release, the pull fetches
     everything: pulls made while the sign-in was being refreshed went out
     without it, the server answered "nothing changed", and the device then
@@ -201,6 +211,13 @@ export async function syncNow(): Promise<void> {
     // Installs from before ownership was tracked: the data here belongs to
     // whoever is signed in now (one account per device until then).
     if (!localDataOwner()) setLocalDataOwner(sess.uid)
+    if (serverFields === undefined) {
+      try {
+        serverFields = JSON.parse((await db.meta.get('serverFields'))?.value ?? 'null')
+      } catch {
+        serverFields = null
+      }
+    }
     // 0a. A queued note/review too big to send (saved before files moved to
     // Storage, or with full-size images) gets slimmed first: inline files
     // move to Storage, oversized images shrink. Done before the uploads
@@ -242,6 +259,9 @@ export async function syncNow(): Promise<void> {
     const uploadErr = lastUploadError()
     if (uploadErr) problems.push(`An attachment hasn't uploaded yet (retrying): ${uploadErr}`)
     const heldBack: { table: SyncTable; recordId: string; editedAt: number; attUp: string[] }[] = []
+    // Changes to fields the server's schema doesn't have yet wait the same way.
+    const heldFields: { table: SyncTable; recordId: string; editedAt: number; field: string }[] = []
+    const awaited = new Map<string, SyncTable>() // field → its table, for the status line
 
     // 1. Push: drain the outbox.
     const pushedKeys: string[] = [] // "<id>#<rev>" applied this sync — the pull skips them
@@ -260,6 +280,26 @@ export async function syncNow(): Promise<void> {
           continue
         }
         const item = pushItem(e.table, e.recordId, rec as unknown as Record<string, unknown>, group)
+        // Fields the server's schema doesn't have yet (schema.sql not re-run
+        // since the app gained them): not sent — a server that can't store a
+        // field would still note an edit time for it, and the value would be
+        // lost — but kept queued here until the server lists the field.
+        const missing = SYNC_FIELDS[e.table].filter((f) => !serverHas(e.table, f))
+        const later = (item.fields ?? []).filter((f) => missing.includes(f))
+        const waiting: { field: string; editedAt: number }[] = []
+        if (missing.length) item.payload = Object.fromEntries(Object.entries(item.payload).filter(([k]) => !missing.includes(k)))
+        if (later.length) {
+          // a whole-record write only changes such a field if it set a value
+          const named = new Set(group.flatMap((g) => (g.fields && !g.fields.includes('*') ? g.fields : [])))
+          for (const f of later) {
+            if (named.has(f) || norm((rec as unknown as Record<string, unknown>)[f]) !== '') {
+              waiting.push({ field: f, editedAt: item.field_times?.[f] ?? item.edited_at })
+              awaited.set(f, e.table)
+            }
+            delete item.field_times?.[f]
+          }
+          item.fields = item.fields!.filter((f) => !later.includes(f))
+        }
         // Files not uploaded yet: their attachments wait (still queued) —
         // the rest of the record goes now.
         const held = notUploaded.size ? (item.att_up ?? []).filter((id) => notUploaded.has(id)) : []
@@ -268,9 +308,13 @@ export async function syncNow(): Promise<void> {
           if (Array.isArray(item.payload.attachments)) {
             item.payload = { ...item.payload, attachments: (item.payload.attachments as NoteAttachment[]).filter((a) => !notUploaded.has(a.id)) }
           }
-          const others = (item.fields ?? []).some((f) => f !== 'attachments') || item.att_up.length > 0 || (item.att_rm ?? []).length > 0
+        }
+        if (held.length || later.length) {
+          // nothing else to send: the record's queued writes wait as they are
+          const others = (item.fields ?? []).some((f) => f !== 'attachments') || (item.att_up ?? []).length > 0 || (item.att_rm ?? []).length > 0
           if (!others) continue
-          heldBack.push({ table: e.table, recordId: e.recordId, editedAt: item.edited_at, attUp: held })
+          if (held.length) heldBack.push({ table: e.table, recordId: e.recordId, editedAt: item.edited_at, attUp: held })
+          for (const w of waiting) heldFields.push({ table: e.table, recordId: e.recordId, ...w })
         }
         const bytes = JSON.stringify(item).length
         if (bytes > MAX_RECORD_BYTES) {
@@ -343,11 +387,17 @@ export async function syncNow(): Promise<void> {
       const doneSet = new Set(done)
       const seqs = entries.filter((e) => doneSet.has(`${e.table}:${e.recordId}`)).map((e) => e.seq!)
       const requeue = heldBack.filter((h) => doneSet.has(`${h.table}:${h.recordId}`))
+      const requeueFields = heldFields.filter((h) => doneSet.has(`${h.table}:${h.recordId}`))
       await db.transaction('rw', db.outbox, async () => {
         await db.outbox.bulkDelete(seqs)
         // attachments held back above wait here for their upload
         if (requeue.length) {
           await db.outbox.bulkAdd(requeue.map((h) => ({ table: h.table, recordId: h.recordId, editedAt: h.editedAt, fields: ['attachments'], attUp: h.attUp, attRm: [] })))
+        }
+        // …and fields the server doesn't have yet, for its schema update
+        // (one entry per field, each keeping its own edit time)
+        if (requeueFields.length) {
+          await db.outbox.bulkAdd(requeueFields.map((h) => ({ table: h.table, recordId: h.recordId, editedAt: h.editedAt, fields: [h.field], attUp: [], attRm: [] })))
         }
       })
       if (stopped) throw stopped
@@ -430,12 +480,21 @@ export async function syncNow(): Promise<void> {
       }
       await db.meta.put({ key: 'syncCursor', value: pull.cursor })
       if (full) await db.meta.put({ key: 'resync', value: RESYNC })
+      if (pull.fields) await db.meta.put({ key: 'serverFields', value: JSON.stringify(pull.fields) })
+      else await db.meta.delete('serverFields')
     })
+    serverFields = pull.fields ?? null
+    // the server has just gained a field that changes were waiting for: send them now
+    const stillAwaited = [...awaited].filter(([f, table]) => !serverHas(table, f)).map(([f]) => f)
+    if (stillAwaited.length < awaited.size) rerun = true
     const aiChanged = await syncAiUrl().catch(() => false)
     if (pull.records.length > 0 || aiChanged) notifyChange()
     retryDelay = 0
     if (problems.length) setState('error', problems.join('\n'))
-    else setState('idle')
+    else if (stillAwaited.length) {
+      // not an error: the app is simply ahead of the database
+      setState('idle', `Waiting for the database update (${stillAwaited.join(', ')}) — these changes are kept on this device and will sync once supabase/schema.sql is re-run in Supabase.`)
+    } else setState('idle')
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     if (!isAuthed()) {

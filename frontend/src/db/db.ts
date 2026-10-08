@@ -224,6 +224,8 @@ export interface DrawingNote {
   attachments?: NoteAttachment[]
   /** Groups this note under a SketchFolder; undefined = ungrouped. */
   folderId?: string
+  /** Kept first in the Sketches list. */
+  pinned?: boolean
   /** Missing on records saved before soft-delete existed — treat as 0. */
   deleted?: 0 | 1
   updatedAt: number

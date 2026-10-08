@@ -18,14 +18,25 @@ export const SYNC_FIELDS: Record<SyncTable, string[]> = {
   goal: ['title', 'type', 'parentId', 'lifeArea', 'whyItMatters', 'progress', 'status', 'targetDate', 'deleted'],
   review: ['type', 'periodStart', 'periodEnd', 'wins', 'failures', 'lesson', 'mood', 'energy', 'nextPriorities', 'attachments', 'deleted'],
   project: ['title', 'color', 'archived', 'deleted'],
-  drawing: ['title', 'kind', 'dataUrl', 'text', 'format', 'attachments', 'folderId', 'deleted'],
+  drawing: ['title', 'kind', 'dataUrl', 'text', 'format', 'attachments', 'folderId', 'pinned', 'deleted'],
   folder: ['name', 'parentId', 'cover', 'coverY', 'coverH', 'deleted'],
+}
+
+// Fields added since the server started listing the fields its schema has
+// (sync_pull's `fields`). The app updates itself but schema.sql is run by
+// hand, so a device can be ahead of the server: a change to a field the
+// server doesn't have yet is held back (kept queued on the device) instead
+// of being sent to a server that would drop it — see serverHas in
+// sync/engine.ts. A server that sends no list has none of these. A new
+// field goes in SYNC_FIELDS *and* here (and in gen_sync_push.py's LATER).
+export const LATER_FIELDS: Partial<Record<SyncTable, string[]>> = {
+  drawing: ['pinned'],
 }
 
 type Att = { id: string }
 
 /** Comparable form of a field value: unset/''/false all mean "not set". */
-function norm(v: unknown): string {
+export function norm(v: unknown): string {
   if (v == null || v === '' || v === false) return ''
   if (v === true) return '1'
   if (typeof v === 'object') return JSON.stringify(v)
