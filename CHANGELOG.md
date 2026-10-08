@@ -6,6 +6,23 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-08
+
+- **Pin a note to the top in Sketches** — every note card has a pin button
+  on the corner of its paper (shown on hover on a computer, always on a
+  phone or tablet), and there's a Pin button inside the note too. Pinned
+  notes come first — in the main list and inside their folder — with the
+  pin lit; the rest stay newest first. Pins sync to every device.
+  Supabase side (re-run `schema.sql`): adds the `pinned` column.
+  ([fea092b](https://github.com/YapSeng98/Personal-Planning/commit/fea092b))
+- **The app can now be ahead of the database safely** — the app updates
+  itself, but `schema.sql` is run by hand. Until it's run, a pin stays on
+  the device where you made it (Settings → Sync says it's waiting for the
+  database update) and goes out to the other devices by itself afterwards.
+  Before, a change to a brand-new field was sent to a database that
+  couldn't store it and quietly lost.
+  ([fea092b](https://github.com/YapSeng98/Personal-Planning/commit/fea092b))
+
 ## 2026-10-07
 
 - **Fixed: tasks made on one device could go missing on another for good**
