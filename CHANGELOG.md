@@ -6,6 +6,36 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-23
+
+- **Steps inside a task** — a checklist in the task form ("Add a step…"):
+  tick, rename or remove steps, saved as you go; cards on Today and Board
+  show "✓ 2/5" (green when all are done). Steps merge one by one across
+  devices, so steps ticked on two devices — even one offline — both count.
+  A repeating task's next day starts with its steps unticked.
+  ([b00508d](https://github.com/YapSeng98/Personal-Planning/commit/b00508d))
+- **Focus time in Stats** — the timer now records each session by day, so
+  Stats shows focus time per day (last 14 days), per project (last 30
+  days), and how your estimates compare with the time tasks really took.
+  Two devices timing the same task both add up. Today's header counts time
+  focused today.
+  ([b00508d](https://github.com/YapSeng98/Personal-Planning/commit/b00508d))
+- **Plan tomorrow** — at the bottom of Today (and as a "Wrap up the day" card
+  from 5 pm): what's still open moves to tomorrow one by one or all at
+  once (keeping its time), tomorrow's tasks can be added ("call bank 9am"),
+  and one can be starred as tomorrow's most important task.
+  ([b00508d](https://github.com/YapSeng98/Personal-Planning/commit/b00508d))
+- **Reminders** — Settings → Reminders, per device: a reminder when a task's
+  time block starts (or 5–30 min before), as a banner in the app with a
+  "Start timer" button, or a system notification when the app is in the
+  background. With the one-time server setup (`supabase/push_setup.sql` and
+  the `push-reminders` Edge Function) they also arrive while the app is
+  closed, by push.
+  ([b00508d](https://github.com/YapSeng98/Personal-Planning/commit/b00508d))
+- Steps, per-day focus sessions and closed-app reminders need
+  `supabase/schema.sql` re-run; until then devices keep those changes and
+  send them once it is.
+
 ## 2026-10-22
 
 - **Overdue tasks show on Today** — an unfinished task from an earlier day
