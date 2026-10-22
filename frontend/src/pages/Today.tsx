@@ -6,7 +6,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, todayStr, writeAndQueue, uuidFrom, patchAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, nextCompletedAt, CHANGED, type Task, type TaskState, type Habit, type Project } from '../db/db'
+import { db, todayStr, addDays, OVERDUE_DAYS, isOpenOneOff, writeAndQueue, uuidFrom, patchAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, nextCompletedAt, CHANGED, type Task, type TaskState, type Habit, type Project } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
 import { aiEnabled, askAI } from '../lib/ai'
@@ -18,6 +18,9 @@ import HabitEdit from '../components/HabitEdit'
 import Icon from '../components/Icon'
 import { useLang, type TFn } from '../lib/i18n'
 import { startTimer, stopTimer, useRunningTimer, useElapsed, clock, hm } from '../lib/timer'
+import { spentHours, minutesByDay, stepCount } from '../lib/items'
+import { moveTasksTo } from '../lib/tasks'
+import PlanTomorrow from '../components/PlanTomorrow'
 
 interface HabitView extends Habit {
   doneToday: number
@@ -41,22 +44,6 @@ function byDoneThenOrder(a: Task, b: Task): number {
   if (ad !== bd) return ad - bd
   return byOrder(a, b)
 }
-
-/** YYYY-MM-DD `n` days after `ymd` (negative = before), in local time. */
-function addDays(ymd: string, n: number): string {
-  const d = new Date(ymd + 'T00:00')
-  d.setDate(d.getDate() + n)
-  return todayStr(d)
-}
-
-/** Open tasks from the last two weeks show on Today until they're done or
-    moved — left behind on their old date, they used to vanish from view.
-    Older ones count as dropped (still on their day in Plan / Board): years
-    of never-ticked tasks mustn't bury today. Repeating tasks are left out:
-    their next occurrence is already on its own day. */
-const OVERDUE_DAYS = 14
-const isOverdue = (x: Task) =>
-  !x.deleted && (x.state === 'open' || x.state === 'in_progress') && !x.recurrence && !x.seriesId
 
 /** Rule-based briefing (parameterized so it translates). */
 function briefingText(tasks: Task[], overdue: number, t: TFn): string {
@@ -135,7 +122,8 @@ function TodayCard({ task, proj, timingSince, onToggle, onEdit, t }: {
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const done = task.state === 'done'
-  const spent = task.actualHours ?? 0
+  const spent = spentHours(task)
+  const steps = stepCount(task.checklist)
   return (
     <div
       ref={setNodeRef}
@@ -147,10 +135,15 @@ function TodayCard({ task, proj, timingSince, onToggle, onEdit, t }: {
       <button className={`check ${done ? 'on' : ''}`} onClick={onToggle} aria-label={task.title}>✓</button>
       <button className="tbody" onClick={onEdit} title={task.title}>
         <div className={`ttitle ${done ? 'done' : ''}`}>{task.title}</div>
-        {(Boolean(task.isMit) || task.recurrence || proj || task.notes || spent > 0 || task.estimatedHours) && (
+        {(Boolean(task.isMit) || task.recurrence || proj || task.notes || spent > 0 || task.estimatedHours || steps.all > 0) && (
           <div className="tmeta">
             {Boolean(task.isMit) && <span className="tstar">⭐</span>}
             {task.recurrence && <span className="trecur" title={t('task.repeat')}>🔁</span>}
+            {steps.all > 0 && (
+              <span className={`tsteps num ${steps.done === steps.all ? 'all' : ''}`} title={t('step.title')}>
+                <Icon name="check" size={11} strokeWidth={2.6} />{steps.done}/{steps.all}
+              </span>
+            )}
             {task.notes && <span className="tnote" title={t('task.notes')}>📝</span>}
             {(spent > 0 || !!task.estimatedHours) && (
               <span className={`tspent num ${task.estimatedHours && spent > task.estimatedHours ? 'over' : ''}`} title={t('timer.spentTitle')}>
@@ -298,6 +291,9 @@ export default function Today() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [overdue, setOverdue] = useState<Task[]>([])
   const [showAllOverdue, setShowAllOverdue] = useState(false)
+  const [tomorrowCount, setTomorrowCount] = useState(0)
+  const [planning, setPlanning] = useState(false)
+  const [wrapHidden, setWrapHidden] = useState(() => localStorage.getItem('planner_wrap_hidden') === todayStr())
   const timer = useRunningTimer()
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [habits, setHabits] = useState<HabitView[]>([])
@@ -323,8 +319,9 @@ export default function Today() {
     const rows = (await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()).sort(byDoneThenOrder)
     setTasks(rows)
     // most recently missed first
-    const late = await db.tasks.where('due').between(addDays(today, -OVERDUE_DAYS), today, true, false).and(isOverdue).toArray()
+    const late = await db.tasks.where('due').between(addDays(today, -OVERDUE_DAYS), today, true, false).and(isOpenOneOff).toArray()
     setOverdue(late.sort((a, b) => b.due!.localeCompare(a.due!) || byOrder(a, b)))
+    setTomorrowCount(await db.tasks.where('due').equals(addDays(today, 1)).and((x) => !x.deleted).count())
 
     // Reminders: any open task whose reminderDaysBefore matches exactly how
     // many days away its due date is — this is why it can surface tasks due
@@ -408,7 +405,7 @@ export default function Today() {
         .map((x) => `- ${x.title}${x.timeBlockStart ? ` @ ${x.timeBlockStart.slice(11, 16)}` : ''}${x.isMit ? ' [most important]' : ''} (${x.state})`)
         .join('\n')
       const hs = await db.habits.where('active').equals(1).and((x) => !x.deleted).toArray()
-      const late = await db.tasks.where('due').between(addDays(today, -OVERDUE_DAYS), today, true, false).and(isOverdue).toArray()
+      const late = await db.tasks.where('due').between(addDays(today, -OVERDUE_DAYS), today, true, false).and(isOpenOneOff).toArray()
       const dateLabel = new Date().toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })
       const prompt = `Today is ${dateLabel}.\nMy tasks:\n${list || '(nothing planned yet)'}\nProgress: ${done.length} done, ${open.length} to go.${mit ? `\nMy most important task: "${mit.title}".` : ''}${late.length ? `\nLeft over from earlier days (overdue): ${late.slice(0, 8).map((x) => `"${x.title}"`).join(', ')}${late.length > 8 ? ` and ${late.length - 8} more` : ''}.` : ''}\nHabits I track: ${hs.map((h) => h.name).join(', ') || '(none)'}.\nWrite my briefing for today.`
       const system = lang === 'zh'
@@ -441,18 +438,9 @@ export default function Today() {
     syncNow()
   }
 
-  /** Bring a task from an earlier day onto today (keeping its time of day),
+  /** Bring tasks from earlier days onto today (keeping their time of day),
       after today's list. */
-  async function moveToToday(list: Task[]) {
-    let order = Math.max(-1, ...tasks.map((x) => x.sortOrder ?? 0))
-    for (const task of list) {
-      const patch: Partial<Task> = { due: today, sortOrder: ++order }
-      if (task.timeBlockStart) patch.timeBlockStart = today + task.timeBlockStart.slice(10)
-      if (task.timeBlockEnd) patch.timeBlockEnd = today + task.timeBlockEnd.slice(10)
-      await patchAndQueue(db.tasks, 'task', task.id, patch)
-    }
-    syncNow()
-  }
+  const moveToToday = (list: Task[]) => moveTasksTo(list, today)
 
   async function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e
@@ -492,7 +480,15 @@ export default function Today() {
   const [hello, emoji] = greeting(t)
   const name = currentUser()
   const doneCount = tasks.filter((x) => x.state === 'done').length
-  const focused = tasks.reduce((n, x) => n + (x.actualHours ?? 0), 0)
+  // time focused today: sessions dated today, on today's tasks and the
+  // overdue ones (time from before sessions were kept counts on its due day)
+  const focusedMin = [...tasks, ...overdue].reduce((n, x) => n + (minutesByDay(x).get(today) ?? 0), 0)
+  const focused = focusedMin / 60
+  // the evening: wrap up — what's still open, and is tomorrow planned?
+  const openToday = tasks.filter((x) => x.state === 'open' || x.state === 'in_progress')
+  const evening = new Date().getHours() >= 17
+  const showWrap = evening && !wrapHidden && (openToday.length > 0 || overdue.length > 0 || tomorrowCount === 0)
+  const hideWrap = () => { localStorage.setItem('planner_wrap_hidden', today); setWrapHidden(true) }
   const ago = (due: string) => {
     const n = Math.round((new Date(today + 'T00:00').getTime() - new Date(due + 'T00:00').getTime()) / 86400_000)
     return n === 1 ? t('today.yesterday') : t('today.daysAgo', { n })
@@ -654,6 +650,22 @@ export default function Today() {
           </span>
         )}
       </div>
+      {showWrap && (
+        <div className="card wrap-card" role="region" aria-label={t('ptm.wrapTitle')}>
+          <span className="wrap-moon" aria-hidden>🌙</span>
+          <div className="wrap-text">
+            <b>{t('ptm.wrapTitle')}</b>
+            <span>
+              {[
+                openToday.length + overdue.length > 0 ? t('ptm.wrapOpen', { n: openToday.length + overdue.length }) : t('ptm.wrapAllDone'),
+                tomorrowCount === 0 ? t('ptm.wrapNothing') : t('ptm.wrapPlanned', { n: tomorrowCount }),
+              ].join(' · ')}
+            </span>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={() => setPlanning(true)}>{t('ptm.title')}</button>
+          <button type="button" className="wrap-x" onClick={hideWrap} aria-label={t('ptm.wrapHide')}><Icon name="close" size={14} /></button>
+        </div>
+      )}
       {overdue.length > 0 && (
         <div className="card overdue-card" role="region" aria-label={t('today.overdue')}>
           <div className="overdue-h">
@@ -705,8 +717,12 @@ export default function Today() {
           </SortableContext>
         </DndContext>
       )}
+      <button type="button" className="ptm-open" onClick={() => setPlanning(true)}>
+        🌙 {t('ptm.title')}{tomorrowCount > 0 && <span className="num"> · {t('ptm.planned', { n: tomorrowCount })}</span>}
+      </button>
     </div>
     {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
+    {planning && <PlanTomorrow summary={{ done: doneCount, total: tasks.length, focusedMin }} onClose={() => setPlanning(false)} />}
     {editingHabit && (
       <HabitEdit habit={editingHabit === 'new' ? null : editingHabit} onClose={() => setEditingHabit(null)} />
     )}

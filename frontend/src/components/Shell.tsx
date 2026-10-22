@@ -8,7 +8,8 @@ import SearchModal from './SearchModal'
 import { VideoProvider } from './VideoPlayer'
 import Icon, { type IconName } from './Icon'
 import { updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
-import { useRunningTimer, useElapsed, stopTimer, clock, type RunningTimer } from '../lib/timer'
+import { useRunningTimer, useElapsed, stopTimer, startTimer, clock, type RunningTimer } from '../lib/timer'
+import { reminderPrefs, reminderBody, type Reminder } from '../lib/reminders'
 
 const links: { to: string; key: string; ico: IconName }[] = [
   { to: '/', key: 'nav.today', ico: 'today' },
@@ -34,6 +35,62 @@ function TimerBar({ timer }: { timer: RunningTimer }) {
       <span className="tb-title">{timer.title}</span>
       <span className="tb-clock num">{clock(sec)}</span>
       <button type="button" className="btn btn-primary" onClick={() => stopTimer()}>{t('timer.stop')}</button>
+    </div>
+  )
+}
+
+interface Shown {
+  tag: string
+  title: string
+  body: string
+  taskId?: string
+}
+
+/** A time block starting while you're in the app (lib/reminders.ts), or a
+    push that arrived meanwhile: a banner, with the timer one tap away. */
+function ReminderBanners() {
+  const [items, setItems] = useState<Shown[]>([])
+  const { t } = useLang()
+  useEffect(() => {
+    const add = (x: Shown) => {
+      setItems((l) => (l.some((y) => y.tag === x.tag) ? l : [...l, x]))
+      // gone by itself after a quarter of an hour
+      window.setTimeout(() => setItems((l) => l.filter((y) => y.tag !== x.tag)), 15 * 60_000)
+    }
+    const onLocal = (e: Event) => {
+      const r = (e as CustomEvent<Reminder>).detail
+      add({ tag: r.tag, title: r.title, body: reminderBody(r, reminderPrefs().lead), taskId: r.taskId })
+    }
+    const onPush = (e: MessageEvent) => {
+      const d = e.data as { type?: string; tag?: string; title?: string; body?: string } | null
+      if (d?.type === 'planner:reminder' && d.tag) add({ tag: d.tag, title: d.title ?? '', body: d.body ?? '' })
+    }
+    window.addEventListener('planner:reminder', onLocal)
+    navigator.serviceWorker?.addEventListener('message', onPush)
+    return () => {
+      window.removeEventListener('planner:reminder', onLocal)
+      navigator.serviceWorker?.removeEventListener('message', onPush)
+    }
+  }, [])
+  const close = (tag: string) => setItems((l) => l.filter((y) => y.tag !== tag))
+  if (!items.length) return null
+  return (
+    <div className="rem-stack">
+      {items.map((x) => (
+        <div key={x.tag} className="rem-banner" role="alert">
+          <span className="rem-bell" aria-hidden>⏰</span>
+          <div className="rem-text">
+            <b>{x.title}</b>
+            <span className="num">{x.body}</span>
+          </div>
+          {x.taskId && (
+            <button type="button" className="btn btn-primary" onClick={() => { startTimer({ id: x.taskId!, title: x.title }); close(x.tag) }}>
+              {t('rem.startTimer')}
+            </button>
+          )}
+          <button type="button" className="rem-x" onClick={() => close(x.tag)} aria-label={t('common.close')}><Icon name="close" size={14} /></button>
+        </div>
+      ))}
     </div>
   )
 }
@@ -110,6 +167,7 @@ export default function Shell() {
             <NavLink className="btn btn-primary" to={sync === 'signed-out' ? '/login?signedout=1' : '/login'}>{t('app.signIn')}</NavLink>
           </div>
         )}
+        <ReminderBanners />
         {timer && <TimerBar timer={timer} />}
         {hasUpdate && (
           <div className="update-bar" role="status">

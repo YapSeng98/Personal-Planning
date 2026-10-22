@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import { SYNC_FIELDS, diffRecord, applyAttachmentOps, filledFields, type SyncTable } from '../sync/fields'
+import { freshChecklist, type CheckItem, type FocusEntry } from '../lib/items'
 
 // Local mirror of the x_pps_* ServiceNow tables (design doc §04/§09).
 // `id` is the client_uuid used for idempotent sync; `sysId` arrives after
@@ -36,6 +37,11 @@ export interface Task {
   /** Links every occurrence of a recurring task together. Set to the first
       occurrence's own id when recurrence is first turned on. */
   seriesId?: string
+  /** Steps inside the task (subtasks). Merges item by item across devices
+      (lib/items.ts) — change it with editTaskList, never from a screen's copy. */
+  checklist?: CheckItem[]
+  /** Focus-timer sessions, per day (lib/timer.ts) — for time-per-day stats. */
+  focusLog?: FocusEntry[]
   /** When this task last entered state 'done' (cleared if it leaves 'done'
       again). Local-only — not in sync/engine.ts's SYNC_FIELDS, since there's
       no matching ServiceNow column — so it's a per-device approximation of
@@ -357,6 +363,22 @@ export function cleanEmoji(emoji?: string, name = ''): string {
 export const todayStr = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
+/** YYYY-MM-DD `n` days after `ymd` (negative = before), in local time. */
+export function addDays(ymd: string, n: number): string {
+  const d = new Date(ymd + 'T00:00')
+  d.setDate(d.getDate() + n)
+  return todayStr(d)
+}
+
+/** Open tasks from the last two weeks show on Today until they're done or
+    moved — left behind on their old date, they used to vanish from view.
+    Older ones count as dropped (still on their day in Plan / Board): years
+    of never-ticked tasks mustn't bury today. Repeating tasks are left out:
+    their next occurrence is already on its own day. */
+export const OVERDUE_DAYS = 14
+export const isOpenOneOff = (x: Task) =>
+  !x.deleted && (x.state === 'open' || x.state === 'in_progress') && !x.recurrence && !x.seriesId
+
 /** Fired after any local write or applied sync pull; screens reload on it. */
 export const CHANGED = 'planner:changed'
 export const notifyChange = () => window.dispatchEvent(new CustomEvent(CHANGED))
@@ -433,12 +455,15 @@ export interface AttachmentOps {
     the meantime are kept. Attachments change only through `att` (adds /
     removals by id) — never by passing a whole list, which could drop files
     another device added. Returns the saved record (undefined if it doesn't
-    exist); a patch that changes nothing writes and queues nothing. */
+    exist); a patch that changes nothing writes and queues nothing. The
+    patch can be a function of the record as stored (e.g. a list to add to).
+    Not for use inside another transaction: the change notice must go out
+    after it has committed. */
 export async function patchAndQueue<T extends SyncRecord>(
   table: Table<T, string>,
   tableName: SyncTable,
   id: string,
-  patch: Partial<Omit<T, 'attachments'>>,
+  patchOrFn: Partial<Omit<T, 'attachments'>> | ((cur: T) => Partial<Omit<T, 'attachments'>> | undefined),
   att?: AttachmentOps,
 ): Promise<T | undefined> {
   let saved: T | undefined
@@ -446,6 +471,11 @@ export async function patchAndQueue<T extends SyncRecord>(
   await db.transaction('rw', table, db.outbox, async () => {
     const cur = await table.get(id)
     if (!cur) return
+    const patch = typeof patchOrFn === 'function' ? patchOrFn(cur) : patchOrFn
+    if (!patch) {
+      saved = cur
+      return
+    }
     const next = { ...cur, ...patch } as T
     if (att) next.attachments = applyAttachmentOps(cur.attachments ?? [], att.up ?? [], att.rm ?? [])
     const d = diffRecord(tableName, cur, next)
@@ -464,6 +494,23 @@ export async function patchAndQueue<T extends SyncRecord>(
   })
   if (changed) notifyChange()
   return saved
+}
+
+/** Change a task's checklist or focus sessions, starting from the list as
+    stored now (in the save's own transaction, so a sync landing meanwhile
+    isn't lost). Items another device changed stay as they are: the server
+    merges the list item by item. */
+export function editTaskList<K extends 'checklist' | 'focusLog'>(
+  id: string,
+  field: K,
+  fn: (list: NonNullable<Task[K]>) => Task[K],
+): Promise<Task | undefined> {
+  return patchAndQueue(db.tasks, 'task', id, (cur) => {
+    const next = fn((cur[field] ?? []) as NonNullable<Task[K]>)
+    // no list, and still none: nothing to save
+    if (!cur[field] && !(next as unknown[] | undefined)?.length) return undefined
+    return { [field]: next } as Partial<Task>
+  })
 }
 
 function nextOccurrence(date: string, recurrence: NonNullable<Task['recurrence']>): string {
@@ -629,6 +676,8 @@ async function rollRecurringTasksInner() {
       timeBlockStart: startTime ? `${due}T${startTime}` : undefined,
       timeBlockEnd: endTime ? `${due}T${endTime}` : undefined,
       actualHours: undefined,
+      focusLog: undefined,
+      checklist: freshChecklist(latest.checklist),
       state: 'open',
       completedAt: undefined,
       sortOrder: undefined,

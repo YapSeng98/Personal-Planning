@@ -156,9 +156,17 @@ create table if not exists public.tasks (
   reminder_days_before int,
   recurrence text,
   series_id uuid,
+  checklist jsonb,
+  focus_log jsonb,
   deleted boolean not null default false,
   updated_at timestamptz not null default now()
 );
+-- 2026-10-22: a task's checklist (subtasks: [{id, text, done, t}]) and its
+-- focus-timer sessions ([{id, d: date, m: minutes, t}]). Both merge item by
+-- item (merge_items), so devices editing different items never undo each
+-- other.
+alter table public.tasks add column if not exists checklist jsonb;
+alter table public.tasks add column if not exists focus_log jsonb;
 alter table public.tasks enable row level security;
 drop policy if exists "own rows" on public.tasks;
 create policy "own rows" on public.tasks for all
@@ -399,8 +407,9 @@ create trigger bump_rev before insert or update on public.sketch_folders
   for each row execute function public.bump_rev();
 
 -- The fields an older app version's whole-record push covers: every synced
--- field as of 2026-10-04. Fields added since (drawing.pinned) are left out,
--- so a device still on such a version can't reset them.
+-- field as of 2026-10-04. Fields added since (drawing.pinned, a task's
+-- checklist and focus sessions) are left out, so a device still on such a
+-- version can't reset them.
 create or replace function public.all_fields(tbl text)
 returns text[]
 language sql
@@ -416,6 +425,34 @@ as $$
     when 'drawing' then array['title', 'kind', 'dataUrl', 'text', 'format', 'attachments', 'folderId', 'deleted']
     when 'folder' then array['name', 'parentId', 'cover', 'coverY', 'coverH', 'deleted']
   end;
+$$;
+
+-- Lists that merge item by item (a task's checklist, its focus sessions).
+-- Every item has an id and `t`, when it was last edited (ms): for each id
+-- the latest edit wins, wherever it came from; a removed item stays as
+-- {id, del: 1, t}, so the removal beats older edits of it. Items keep the
+-- current order; ones new to the list are added at the end. Mirrors
+-- mergeItems() in frontend/src/lib/items.ts.
+create or replace function public.merge_items(cur jsonb, inc jsonb)
+returns jsonb
+language sql
+immutable
+as $$
+  select case when cur is null and inc is null then null
+              else coalesce((select jsonb_agg(x order by ord) from (
+    select case when u is not null
+                 and (case when jsonb_typeof(u->'t') = 'number' then (u->>'t')::numeric else 0 end)
+                  >= (case when jsonb_typeof(e->'t') = 'number' then (e->>'t')::numeric else 0 end)
+                then u else e end as x, ord
+      from jsonb_array_elements(case when jsonb_typeof(cur) = 'array' then cur else '[]'::jsonb end) with ordinality as c(e, ord)
+      left join lateral (select u from jsonb_array_elements(case when jsonb_typeof(inc) = 'array' then inc else '[]'::jsonb end) u
+                          where u->>'id' = e->>'id' limit 1) m on true
+    union all
+    select u, 1000000 + ord
+      from jsonb_array_elements(case when jsonb_typeof(inc) = 'array' then inc else '[]'::jsonb end) with ordinality as n(u, ord)
+     where not exists (select 1 from jsonb_array_elements(case when jsonb_typeof(cur) = 'array' then cur else '[]'::jsonb end) e
+                        where e->>'id' = u->>'id')
+  ) merged), '[]'::jsonb) end;
 $$;
 
 -- Attachment lists merge by id: drop removed ids, replace updated items in
@@ -587,7 +624,7 @@ begin
         -- new record: insert every column, but stamp edit times only on the
         -- fields this device actually filled — an empty field it never wrote
         -- must not outrank another device's earlier edit of that field
-        insert into public.tasks (id, user_id, edited_at, field_times, title, notes, state, priority, due, time_block_start, time_block_end, estimated_hours, actual_hours, goal_id, project_id, is_mit, sort_order, reminder_days_before, recurrence, series_id, deleted)
+        insert into public.tasks (id, user_id, edited_at, field_times, title, notes, state, priority, due, time_block_start, time_block_end, estimated_hours, actual_hours, goal_id, project_id, is_mit, sort_order, reminder_days_before, recurrence, series_id, checklist, focus_log, deleted)
         values (rid, auth.uid(), edited_ts,
             coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(flds) f), '{}'::jsonb),
             coalesce(nullif(p->>'title', ''), ''),
@@ -606,6 +643,8 @@ begin
             nullif(p->>'reminderDaysBefore', '')::int,
             nullif(p->>'recurrence', ''),
             nullif(p->>'seriesId', '')::uuid,
+            case when jsonb_typeof(p->'checklist') = 'array' then p->'checklist' else null end,
+            case when jsonb_typeof(p->'focusLog') = 'array' then p->'focusLog' else null end,
             coalesce(nullif(p->>'deleted', '')::boolean, false))
         on conflict (id) do nothing
         returning rev, goal_id into new_rev, new_goal;
@@ -648,6 +687,8 @@ begin
             reminder_days_before = case when 'reminderDaysBefore' = any(win) then nullif(p->>'reminderDaysBefore', '')::int else reminder_days_before end,
             recurrence = case when 'recurrence' = any(win) then nullif(p->>'recurrence', '') else recurrence end,
             series_id = case when 'seriesId' = any(win) then nullif(p->>'seriesId', '')::uuid else series_id end,
+            checklist = case when 'checklist' = any(flds) then public.merge_items(checklist, case when jsonb_typeof(p->'checklist') = 'array' then p->'checklist' else null end) else checklist end,
+            focus_log = case when 'focusLog' = any(flds) then public.merge_items(focus_log, case when jsonb_typeof(p->'focusLog') = 'array' then p->'focusLog' else null end) else focus_log end,
             deleted = case when 'deleted' = any(win) then coalesce(nullif(p->>'deleted', '')::boolean, false) else deleted end,
             field_times = ex_ft || coalesce((select jsonb_object_agg(f, coalesce((fts->>f)::bigint, edited_ms)) from unnest(win) f), '{}'::jsonb),
             edited_at = greatest(existing_updated, edited_ts)
@@ -1160,7 +1201,7 @@ begin
   end;
   select jsonb_build_object(
       'cursor', pg_current_snapshot()::text,
-      'fields', '{"task": ["title", "notes", "state", "priority", "due", "timeBlockStart", "timeBlockEnd", "estimatedHours", "actualHours", "goalId", "projectId", "isMit", "sortOrder", "reminderDaysBefore", "recurrence", "seriesId", "deleted"], "habit": ["name", "emoji", "frequency", "targetPerDay", "active", "deleted"], "habit_log": ["habitId", "date", "count", "deleted"], "goal": ["title", "type", "parentId", "lifeArea", "whyItMatters", "progress", "status", "targetDate", "deleted"], "review": ["type", "periodStart", "periodEnd", "wins", "failures", "lesson", "mood", "energy", "nextPriorities", "attachments", "deleted"], "project": ["title", "color", "archived", "deleted"], "drawing": ["title", "kind", "dataUrl", "text", "format", "attachments", "folderId", "pinned", "deleted"], "folder": ["name", "parentId", "cover", "coverY", "coverH", "deleted"]}'::jsonb,
+      'fields', '{"task": ["title", "notes", "state", "priority", "due", "timeBlockStart", "timeBlockEnd", "estimatedHours", "actualHours", "goalId", "projectId", "isMit", "sortOrder", "reminderDaysBefore", "recurrence", "seriesId", "checklist", "focusLog", "deleted"], "habit": ["name", "emoji", "frequency", "targetPerDay", "active", "deleted"], "habit_log": ["habitId", "date", "count", "deleted"], "goal": ["title", "type", "parentId", "lifeArea", "whyItMatters", "progress", "status", "targetDate", "deleted"], "review": ["type", "periodStart", "periodEnd", "wins", "failures", "lesson", "mood", "energy", "nextPriorities", "attachments", "deleted"], "project": ["title", "color", "archived", "deleted"], "drawing": ["title", "kind", "dataUrl", "text", "format", "attachments", "folderId", "pinned", "deleted"], "folder": ["name", "parentId", "cover", "coverY", "coverH", "deleted"]}'::jsonb,
       'records', coalesce(jsonb_agg(rec), '[]'::jsonb))
     into res
     from (
@@ -1172,7 +1213,7 @@ begin
           'timeBlockEnd', time_block_end, 'estimatedHours', estimated_hours, 'actualHours', actual_hours,
           'goalId', goal_id, 'projectId', project_id, 'isMit', is_mit,
           'sortOrder', sort_order, 'reminderDaysBefore', reminder_days_before, 'recurrence', recurrence,
-          'seriesId', series_id,
+          'seriesId', series_id, 'checklist', checklist, 'focusLog', focus_log,
           'rev', rev, 'updatedAt', (extract(epoch from coalesce(edited_at, updated_at)) * 1000)::bigint)) as rec
         from public.tasks
        where user_id = auth.uid()
@@ -1282,6 +1323,7 @@ grant execute on function public.sync_push(jsonb) to authenticated;
 grant execute on function public.sync_pull(text, text[]) to authenticated;
 grant execute on function public.recalc_goal(uuid) to authenticated;
 grant execute on function public.merge_attachments(jsonb, jsonb, text[]) to authenticated;
+grant execute on function public.merge_items(jsonb, jsonb) to authenticated;
 -- …and only them: Supabase grants new functions to `anon` (a request with
 -- no sign-in) by default. A sync call without a sign-in must be refused —
 -- an anonymous pull used to come back "nothing changed" with a new cursor,
@@ -1290,6 +1332,7 @@ revoke execute on function public.sync_push(jsonb) from public, anon;
 revoke execute on function public.sync_pull(text, text[]) from public, anon;
 revoke execute on function public.recalc_goal(uuid) from public, anon;
 revoke execute on function public.merge_attachments(jsonb, jsonb, text[]) from public, anon;
+revoke execute on function public.merge_items(jsonb, jsonb) from public, anon;
 
 -- ------------------------------------------------------------
 -- Security advisor hardening (idempotent).
@@ -1305,6 +1348,7 @@ alter function public.recalc_goal(uuid) set search_path = public;
 alter function public.set_updated_at() set search_path = public;
 alter function public.bump_rev() set search_path = public;
 alter function public.merge_attachments(jsonb, jsonb, text[]) set search_path = public;
+alter function public.merge_items(jsonb, jsonb) set search_path = public;
 alter function public.all_fields(text) set search_path = public;
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
@@ -1394,6 +1438,240 @@ create policy "attachments: own files update" on storage.objects for update to a
 drop policy if exists "attachments: own files delete" on storage.objects;
 create policy "attachments: own files delete" on storage.objects for delete to authenticated
   using (bucket_id = 'attachments' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ------------------------------------------------------------
+-- Reminders when a time block starts, also while the app is closed (push
+-- notifications). Each device that turns them on (Settings → Reminders)
+-- registers its push subscription here (save_push_subscription). Once a
+-- minute pg_cron runs send_due_reminders(): it works out which blocks start
+-- now — in each device's time zone, `lead_minutes` early — and hands them to
+-- the push-reminders Edge Function, which encrypts and sends them. Until
+-- the one-time setup (supabase/push_setup.sql: the push key in Vault, the
+-- timer) has been run, none of this does anything — the app still reminds
+-- you while it's open.
+-- ------------------------------------------------------------
+create table if not exists public.push_subscriptions (
+  endpoint text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  p256dh text not null,
+  auth text not null,
+  tz text not null default 'UTC',
+  lang text not null default 'en',
+  lead_minutes int not null default 0,
+  seen_at timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "own rows" on public.push_subscriptions;
+create policy "own rows" on public.push_subscriptions for select using (user_id = auth.uid());
+grant select on public.push_subscriptions to authenticated;
+create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
+
+-- what was sent, so a block is announced once per device
+create table if not exists public.push_sent (
+  endpoint text not null,
+  tag text not null,
+  sent_at timestamptz not null default now(),
+  primary key (endpoint, tag)
+);
+alter table public.push_sent enable row level security;
+
+-- Register (or refresh) this device's subscription. The same browser may
+-- have been registered by another account before: it now belongs to this one.
+create or replace function public.save_push_subscription(sub jsonb)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  zone text := coalesce(nullif(sub->>'tz', ''), 'UTC');
+begin
+  if auth.uid() is null then
+    raise exception 'not signed in' using errcode = '42501';
+  end if;
+  if coalesce(sub->>'endpoint', '') !~ '^https://' or coalesce(sub->>'p256dh', '') = '' or coalesce(sub->>'auth', '') = '' then
+    raise exception 'not a push subscription' using errcode = '22023';
+  end if;
+  begin
+    perform now() at time zone zone;
+  exception when others then
+    zone := 'UTC';  -- a zone this database doesn't know would break every reminder
+  end;
+  insert into public.push_subscriptions (endpoint, user_id, p256dh, auth, tz, lang, lead_minutes, seen_at)
+  values (sub->>'endpoint', auth.uid(), sub->>'p256dh', sub->>'auth', zone,
+          case when sub->>'lang' = 'zh' then 'zh' else 'en' end,
+          greatest(0, least(120, coalesce(case when sub->>'lead' ~ '^\d+$' then (sub->>'lead')::int end, 0))), now())
+  on conflict (endpoint) do update set
+    user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, tz = excluded.tz,
+    lang = excluded.lang, lead_minutes = excluded.lead_minutes, seen_at = now();
+end;
+$$;
+
+create or replace function public.delete_push_subscription(endpoint text)
+returns void
+language sql
+security definer set search_path = public
+as $$
+  delete from public.push_subscriptions s where s.endpoint = delete_push_subscription.endpoint and s.user_id = auth.uid();
+$$;
+
+-- Whether the one-time setup has been done (shown in Settings).
+create or replace function public.push_status()
+returns jsonb
+language plpgsql
+stable
+security definer set search_path = public
+as $$
+declare
+  has_key boolean := false;
+  has_timer boolean := false;
+begin
+  if auth.uid() is null then
+    raise exception 'not signed in' using errcode = '42501';
+  end if;
+  begin
+    select exists (select 1 from vault.secrets where name = 'planner_vapid') into has_key;
+  exception when others then has_key := false;
+  end;
+  begin
+    select exists (select 1 from cron.job where jobname = 'planner-reminders') into has_timer;
+  exception when others then has_timer := false;
+  end;
+  return jsonb_build_object('key', has_key, 'timer', has_timer);
+end;
+$$;
+
+-- The reminders due at `moment`, per device: blocks starting `lead_minutes`
+-- from now in the device's time zone (sent up to 10 minutes late, if the
+-- timer was held up). A block's start is stored as the wall-clock time the
+-- app shows (it sends it without a zone, so it's kept as if in the
+-- database's zone). A repeating task's next day isn't a row until a device
+-- opens the app that day, so those come from the series' latest row — on
+-- the same days the app previews them. Tags match the app's own reminders
+-- (lib/reminders.ts), so a device that shows one itself isn't told twice.
+create or replace function public.due_reminders(moment timestamptz default now())
+returns table (endpoint text, p256dh text, auth text, tag text, title text, body text)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with subs as (
+    select s.endpoint, s.p256dh, s.auth, s.user_id, s.lang, s.lead_minutes, (moment at time zone s.tz) as local_now
+      from public.push_subscriptions s
+  ),
+  real_blocks as (
+    select s.*, t.title, coalesce(t.series_id, t.id) as key_id,
+           (t.time_block_start at time zone current_setting('TimeZone')) as start_at,
+           (t.time_block_end at time zone current_setting('TimeZone')) as end_at
+      from subs s
+      join public.tasks t on t.user_id = s.user_id
+     where t.due between s.local_now::date - 1 and s.local_now::date + 1
+       and t.time_block_start is not null
+       and not t.deleted and t.state in ('open', 'in_progress')
+  ),
+  latest as (
+    select distinct on (t.series_id) t.*
+      from public.tasks t
+     where t.series_id is not null and not t.deleted
+       and t.user_id in (select s.user_id from subs s)
+     order by t.series_id, t.due desc nulls last
+  ),
+  projected as (
+    select s.*, l.title, l.series_id as key_id,
+           d.day + (l.time_block_start at time zone current_setting('TimeZone'))::time as start_at,
+           d.day + (l.time_block_end at time zone current_setting('TimeZone'))::time as end_at
+      from subs s
+      join latest l on l.user_id = s.user_id
+     cross join lateral (values (s.local_now::date), (s.local_now::date + 1)) d(day)
+     where l.recurrence is not null and l.due is not null and l.time_block_start is not null
+       and d.day > l.due
+       and (l.recurrence = 'daily'
+            or (l.recurrence = 'weekly' and (d.day - l.due) % 7 = 0)
+            or (l.recurrence = 'monthly' and extract(day from d.day) = extract(day from l.due)))
+       and not exists (select 1 from public.tasks x where x.series_id = l.series_id and x.due = d.day)
+  ),
+  blocks as (
+    select * from real_blocks
+    union all
+    select * from projected
+  )
+  select b.endpoint, b.p256dh, b.auth,
+         'block:' || b.key_id || ':' || to_char(b.start_at, 'YYYY-MM-DD"T"HH24:MI'),
+         b.title,
+         to_char(b.start_at, 'HH24:MI') || coalesce('–' || to_char(b.end_at, 'HH24:MI'), '') || ' · ' ||
+           case when b.lang = 'zh' then case when b.lead_minutes > 0 then b.lead_minutes || ' 分钟后开始' else '现在开始' end
+                else case when b.lead_minutes > 0 then 'Starts in ' || b.lead_minutes || ' min' else 'Starts now' end end
+    from blocks b
+   where b.start_at - make_interval(mins => b.lead_minutes) <= b.local_now
+     and b.start_at - make_interval(mins => b.lead_minutes) > b.local_now - interval '10 minutes'
+$$;
+
+-- Run every minute by pg_cron (push_setup.sql): send what's due through the
+-- push-reminders Edge Function. The push key lives in Vault and travels
+-- with the request; the function sends only for that key.
+create or replace function public.send_due_reminders()
+returns int
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  vapid text;
+  msgs jsonb;
+begin
+  begin
+    select decrypted_secret into vapid from vault.decrypted_secrets where name = 'planner_vapid' limit 1;
+  exception when others then
+    return 0;
+  end;
+  if vapid is null then
+    return 0;
+  end if;
+  -- devices the push service reported gone (app removed, permission withdrawn)
+  begin
+    delete from public.push_subscriptions s
+     using (select jsonb_array_elements_text(r.content::jsonb -> 'gone') as endpoint
+              from net._http_response r
+             where r.created > now() - interval '1 hour' and r.status_code = 200
+               and r.content like '{"planner":%') g
+     where s.endpoint = g.endpoint;
+  exception when others then
+    null;
+  end;
+  delete from public.push_sent where sent_at < now() - interval '2 days';
+  delete from public.push_subscriptions where seen_at < now() - interval '60 days';
+  with due as (
+    select * from public.due_reminders(now())
+  ), fresh as (
+    insert into public.push_sent (endpoint, tag)
+    select distinct d.endpoint, d.tag from due d
+    on conflict do nothing
+    returning push_sent.endpoint, push_sent.tag
+  )
+  select jsonb_agg(jsonb_build_object('endpoint', d.endpoint, 'p256dh', d.p256dh, 'auth', d.auth,
+           'payload', jsonb_build_object('title', d.title, 'body', d.body, 'tag', d.tag)))
+    into msgs
+    from (select distinct on (due.endpoint, due.tag) * from due) d
+    join fresh f on f.endpoint = d.endpoint and f.tag = d.tag;
+  if msgs is null then
+    return 0;
+  end if;
+  perform net.http_post(
+    url := 'https://rleqtargnhpsojfpegtf.supabase.co/functions/v1/push-reminders',
+    body := jsonb_build_object('vapid', vapid::jsonb, 'messages', msgs),
+    headers := '{"Content-Type": "application/json"}'::jsonb,
+    timeout_milliseconds := 20000);
+  return jsonb_array_length(msgs);
+end;
+$$;
+
+grant execute on function public.save_push_subscription(jsonb) to authenticated;
+grant execute on function public.delete_push_subscription(text) to authenticated;
+grant execute on function public.push_status() to authenticated;
+revoke execute on function public.save_push_subscription(jsonb) from public, anon;
+revoke execute on function public.delete_push_subscription(text) from public, anon;
+revoke execute on function public.push_status() from public, anon;
+-- these read every account's tasks: the database's own timer only
+revoke execute on function public.due_reminders(timestamptz) from public, anon, authenticated;
+revoke execute on function public.send_due_reminders() from public, anon, authenticated;
 
 -- ------------------------------------------------------------
 -- Statement timeout for signed-in users: Supabase's default is 8s, and a

@@ -12,7 +12,7 @@ export type SyncTable = 'task' | 'habit' | 'habit_log' | 'goal' | 'review' | 'pr
 export const SYNC_FIELDS: Record<SyncTable, string[]> = {
   task: ['title', 'notes', 'state', 'priority', 'due', 'timeBlockStart', 'timeBlockEnd',
     'estimatedHours', 'actualHours', 'goalId', 'projectId', 'isMit', 'sortOrder',
-    'reminderDaysBefore', 'recurrence', 'seriesId', 'deleted'],
+    'reminderDaysBefore', 'recurrence', 'seriesId', 'checklist', 'focusLog', 'deleted'],
   habit: ['name', 'emoji', 'frequency', 'targetPerDay', 'active', 'deleted'],
   habit_log: ['habitId', 'date', 'count', 'deleted'],
   goal: ['title', 'type', 'parentId', 'lifeArea', 'whyItMatters', 'progress', 'status', 'targetDate', 'deleted'],
@@ -31,6 +31,13 @@ export const SYNC_FIELDS: Record<SyncTable, string[]> = {
 // field goes in SYNC_FIELDS *and* here (and in gen_sync_push.py's LATER).
 export const LATER_FIELDS: Partial<Record<SyncTable, string[]>> = {
   drawing: ['pinned'],
+  task: ['checklist', 'focusLog'],
+}
+
+// Lists that merge item by item, on the server (merge_items in schema.sql)
+// and here (lib/items.ts): a task's checklist and its focus sessions.
+export const ITEM_FIELDS: Partial<Record<SyncTable, string[]>> = {
+  task: ['checklist', 'focusLog'],
 }
 
 type Att = { id: string }

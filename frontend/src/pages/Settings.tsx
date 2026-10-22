@@ -11,6 +11,11 @@ import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { getAiUrl, setAiUrl, askAI, clearAiUrlLocal } from '../lib/ai'
 import { getYoutubeUrl, setYoutubeUrl, extractYoutubeId } from '../lib/youtube'
 import { useLang, LANGS, type Lang } from '../lib/i18n'
+import Select from '../components/Select'
+import {
+  LEADS, reminderPrefs, setReminderPrefs, notifySupport, enablePush, disablePush, registerPushQuietly,
+  serverStatus, notify, type ReminderPrefs, type PushResult, type ServerStatus,
+} from '../lib/reminders'
 
 const supabaseHost = (() => {
   try {
@@ -19,6 +24,101 @@ const supabaseHost = (() => {
     return ''
   }
 })()
+
+/** Reminders when a time block starts — this device's choice. */
+function RemindersCard({ offlineMode }: { offlineMode: boolean }) {
+  const { t } = useLang()
+  const [prefs, setPrefs] = useState<ReminderPrefs>(reminderPrefs())
+  const support = notifySupport()
+  const [perm, setPerm] = useState(support === 'ok' ? Notification.permission : 'default')
+  const [push, setPush] = useState<PushResult | null>(null)
+  const [server, setServer] = useState<ServerStatus | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [test, setTest] = useState<'' | 'ok' | 'no'>('')
+
+  useEffect(() => {
+    if (!prefs.on || offlineMode || !isAuthed()) return
+    let alive = true
+    serverStatus().then((st) => { if (alive) setServer(st) })
+    return () => { alive = false }
+  }, [prefs.on, offlineMode])
+
+  function save(p: ReminderPrefs) {
+    setReminderPrefs(p)
+    setPrefs(p)
+  }
+  async function turnOn() {
+    setBusy(true)
+    if (support === 'ok' && Notification.permission === 'default') await Notification.requestPermission().catch(() => {})
+    if (support === 'ok') setPerm(Notification.permission)
+    save({ ...prefs, on: true })
+    if (!offlineMode && isAuthed() && support === 'ok' && Notification.permission === 'granted') setPush(await enablePush())
+    setBusy(false)
+  }
+  async function turnOff() {
+    save({ ...prefs, on: false })
+    setPush(null)
+    await disablePush()
+  }
+  function setLead(v: string) {
+    save({ ...prefs, lead: Number(v) })
+    registerPushQuietly(true)
+  }
+  async function sendTest() {
+    setTest((await notify(t('rem.testTitle'), t('rem.testBody'), 'planner-test')) ? 'ok' : 'no')
+  }
+
+  const closed = (() => {
+    if (offlineMode) return { ok: false, text: t('rem.closedDemo') }
+    if (perm !== 'granted' || !server) return null
+    if (!server.db) return { ok: false, text: t('rem.closedNoDb') }
+    if (server.fn === 'jwt') return { ok: false, text: t('rem.closedJwt') }
+    if (!server.fn || !server.setup) return { ok: false, text: t('rem.closedSetup') }
+    if (push && push !== 'ok') return { ok: false, text: t('rem.closedFailed') }
+    return { ok: true, text: t('rem.closedOn') }
+  })()
+
+  return (
+    <div className="card rem-card">
+      <div className="settings-row rem-row">
+        <div>
+          <b>{t('rem.toggle')}</b>
+          <div className="row-sub">{t('rem.hint')}</div>
+        </div>
+        {prefs.on
+          ? <button className="btn" onClick={turnOff}>{t('rem.turnOff')}</button>
+          : <button className="btn btn-primary" onClick={turnOn} disabled={busy}>{t('rem.turnOn')}</button>}
+      </div>
+      {prefs.on && (
+        <>
+          <div className="f rem-lead">
+            <label className="fl">{t('rem.lead')}</label>
+            <Select
+              ariaLabel={t('rem.lead')}
+              value={String(prefs.lead)}
+              onChange={setLead}
+              options={LEADS.map((n) => ({ value: String(n), label: n ? t('rem.leadMin', { n }) : t('rem.leadAt') }))}
+            />
+          </div>
+          <div className={`ai-status ${support === 'ok' && perm === 'granted' ? 'ok' : 'err'}`}>
+            {support === 'install' ? t('rem.install')
+              : support === 'unsupported' ? t('rem.unsupported')
+                : perm === 'granted' ? `✓ ${t('rem.allowed')}`
+                  : perm === 'denied' ? t('rem.blocked') : t('rem.ask')}
+          </div>
+          {closed && <div className={`ai-status ${closed.ok ? 'ok' : 'err'}`}>{closed.ok ? '✓ ' : ''}{closed.text}</div>}
+          {support === 'ok' && perm === 'granted' && (
+            <div className="rem-test">
+              <button className="btn" onClick={sendTest}>{t('rem.test')}</button>
+              {test === 'ok' && <span className="row-sub">{t('rem.testSent')}</span>}
+              {test === 'no' && <span className="row-sub">{t('rem.testFailed')}</span>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
 
 export default function Settings() {
   const [theme, setThemeState] = useState<Theme>(getTheme())
@@ -123,6 +223,7 @@ export default function Settings() {
       : offlineMode ? t('set.exitConfirm') : t('set.logoutConfirm')
     if (!window.confirm(msg)) return
     stopLiveSync()
+    await disablePush()
     clearAiUrlLocal()
     setLocalDataOwner(null)
     if (isAuthed()) await serverLogout()
@@ -176,6 +277,9 @@ export default function Settings() {
           ))}
         </div>
       </div>
+
+      <div className="section-h">{t('rem.title')}</div>
+      <RemindersCard offlineMode={offlineMode} />
 
       <div className="section-h">{t('set.ai')}</div>
       <div className="card">

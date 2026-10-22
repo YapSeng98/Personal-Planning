@@ -17,12 +17,24 @@ frontend/src/sync/fields.ts.
 
 ATT = "case when jsonb_typeof(p->'attachments') = 'array' then p->'attachments' else '[]'::jsonb end"
 
+
+def items(f):
+    """A list that merges item by item (merge_items): a task's checklist,
+    its focus sessions."""
+    return f"case when jsonb_typeof(p->'{f}') = 'array' then p->'{f}' else null end"
+
+
+# Lists merged item by item rather than as one value: two devices ticking
+# different steps of a checklist both count. Each item carries an id and
+# `t` (its last edit, ms); removed items stay as {id, del: 1, t}.
+ITEM_FIELDS = {'checklist', 'focusLog'}
+
 # Fields added after the app started saying which fields it changed
 # (2026-10-04). App versions from before that send whole records and can't
 # know these, so their pushes never claim them (all_fields below) — or an old
 # device saving a note would unpin it. A new field goes in TABLES *and* here
 # (and in LATER_FIELDS in frontend/src/sync/fields.ts).
-LATER = {'drawing': ['pinned']}
+LATER = {'drawing': ['pinned'], 'task': ['checklist', 'focusLog']}
 
 TABLES = [
     ('task', 'tasks', [
@@ -42,6 +54,8 @@ TABLES = [
         ('reminderDaysBefore', 'reminder_days_before', "nullif(p->>'reminderDaysBefore', '')::int"),
         ('recurrence', 'recurrence', "nullif(p->>'recurrence', '')"),
         ('seriesId', 'series_id', "nullif(p->>'seriesId', '')::uuid"),
+        ('checklist', 'checklist', items('checklist')),
+        ('focusLog', 'focus_log', items('focusLog')),
         ('deleted', 'deleted', "coalesce(nullif(p->>'deleted', '')::boolean, false)"),
     ]),
     ('habit', 'habits', [
@@ -126,6 +140,10 @@ def branch(key, table, spec, first):
                 f"{c} = case when 'attachments' = any(flds) then public.merge_attachments({c},\n"
                 f"              (select coalesce(jsonb_agg(a), '[]'::jsonb) from jsonb_array_elements({ATT}) a where a->>'id' = any(att_up)),\n"
                 f"              att_rm) else {c} end")
+        elif f in ITEM_FIELDS:
+            # every item keeps its own edit time, so the list always merges
+            # (an older push still adds what's new in it)
+            merge_set.append(f"{c} = case when '{f}' = any(flds) then public.merge_items({c}, {e}) else {c} end")
         else:
             merge_set.append(f"{c} = case when '{f}' = any(win) then {e} else {c} end")
     merge_set = ",\n            ".join(merge_set)
@@ -296,8 +314,9 @@ $$;"""
 def all_fields_fn():
     cases = "\n".join("    when '%s' then array[%s]" % (k, ", ".join("'%s'" % f for f, _, _ in spec if f not in LATER.get(k, []))) for k, _, spec in TABLES)
     return """-- The fields an older app version's whole-record push covers: every synced
--- field as of 2026-10-04. Fields added since (drawing.pinned) are left out,
--- so a device still on such a version can't reset them.
+-- field as of 2026-10-04. Fields added since (drawing.pinned, a task's
+-- checklist and focus sessions) are left out, so a device still on such a
+-- version can't reset them.
 create or replace function public.all_fields(tbl text)
 returns text[]
 language sql
@@ -344,6 +363,34 @@ $$;
 """ + "\n".join(trig) + """
 
 """ + all_fields_fn() + """
+-- Lists that merge item by item (a task's checklist, its focus sessions).
+-- Every item has an id and `t`, when it was last edited (ms): for each id
+-- the latest edit wins, wherever it came from; a removed item stays as
+-- {id, del: 1, t}, so the removal beats older edits of it. Items keep the
+-- current order; ones new to the list are added at the end. Mirrors
+-- mergeItems() in frontend/src/lib/items.ts.
+create or replace function public.merge_items(cur jsonb, inc jsonb)
+returns jsonb
+language sql
+immutable
+as $$
+  select case when cur is null and inc is null then null
+              else coalesce((select jsonb_agg(x order by ord) from (
+    select case when u is not null
+                 and (case when jsonb_typeof(u->'t') = 'number' then (u->>'t')::numeric else 0 end)
+                  >= (case when jsonb_typeof(e->'t') = 'number' then (e->>'t')::numeric else 0 end)
+                then u else e end as x, ord
+      from jsonb_array_elements(case when jsonb_typeof(cur) = 'array' then cur else '[]'::jsonb end) with ordinality as c(e, ord)
+      left join lateral (select u from jsonb_array_elements(case when jsonb_typeof(inc) = 'array' then inc else '[]'::jsonb end) u
+                          where u->>'id' = e->>'id' limit 1) m on true
+    union all
+    select u, 1000000 + ord
+      from jsonb_array_elements(case when jsonb_typeof(inc) = 'array' then inc else '[]'::jsonb end) with ordinality as n(u, ord)
+     where not exists (select 1 from jsonb_array_elements(case when jsonb_typeof(cur) = 'array' then cur else '[]'::jsonb end) e
+                        where e->>'id' = u->>'id')
+  ) merged), '[]'::jsonb) end;
+$$;
+
 -- Attachment lists merge by id: drop removed ids, replace updated items in
 -- place, append new ones — so files added on two devices are both kept.
 create or replace function public.merge_attachments(cur jsonb, up jsonb, rm text[])

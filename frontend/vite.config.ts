@@ -92,8 +92,9 @@ export default defineConfig({
         // script, which lib/pwaUpdate.ts replaces
         skipWaiting: true,
         clientsClaim: true,
-        // reloads pages from versions that can't update themselves
-        importScripts: ['sw-handoff.js'],
+        // reloads pages from versions that can't update themselves; shows
+        // reminder pushes and handles taps on notifications
+        importScripts: ['sw-handoff.js', 'sw-notify.js'],
         // .zip: the extension download must reach the file, not the app shell
         navigateFallbackDenylist: [/^\/api\//, /^\/oauth_token\.do/, /\.zip$/],
       },

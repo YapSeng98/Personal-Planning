@@ -1,36 +1,18 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { db, uuid, todayStr, writeAndQueue, patchAndQueue, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState, type GoalType } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, patchAndQueue, editTaskList, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState, type GoalType } from '../db/db'
 import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
 import AutoTextarea from './AutoTextarea'
+import Checklist from './Checklist'
 import { useLang } from '../lib/i18n'
 import { hm } from '../lib/timer'
+import { live, spentHours, clearFocus, type CheckItem } from '../lib/items'
+import { parseExtras } from '../lib/tasks'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 
 // One form for BOTH adding and editing a task, so the two can never diverge.
 // task=null → create mode; task=existing → edit mode (adds Delete).
-
-/** Extract a time ("6am") and duration ("2h") from free text — the quick-add
-    convenience. Returns the cleaned title plus any values found. */
-function parseExtras(input: string) {
-  let title = input.trim()
-  let time: string | undefined
-  let hours: number | undefined
-  const t = title.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i)
-  if (t) {
-    let h = parseInt(t[1], 10) % 12
-    if (t[3].toLowerCase() === 'pm') h += 12
-    time = `${String(h).padStart(2, '0')}:${t[2] ?? '00'}`
-    title = title.replace(t[0], '').trim()
-  }
-  const d = title.match(/\b(\d+(?:\.\d+)?)h\b/i)
-  if (d) {
-    hours = parseFloat(d[1])
-    title = title.replace(d[0], '').trim()
-  }
-  return { title, time, hours }
-}
 
 const STATES: TaskState[] = ['open', 'in_progress', 'done', 'cancelled']
 
@@ -60,7 +42,6 @@ function nextMonday(from: string): string {
   return todayStr(d)
 }
 
-
 const GOAL_LEVELS: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
 
 export default function TaskForm({ task, onClose }: { task: Task | null; onClose: () => void }) {
@@ -87,7 +68,10 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [priority, setPriority] = useState(task?.priority ?? 3)
-  const [spent, setSpent] = useState<number | undefined>(task?.actualHours)
+  const spent = task ? spentHours(task) : 0
+  const [resetSpent, setResetSpent] = useState(false)
+  // a new task's steps (an existing task's save as they're edited)
+  const [steps, setSteps] = useState<CheckItem[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -218,7 +202,8 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
         timeBlockStart: start ? `${due}T${start}` : undefined,
         timeBlockEnd: end ? `${due}T${end}` : undefined,
         estimatedHours: hours,
-        actualHours: spent,
+        actualHours: resetSpent ? undefined : task?.actualHours,
+        checklist: task ? task.checklist : (live(steps).length ? steps : undefined),
         completedAt: nextCompletedAt(task?.state ?? 'open', task?.completedAt, state),
         goalId: goalId || undefined,
         projectId: projectId || undefined,
@@ -234,6 +219,8 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       const saved = task
         ? await patchAndQueue(db.tasks, 'task', id, patchFrom(task, record, EDITABLE))
         : (await writeAndQueue(db.tasks, 'task', record), record)
+      // "Reset" the time: its sessions go too, or Stats would still count them
+      if (task && resetSpent) await editTaskList(id, 'focusLog', (log) => clearFocus(log))
       const goalNow = saved?.goalId
       if (task?.goalId && task.goalId !== goalNow) await rollUpGoal(task.goalId)
       if (goalNow) await rollUpGoal(goalNow)
@@ -320,6 +307,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                 />
               </div>
             </div>
+            <Checklist taskId={task?.id} value={steps} onChange={setSteps} />
             <div className="f">
               <label className="fl">{t('task.timeBlock')}</label>
               <div className="time-row">
@@ -415,10 +403,10 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                 aria-label={t('task.notes')}
               />
             </div>
-            {editing && (spent ?? 0) > 0 && (
+            {editing && spent > 0 && !resetSpent && (
               <div className="f spent-row">
                 <span>⏱ {t('task.spent', { time: hm(spent) })}{hours ? ` · ${t('task.ofEstimate', { time: hm(hours) })}` : ''}</span>
-                <button type="button" className="clear-link" onClick={() => setSpent(undefined)}>{t('task.resetSpent')}</button>
+                <button type="button" className="clear-link" onClick={() => setResetSpent(true)}>{t('task.resetSpent')}</button>
               </div>
             )}
           </div>

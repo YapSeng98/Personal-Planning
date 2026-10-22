@@ -1,10 +1,12 @@
-// Focus timer: time a task while you work on it; stopping adds the time to
-// the task's actualHours (a synced field, so every device sees the total).
-// One timer at a time. What's running is kept on this device only
-// (localStorage), so it survives a reload or the app being closed.
+// Focus timer: time a task while you work on it. Stopping adds the time to
+// the task: a session per day in its focusLog (merged item by item across
+// devices — what Stats counts per day) and the running total in
+// actualHours. One timer at a time. What's running is kept on this device
+// only (localStorage), so it survives a reload or the app being closed.
 import { useEffect, useState } from 'react'
 import { db, patchAndQueue } from '../db/db'
 import { syncNow } from '../sync/engine'
+import { sessionEntries, spentHours } from './items'
 
 const KEY = 'planner_timer'
 
@@ -32,15 +34,22 @@ export async function stopTimer(): Promise<void> {
   if (!cur) return
   localStorage.removeItem(KEY)
   emit()
-  const elapsedH = (Date.now() - cur.startedAt) / 3600_000
+  const end = Date.now()
+  const elapsedH = (end - cur.startedAt) / 3600_000
   // under half a minute is a mis-tap, not work
   if (elapsedH < 30 / 3600) return
-  const task = await db.tasks.get(cur.taskId)
-  if (!task || task.deleted) return
-  // the total as stored now, so time already synced in from another device counts
-  const total = Math.round(((task.actualHours ?? 0) + elapsedH) * 1000) / 1000
-  await patchAndQueue(db.tasks, 'task', task.id, { actualHours: total })
+  await addFocus(cur.taskId, cur.startedAt, end)
   syncNow()
+}
+
+/** Record time spent on a task, from `start` to `end`. */
+export async function addFocus(taskId: string, start: number, end: number): Promise<void> {
+  await patchAndQueue(db.tasks, 'task', taskId, (task) => {
+    if (task.deleted) return undefined
+    // the total as stored now, so time synced in from another device counts
+    const total = Math.round((spentHours(task) + (end - start) / 3600_000) * 1000) / 1000
+    return { focusLog: [...(task.focusLog ?? []), ...sessionEntries(start, end)], actualHours: total }
+  })
 }
 
 /** Start timing a task — stopping (and saving) any other timer first. */

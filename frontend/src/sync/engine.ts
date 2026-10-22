@@ -4,7 +4,8 @@
 // signed out, the app keeps working locally and catches up afterwards.
 
 import { db, notifyChange, cleanEmoji, type DrawingNote, type Review, type OutboxEntry, type NoteAttachment } from '../db/db'
-import { SYNC_FIELDS, LATER_FIELDS, applyAttachmentOps, norm, type SyncTable } from './fields'
+import { SYNC_FIELDS, LATER_FIELDS, ITEM_FIELDS, applyAttachmentOps, norm, type SyncTable } from './fields'
+import { mergeItems, type ListItem } from '../lib/items'
 import { isAuthed, accountDevice, syncSession, syncPush, syncPull, NetworkError, localDataOwner, setLocalDataOwner, type PushItem } from './api'
 import { supabase } from './supabase'
 import { syncAiUrl } from '../lib/ai'
@@ -142,6 +143,13 @@ function mergePending(table: SyncTable, local: Record<string, unknown>, remote: 
       } else {
         out.attachments = remoteList
       }
+    } else if (ITEM_FIELDS[table]?.includes(f)) {
+      // merged item by item, as the server will when this device pushes
+      const merged = dirty.has(f)
+        ? mergeItems(remote[f] as ListItem[] | undefined, local[f] as ListItem[] | undefined)
+        : remote[f]
+      if (merged !== undefined) out[f] = merged
+      else delete out[f]
     } else if (!dirty.has(f)) {
       if (f in remote) out[f] = remote[f]
       else delete out[f]

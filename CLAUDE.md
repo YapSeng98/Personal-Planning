@@ -22,6 +22,7 @@ only — it is not live and should not be treated as current architecture.
 | `frontend/` | React + TypeScript PWA (Vite). `src/db/db.ts` (Dexie schema, outbox, `patchAndQueue`), `src/sync/engine.ts` (push/pull orchestration), `src/sync/fields.ts` (which fields sync, change diffing), `src/sync/api.ts`+`supabase.ts` (Supabase client/auth), `src/lib/pwaUpdate.ts`+`public/sw-handoff.js` (how new versions reach devices), `src/styles/tokens.css`+`app.css` (design system), `src/components/Icon.tsx` (icon set). |
 | `supabase/schema.sql` | Full Postgres schema: tables, RLS policies, `sync_push`/`sync_pull`/`recalc_goal` functions. Idempotent — safe to paste and re-run whole. This is the source of truth for the backend; there is no migration tool, just re-running this file in the Supabase SQL Editor. `sync_push`, `sync_pull` and the rev/field_times/txid block are **generated** by `supabase/gen_sync_push.py` (`python3 supabase/gen_sync_push.py apply` rewrites them in place) — edit the generator, not that SQL. |
 | `deploy/publish.sh` | Builds the frontend and publishes it — see Deploy below. |
+| `supabase/functions/push-reminders/` | Edge Function that sends reminder pushes (Web Push, encrypted per device). Called once a minute by the database (`send_due_reminders` in schema.sql, scheduled by `supabase/push_setup.sql`), which also works out what's due; the function has no secrets or database access — the VAPID private key comes from Vault with each request and only the app's own key is accepted. Deployed by hand in the dashboard (JWT verification off). The app's side: `src/lib/reminders.ts` (also reminds by itself while open), `public/sw-notify.js` (push + notification taps). `npm run test:push` checks its crypto. |
 | `extension/` | Optional Chrome extension ("Planner Now Playing") — mirrors what's playing in a YouTube / YouTube Music tab onto the Today hero via `postMessage`; the page reads it in `src/lib/nowPlaying.ts`. Desktop only; without it the hero uses the Settings video link. Load unpacked, see its README. |
 | `servicenow/` | Legacy — the pre-Supabase backend. Not live, kept for history. |
 | `CHANGELOG.md` | Human-readable history of what shipped, newest first. |
@@ -51,6 +52,14 @@ left open. The rule that keeps one device from undoing another's changes:
   account id when the content alone isn't account-specific.
 - Screens that stay open while syncs arrive (Reviews, SketchDetail) merge
   incoming changes into what's on screen and run loads/saves one at a time.
+- Lists that two devices edit item by item — a task's `checklist` (steps)
+  and `focusLog` (timer sessions, per day) — merge per item on the server
+  (`merge_items`, by each item's own edit time `t`; removed items stay as
+  `{id, del: 1, t}`) and the same way on a device (lib/items.ts →
+  `mergeItems`, used by the pull for unsent edits). Change them only with
+  `editTaskList` (db.ts), never by writing a list from a screen's copy, and
+  never drop an item from the list — mark it removed. A new list field:
+  `ITEM_FIELDS` in both fields.ts and gen_sync_push.py.
 - Adding a synced field: `SYNC_FIELDS` + `LATER_FIELDS` in src/sync/fields.ts,
   `TABLES` + `LATER` in supabase/gen_sync_push.py, and its column in
   schema.sql (`add column if not exists`) → `apply` → `npm run test:sql`.

@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:sql": "node scripts/sql-test.mjs"
+    "test:sql": "node scripts/sql-test.mjs",
+    "test:push": "node scripts/push-test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

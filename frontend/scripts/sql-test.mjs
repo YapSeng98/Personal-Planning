@@ -223,5 +223,125 @@ for (const t of Object.keys(SYNC_FIELDS)) oldApp[t] = (await db.query(`select pu
 check("…and the fields old app versions can't touch (all_fields) are exactly the app's LATER_FIELDS",
   Object.keys(SYNC_FIELDS).every((t) => JSON.stringify(SYNC_FIELDS[t].filter((f) => !oldApp[t].includes(f))) === JSON.stringify(LATER_FIELDS[t] ?? [])))
 
+{
+console.log('\n— a task\'s steps and focus sessions (merged item by item)')
+const tid = uuid()
+const TF = ['title', 'state', 'priority', 'due', 'deleted']
+const taskP = (o = {}) => ({ title: 'Prepare slides', notes: '', state: 'open', priority: 3, due: '2026-10-22', timeBlockStart: '', timeBlockEnd: '', estimatedHours: '', actualHours: '', goalId: '', projectId: '', isMit: '', sortOrder: '', reminderDaysBefore: '', recurrence: '', seriesId: '', checklist: '', focusLog: '', deleted: '', ...o })
+const task = async () => row('tasks', tid)
+const step = (id, text, t, o = {}) => ({ id, text, t, ...o })
+await push([{ table: 'task', client_uuid: tid, payload: taskP({ checklist: [step('a', 'Numbers', 1000), step('b', 'Draft', 1000)] }), edited_at: 1000, base_rev: null, fields: [...TF, 'checklist'], field_times: {}, att_up: [], att_rm: [] }])
+check('a new task keeps its steps', (await task()).checklist.length === 2)
+// laptop ticks step a; phone (same base) ticks step b and adds c — both offline, then sync
+r = await push([{ table: 'task', client_uuid: tid, payload: taskP({ checklist: [step('a', 'Numbers', 2000, { done: 1 }), step('b', 'Draft', 1000)] }), edited_at: 2000, base_rev: 1, fields: ['checklist'], field_times: { checklist: 2000 }, att_up: [], att_rm: [] }])
+const phone = await push([{ table: 'task', client_uuid: tid, payload: taskP({ checklist: [step('a', 'Numbers', 1000), step('b', 'Draft', 1500, { done: 1 }), step('c', 'Review', 1500)] }), edited_at: 1500, base_rev: 1, fields: ['checklist'], field_times: { checklist: 1500 }, att_up: [], att_rm: [] }])
+let tk = await task()
+const byId = Object.fromEntries(tk.checklist.map((x) => [x.id, x]))
+check('two devices ticking different steps: both kept (even the older push), and the new step', byId.a.done === 1 && byId.b.done === 1 && byId.c?.text === 'Review' && tk.checklist.length === 3, JSON.stringify(tk.checklist))
+check('…order kept, new steps at the end', tk.checklist.map((x) => x.id).join('') === 'abc')
+check('…and the device whose copy was out of date is told to pull', phone[0].foreign === true)
+// the same step: the later edit wins, whatever order they arrive in
+await push([{ table: 'task', client_uuid: tid, payload: taskP({ checklist: [step('c', 'Review with Ana', 4000)] }), edited_at: 4000, base_rev: null, fields: ['checklist'], field_times: { checklist: 4000 }, att_up: [], att_rm: [] }])
+await push([{ table: 'task', client_uuid: tid, payload: taskP({ checklist: [step('c', 'Review (old)', 3000)] }), edited_at: 3000, base_rev: null, fields: ['checklist'], field_times: { checklist: 3000 }, att_up: [], att_rm: [] }])
+tk = await task()
+check('the same step renamed on two devices: the later edit wins', tk.checklist.find((x) => x.id === 'c').text === 'Review with Ana')
+// removing a step beats an older edit of it from elsewhere
+await push([{ table: 'task', client_uuid: tid, payload: taskP({ checklist: [{ id: 'b', text: '', del: 1, t: 5000 }] }), edited_at: 5000, base_rev: null, fields: ['checklist'], field_times: { checklist: 5000 }, att_up: [], att_rm: [] }])
+await push([{ table: 'task', client_uuid: tid, payload: taskP({ checklist: [step('b', 'Draft v2', 4500)] }), edited_at: 4500, base_rev: null, fields: ['checklist'], field_times: { checklist: 4500 }, att_up: [], att_rm: [] }])
+tk = await task()
+check('a removed step stays removed (an older edit arriving later doesn\'t bring it back)', tk.checklist.find((x) => x.id === 'b').del === 1)
+// focus sessions: two devices timing the same task both count
+await push([{ table: 'task', client_uuid: tid, payload: taskP({ focusLog: [{ id: 's1', d: '2026-10-22', m: 25, t: 6000 }], actualHours: 0.417 }), edited_at: 6000, base_rev: null, fields: ['focusLog', 'actualHours'], field_times: {}, att_up: [], att_rm: [] }])
+await push([{ table: 'task', client_uuid: tid, payload: taskP({ focusLog: [{ id: 's2', d: '2026-10-22', m: 10, t: 5900 }], actualHours: 0.167 }), edited_at: 5900, base_rev: null, fields: ['focusLog', 'actualHours'], field_times: {}, att_up: [], att_rm: [] }])
+tk = await task()
+check('focus sessions from two devices are both kept (the total alone would lose one)', tk.focus_log.length === 2 && tk.focus_log.reduce((n, x) => n + x.m, 0) === 35, JSON.stringify(tk.focus_log))
+// an old app version saving the whole task
+await push([{ table: 'task', client_uuid: tid, payload: { title: 'Renamed by an old app', notes: '', state: 'open', priority: 3, due: '2026-10-22', deleted: '' }, edited_at: 7000 }])
+tk = await task()
+check("an old app version saving the whole task keeps the steps and sessions", tk.title === 'Renamed by an old app' && tk.checklist.length === 3 && tk.focus_log.length === 2)
+const tpull = (await pull()).find((x) => x.client_uuid === tid)
+check('a pull carries both lists', tpull.data.checklist.length === 3 && tpull.data.focusLog.length === 2)
+check('merge_items: nothing and nothing stays nothing', (await db.query(`select public.merge_items(null, null) as m`)).rows[0].m === null)
+const { mergeItems } = await import('../src/lib/items.ts')
+const cases = [
+  [[step('a', 'x', 1), step('b', 'y', 5)], [step('b', 'y2', 4), step('c', 'z', 2), step('a', 'x2', 1)]],
+  [null, [step('a', 'x', 1)]],
+  [[step('a', 'x', 3, { del: 1 })], [step('a', 'x', 2), step('a', 'dup', 9)]],
+]
+let same = true
+for (const [a, b] of cases) {
+  const sql = (await db.query(`select public.merge_items($1::jsonb, $2::jsonb) as m`, [JSON.stringify(a), JSON.stringify(b)])).rows[0].m
+  // (jsonb keeps keys in its own order)
+  const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort()) : x))
+  same &&= canon(sql) === canon(mergeItems(a ?? undefined, b))
+}
+check('the app merges a list exactly like the server (lib/items.ts = merge_items)', same)
+
+console.log('\n— reminders (push)')
+await db.exec(`
+  create schema if not exists vault; create table if not exists vault.secrets (id uuid primary key default gen_random_uuid(), name text, secret text);
+  create or replace view vault.decrypted_secrets as select id, name, secret as decrypted_secret from vault.secrets;
+  create schema if not exists net; create table if not exists net.calls (url text, body jsonb);
+  create table if not exists net._http_response (id bigint, status_code int, content text, created timestamptz default now());
+  create or replace function net.http_post(url text, body jsonb, params jsonb default '{}', headers jsonb default '{}', timeout_milliseconds int default 5000)
+    returns bigint language sql as $$ insert into net.calls values (url, body); select 1::bigint $$;
+`)
+const saveSub = (o = {}) => db.query(`select public.save_push_subscription($1::jsonb)`, [JSON.stringify({ endpoint: 'https://fcm.googleapis.com/fcm/send/dev1', p256dh: 'BPk', auth: 'au', tz: 'Asia/Kuala_Lumpur', lang: 'en', lead: 10, ...o })])
+await as(U1)
+await saveSub()
+check('a device registers for reminders', (await db.query(`select * from public.push_subscriptions`)).rows.length === 1)
+await saveSub({ endpoint: 'https://fcm.googleapis.com/fcm/send/dev2', tz: 'Not/AZone' })
+check('a time zone the database doesn\'t know is stored as UTC (it would break every reminder)', (await db.query(`select tz from public.push_subscriptions where endpoint like '%dev2'`)).rows[0].tz === 'UTC')
+await db.query(`select public.delete_push_subscription('https://fcm.googleapis.com/fcm/send/dev2')`)
+let badRefused = false
+try { await saveSub({ endpoint: 'http://evil/x' }) } catch { badRefused = true }
+check('only real push addresses are accepted', badRefused)
+await as(U2)
+const visible = async () => { await db.exec('set role authenticated'); try { return (await db.query(`select * from public.push_subscriptions`)).rows.length } finally { await db.exec('reset role') } }
+check("another account can't see this account's devices", (await visible()) === 0)
+await as(U1)
+check('…while the account itself can', (await visible()) === 1)
+await as(U2)
+await as(U1)
+const st = (await db.query(`select public.push_status() as s`)).rows[0].s
+check('push_status: the setup not done yet (no key, no timer)', st.key === false && st.timer === false)
+// tasks: blocks in Kuala Lumpur (UTC+8). Due at 09:00 local with a 10-minute lead → 08:50 local = 00:50 UTC
+const blk = (title, due, start, end, o = {}) => ({ table: 'task', client_uuid: uuid(), payload: taskP({ title, due, timeBlockStart: start ? `${due}T${start}` : '', timeBlockEnd: end ? `${due}T${end}` : '', ...o }), edited_at: 8000, base_rev: null, fields: [...TF, 'timeBlockStart', 'timeBlockEnd', ...Object.keys(o)], field_times: {}, att_up: [], att_rm: [] })
+const sid = uuid()
+await push([
+  blk('Prepare slides', '2026-10-23', '09:00', '10:00'),
+  blk('Already done', '2026-10-23', '09:00', '', { state: 'done' }),
+  blk('No time', '2026-10-23', '', ''),
+  { ...blk('Gym', '2026-10-21', '09:00', '10:00', { recurrence: 'daily', seriesId: sid }), client_uuid: sid },
+])
+const due = async (at) => (await db.query(`select * from public.due_reminders($1::timestamptz)`, [at])).rows
+let d1 = await due('2026-10-23T00:50:00Z')
+const titles = d1.map((x) => x.title).sort()
+check('at 08:50 in KL (10 min early): the open block and the repeat not created yet — not the done one or one without a time', JSON.stringify(titles) === JSON.stringify(['Gym', 'Prepare slides']), JSON.stringify(titles))
+const ps = d1.find((x) => x.title === 'Prepare slides')
+check('…in the device\'s language, with the time', ps.body === '09:00–10:00 · Starts in 10 min', ps.body)
+check('…tagged like the app tags it', ps.tag.endsWith(':2026-10-23T09:00') && d1.find((x) => x.title === 'Gym').tag === `block:${sid}:2026-10-23T09:00`)
+check('not before it\'s due (08:49)', (await due('2026-10-23T00:49:00Z')).length === 0)
+check('still sent a few minutes late (08:58), not after 10 minutes', (await due('2026-10-23T00:58:00Z')).length === 2 && (await due('2026-10-23T01:01:00Z')).length === 0)
+await saveSub({ lang: 'zh', lead: 0 })
+d1 = await due('2026-10-23T01:00:00Z')
+check('lead and language follow the device\'s latest setting', d1.find((x) => x.title === 'Prepare slides')?.body === '09:00–10:00 · 现在开始')
+check('the database\'s own timer only: signed-in users can\'t read everyone\'s reminders', await (async () => { await db.exec('set role authenticated'); try { return await refused(() => db.query(`select * from public.due_reminders()`)) } finally { await db.exec('reset role') } })())
+// send_due_reminders: nothing without the key; with it, a block due now goes out once
+const nowLocal = (await db.query(`select to_char(now() at time zone 'Asia/Kuala_Lumpur', 'YYYY-MM-DD') as d, to_char(now() at time zone 'Asia/Kuala_Lumpur', 'HH24:MI') as t`)).rows[0]
+await push([blk('Right now', nowLocal.d, nowLocal.t, '')])
+await db.exec(`reset role`)
+check('without the push key nothing is sent', (await db.query(`select public.send_due_reminders() as n`)).rows[0].n === 0)
+await db.exec(`insert into vault.secrets (name, secret) values ('planner_vapid', '{"kty":"EC","d":"x"}')`)
+const n1 = (await db.query(`select public.send_due_reminders() as n`)).rows[0].n
+const call = (await db.query(`select * from net.calls`)).rows.at(-1)
+check('with it, the block due now goes to the push-reminders function', n1 === 1 && call?.url.endsWith('/functions/v1/push-reminders') && call.body.messages[0].payload.title === 'Right now' && call.body.vapid.d === 'x', JSON.stringify(call?.body?.messages?.map((m) => m.payload.title)))
+check('…once (the next minute sends nothing again)', (await db.query(`select public.send_due_reminders() as n`)).rows[0].n === 0)
+await db.exec(`insert into net._http_response (id, status_code, content) values (1, 200, '{"planner":1,"sent":0,"gone":["https://fcm.googleapis.com/fcm/send/dev1"],"failed":[]}')`)
+await db.query(`select public.send_due_reminders()`)
+check('a device the push service reports gone is forgotten', (await db.query(`select * from public.push_subscriptions`)).rows.length === 0)
+await as(U1)
+}
+
 console.log(`\n${results.filter(Boolean).length}/${results.length} SQL checks passed`)
 if (results.some((ok) => !ok)) process.exitCode = 1

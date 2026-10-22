@@ -18,6 +18,7 @@ import { seedIfEmpty } from './db/seed'
 import { compactImages } from './lib/compact'
 import { startRecurringLoop } from './db/db'
 import { LangProvider } from './lib/i18n'
+import { startReminderLoop } from './lib/reminders'
 
 function Guard({ children }: { children: React.ReactNode }) {
   if (isAuthed()) return <>{children}</>
@@ -40,6 +41,7 @@ export default function App() {
     if (localStorage.getItem('offline_mode') === '1') seedIfEmpty()
     startRecurringLoop()
     startSyncLoop()
+    startReminderLoop()
     // Shrink oversized old images so they stop blocking the sync; push the
     // smaller copies right away if anything changed.
     compactImages().then((n) => { if (n) syncNow() }).catch(() => {})

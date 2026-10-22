@@ -1,4 +1,5 @@
-import { db, todayStr, habitStreak } from '../db/db'
+import { db, todayStr, habitStreak, type ProjectColor } from '../db/db'
+import { minutesByDay, spentHours } from './items'
 
 export interface DayStat {
   date: string
@@ -14,6 +15,38 @@ export interface HabitStat {
   days: number // days logged in window
   streak: number
 }
+export interface FocusDay {
+  date: string
+  label: string
+  minutes: number
+}
+export interface FocusProject {
+  /** '' = tasks without a project */
+  id: string
+  title: string
+  color?: ProjectColor
+  minutes: number
+}
+export interface EstimateStats {
+  /** finished tasks with an estimate and timed work, last 30 days */
+  n: number
+  /** time spent ÷ time estimated, over all of them */
+  ratio: number
+  /** within ±25% of the estimate */
+  onTarget: number
+  /** the biggest overruns */
+  over: { id: string; title: string; est: number; spent: number }[]
+}
+export interface FocusStats {
+  daily: FocusDay[] // last 14 days
+  todayMin: number
+  weekMin: number // Mon–Sun
+  /** average over the days with any focus time in the last 14 */
+  avgMin: number
+  byProject: FocusProject[] // last 30 days
+  estimates: EstimateStats
+}
+
 export interface Analytics {
   weekPct: number
   weekDone: number
@@ -25,6 +58,7 @@ export interface Analytics {
   daily: DayStat[] // last 14 days
   habits: HabitStat[]
   moods: { date: string; mood: string; energy: number }[] // recent reviews
+  focus: FocusStats
 }
 
 const MOOD_EMOJI: Record<string, string> = { great: '😊', good: '🙂', okay: '😐', bad: '☹️' }
@@ -99,7 +133,51 @@ export async function computeAnalytics(days = 14, habitWindow = 30): Promise<Ana
     .reverse()
     .map((r) => ({ date: r.periodStart, mood: r.mood ? MOOD_EMOJI[r.mood] : '·', energy: r.energy ?? 0 }))
 
+  // Focus time (the timer): per day, per project, and estimates vs actual
+  const dayMin = new Map<string, number>()
+  const projMin = new Map<string, number>()
+  const monthStart = todayStr(new Date(Date.now() - 29 * 86400_000))
+  for (const t of tasks) {
+    if (!t.actualHours && !t.focusLog?.length) continue
+    for (const [d, m] of minutesByDay(t)) {
+      dayMin.set(d, (dayMin.get(d) ?? 0) + m)
+      if (d >= monthStart) projMin.set(t.projectId ?? '', (projMin.get(t.projectId ?? '') ?? 0) + m)
+    }
+  }
+  const focusDaily: FocusDay[] = daily.map((x) => ({ date: x.date, label: x.label, minutes: Math.round(dayMin.get(x.date) ?? 0) }))
+  let weekMin = 0
+  for (let i = 0; i < 7; i++) weekMin += dayMin.get(todayStr(new Date(mon.getTime() + i * 86400_000))) ?? 0
+  const active = focusDaily.filter((x) => x.minutes > 0)
+  const projects = new Map((await db.projects.toArray()).map((p) => [p.id, p]))
+  const byProject: FocusProject[] = [...projMin]
+    .filter(([, m]) => m >= 1)
+    .map(([id, minutes]) => ({ id, title: projects.get(id)?.title ?? '', color: projects.get(id)?.color, minutes: Math.round(minutes) }))
+    .sort((a, b) => b.minutes - a.minutes)
+  const finished = tasks.filter((t) => t.state === 'done' && (t.estimatedHours ?? 0) > 0 && spentHours(t) > 0
+    && (t.completedAt ? todayStr(new Date(t.completedAt)) : t.due ?? '') >= monthStart)
+  const est = finished.reduce((n, t) => n + t.estimatedHours!, 0)
+  const spent = finished.reduce((n, t) => n + spentHours(t), 0)
+  const estimates: EstimateStats = {
+    n: finished.length,
+    ratio: est ? spent / est : 0,
+    onTarget: finished.filter((t) => Math.abs(spentHours(t) / t.estimatedHours! - 1) <= 0.25).length,
+    over: finished
+      .filter((t) => spentHours(t) > t.estimatedHours! * 1.25)
+      .sort((a, b) => (spentHours(b) - b.estimatedHours!) - (spentHours(a) - a.estimatedHours!))
+      .slice(0, 3)
+      .map((t) => ({ id: t.id, title: t.title, est: t.estimatedHours!, spent: spentHours(t) })),
+  }
+  const focus: FocusStats = {
+    daily: focusDaily,
+    todayMin: Math.round(dayMin.get(todayStr()) ?? 0),
+    weekMin: Math.round(weekMin),
+    avgMin: active.length ? Math.round(active.reduce((n, x) => n + x.minutes, 0) / active.length) : 0,
+    byProject,
+    estimates,
+  }
+
   return {
+    focus,
     weekPct: weekTotal ? Math.round((weekDone / weekTotal) * 100) : 0,
     weekDone,
     weekTotal,
