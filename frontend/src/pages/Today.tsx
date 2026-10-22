@@ -15,7 +15,9 @@ import { projectColorVar } from '../lib/projectColors'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
 import HabitEdit from '../components/HabitEdit'
+import Icon from '../components/Icon'
 import { useLang, type TFn } from '../lib/i18n'
+import { startTimer, stopTimer, useRunningTimer, useElapsed, clock, hm } from '../lib/timer'
 
 interface HabitView extends Habit {
   doneToday: number
@@ -40,22 +42,42 @@ function byDoneThenOrder(a: Task, b: Task): number {
   return byOrder(a, b)
 }
 
+/** YYYY-MM-DD `n` days after `ymd` (negative = before), in local time. */
+function addDays(ymd: string, n: number): string {
+  const d = new Date(ymd + 'T00:00')
+  d.setDate(d.getDate() + n)
+  return todayStr(d)
+}
+
+/** Open tasks from the last two weeks show on Today until they're done or
+    moved — left behind on their old date, they used to vanish from view.
+    Older ones count as dropped (still on their day in Plan / Board): years
+    of never-ticked tasks mustn't bury today. Repeating tasks are left out:
+    their next occurrence is already on its own day. */
+const OVERDUE_DAYS = 14
+const isOverdue = (x: Task) =>
+  !x.deleted && (x.state === 'open' || x.state === 'in_progress') && !x.recurrence && !x.seriesId
+
 /** Rule-based briefing (parameterized so it translates). */
-function briefingText(tasks: Task[], t: TFn): string {
+function briefingText(tasks: Task[], overdue: number, t: TFn): string {
   const open = tasks.filter((x) => x.state !== 'done' && x.state !== 'cancelled')
   const done = tasks.filter((x) => x.state === 'done')
-  if (tasks.length === 0) return t('brief.cleanSlate')
-  if (open.length === 0) return t('brief.allDone', { n: done.length })
+  const left = overdue ? ' ' + t('brief.overdue', { n: overdue }) : ''
+  if (tasks.length === 0) return overdue ? t('brief.onlyOverdue', { n: overdue }) : t('brief.cleanSlate')
+  if (open.length === 0) return t('brief.allDone', { n: done.length }) + left
   const mit = open.find((x) => x.isMit)
+  // the next block that hasn't ended yet (one moved over from an earlier day
+  // may keep a time that's already gone)
+  const nowHM = new Date().toTimeString().slice(0, 5)
   const next = open
-    .filter((x) => x.timeBlockStart)
+    .filter((x) => x.timeBlockStart && (x.timeBlockEnd ?? x.timeBlockStart).slice(11, 16) > nowHM)
     .sort((a, b) => a.timeBlockStart!.localeCompare(b.timeBlockStart!))[0]
   const parts: string[] = []
   if (done.length > 0) parts.push(t('brief.momentum', { done: done.length, left: open.length }))
   else parts.push(t('brief.planned', { n: open.length }))
   if (mit) parts.push(t('brief.mit', { title: mit.title }))
   if (next?.timeBlockStart) parts.push(t('brief.next', { time: next.timeBlockStart.slice(11, 16) }))
-  return parts.join(' ')
+  return parts.join(' ') + left
 }
 
 /** Priority → accent colour on a task card (1–2 urgent, 3 mid, 4–5 easy). */
@@ -88,26 +110,53 @@ interface Reminder {
   daysUntilDue: number
 }
 
-function TodayCard({ task, proj, onToggle, onEdit, t }: {
-  task: Task; proj?: Project; onToggle: () => void; onEdit: () => void; t: TFn
+/** Start / stop timing this task. Running, it shows the live clock (its own
+    component, so the once-a-second tick re-renders only the button). */
+function TimerButton({ task, since, t }: { task: Task; since?: number; t: TFn }) {
+  const sec = useElapsed(since)
+  const running = since !== undefined
+  return (
+    <button
+      type="button"
+      className={`ttimer ${running ? 'on' : ''}`}
+      onClick={() => (running ? stopTimer() : startTimer(task))}
+      aria-pressed={running}
+      aria-label={running ? t('timer.stopFor', { title: task.title }) : t('timer.startFor', { title: task.title })}
+      title={running ? t('timer.stop') : t('timer.start')}
+    >
+      <Icon name={running ? 'stop' : 'play'} size={13} strokeWidth={2.2} />
+      {running && <span className="num">{clock(sec)}</span>}
+    </button>
+  )
+}
+
+function TodayCard({ task, proj, timingSince, onToggle, onEdit, t }: {
+  task: Task; proj?: Project; timingSince?: number; onToggle: () => void; onEdit: () => void; t: TFn
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const done = task.state === 'done'
+  const spent = task.actualHours ?? 0
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className="tcard"
+      className={`tcard ${timingSince !== undefined ? 'timing' : ''}`}
     >
       <span className="acc" style={{ background: done ? 'var(--ok)' : accentFor(task.priority) }} />
       <button className="drag-grip" aria-label="Drag to reorder" {...listeners} {...attributes}>⠿</button>
       <button className={`check ${done ? 'on' : ''}`} onClick={onToggle} aria-label={task.title}>✓</button>
       <button className="tbody" onClick={onEdit} title={task.title}>
         <div className={`ttitle ${done ? 'done' : ''}`}>{task.title}</div>
-        {(Boolean(task.isMit) || task.recurrence || proj) && (
+        {(Boolean(task.isMit) || task.recurrence || proj || task.notes || spent > 0 || task.estimatedHours) && (
           <div className="tmeta">
             {Boolean(task.isMit) && <span className="tstar">⭐</span>}
             {task.recurrence && <span className="trecur" title={t('task.repeat')}>🔁</span>}
+            {task.notes && <span className="tnote" title={t('task.notes')}>📝</span>}
+            {(spent > 0 || !!task.estimatedHours) && (
+              <span className={`tspent num ${task.estimatedHours && spent > task.estimatedHours ? 'over' : ''}`} title={t('timer.spentTitle')}>
+                ⏱ {spent > 0 ? hm(spent) : '0m'}{task.estimatedHours ? ` / ${hm(task.estimatedHours)}` : ''}
+              </span>
+            )}
             {proj && (
               <span className="tchip" style={{ background: 'var(--accent-wash)', color: 'var(--text-2)' }}>
                 <span className="cd" style={{ background: projectColorVar(proj.color) }} />
@@ -117,6 +166,7 @@ function TodayCard({ task, proj, onToggle, onEdit, t }: {
           </div>
         )}
       </button>
+      {!done && <TimerButton task={task} since={timingSince} t={t} />}
       <span className={`ttime ${task.timeBlockStart ? '' : 'faint'}`}>
         {task.timeBlockStart
           ? `${task.timeBlockStart.slice(11, 16)}${task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}`
@@ -246,6 +296,9 @@ function QuickLaunch({ t }: { t: TFn }) {
 
 export default function Today() {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [overdue, setOverdue] = useState<Task[]>([])
+  const [showAllOverdue, setShowAllOverdue] = useState(false)
+  const timer = useRunningTimer()
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [habits, setHabits] = useState<HabitView[]>([])
   const [projects, setProjects] = useState<Record<string, Project>>({})
@@ -269,13 +322,19 @@ export default function Today() {
   const load = useCallback(async () => {
     const rows = (await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()).sort(byDoneThenOrder)
     setTasks(rows)
+    // most recently missed first
+    const late = await db.tasks.where('due').between(addDays(today, -OVERDUE_DAYS), today, true, false).and(isOverdue).toArray()
+    setOverdue(late.sort((a, b) => b.due!.localeCompare(a.due!) || byOrder(a, b)))
 
     // Reminders: any open task whose reminderDaysBefore matches exactly how
     // many days away its due date is — this is why it can surface tasks due
     // a few days out, which wouldn't otherwise show up anywhere on Today.
+    // Reminders go at most 3 days ahead (TaskForm), so only that range of
+    // due dates is read, not every task ever made.
     const todayMs = new Date(today + 'T00:00').getTime()
     const withReminder = await db.tasks
-      .filter((x) => !x.deleted && x.state !== 'done' && x.state !== 'cancelled' && x.reminderDaysBefore != null && !!x.due)
+      .where('due').between(today, addDays(today, 3), true, true)
+      .and((x) => !x.deleted && x.state !== 'done' && x.state !== 'cancelled' && x.reminderDaysBefore != null)
       .toArray()
     const active: Reminder[] = withReminder
       .map((task) => ({ task, daysUntilDue: Math.round((new Date(task.due! + 'T00:00').getTime() - todayMs) / 86400_000) }))
@@ -303,14 +362,12 @@ export default function Today() {
     }
     setHabits(views)
 
-    // momentum: last 7 days of completed tasks + best active streak
-    const series: number[] = []
-    for (let d = 6; d >= 0; d--) {
-      const date = todayStr(new Date(Date.now() - d * 86400_000))
-      series.push(
-        await db.tasks.where('due').equals(date).and((x) => x.state === 'done' && !x.deleted).count(),
-      )
+    // momentum: last 7 days of completed tasks (one read for the week) + best active streak
+    const doneByDate = new Map<string, number>()
+    for (const x of await db.tasks.where('due').between(weekDates[0], today, true, true).and((x) => x.state === 'done' && !x.deleted).toArray()) {
+      doneByDate.set(x.due!, (doneByDate.get(x.due!) ?? 0) + 1)
     }
+    const series = weekDates.map((d) => doneByDate.get(d) ?? 0)
     // Reuse the per-habit streaks already computed into `views` above instead
     // of recomputing habitStreak() a second time per habit.
     let best = 0
@@ -351,8 +408,9 @@ export default function Today() {
         .map((x) => `- ${x.title}${x.timeBlockStart ? ` @ ${x.timeBlockStart.slice(11, 16)}` : ''}${x.isMit ? ' [most important]' : ''} (${x.state})`)
         .join('\n')
       const hs = await db.habits.where('active').equals(1).and((x) => !x.deleted).toArray()
+      const late = await db.tasks.where('due').between(addDays(today, -OVERDUE_DAYS), today, true, false).and(isOverdue).toArray()
       const dateLabel = new Date().toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-      const prompt = `Today is ${dateLabel}.\nMy tasks:\n${list || '(nothing planned yet)'}\nProgress: ${done.length} done, ${open.length} to go.${mit ? `\nMy most important task: "${mit.title}".` : ''}\nHabits I track: ${hs.map((h) => h.name).join(', ') || '(none)'}.\nWrite my briefing for today.`
+      const prompt = `Today is ${dateLabel}.\nMy tasks:\n${list || '(nothing planned yet)'}\nProgress: ${done.length} done, ${open.length} to go.${mit ? `\nMy most important task: "${mit.title}".` : ''}${late.length ? `\nLeft over from earlier days (overdue): ${late.slice(0, 8).map((x) => `"${x.title}"`).join(', ')}${late.length > 8 ? ` and ${late.length - 8} more` : ''}.` : ''}\nHabits I track: ${hs.map((h) => h.name).join(', ') || '(none)'}.\nWrite my briefing for today.`
       const system = lang === 'zh'
         ? '你是用户简洁、温暖的每日规划教练。用2-3个短句：肯定进展，指出当下最重要的事，并给一个可执行的小建议。不要列表、不要标题、最多一个表情。直接用“你”称呼。不要输出任何思考过程或前言，直接给出最终的简报文字。用中文回复。'
         : "You are the user's concise, warm daily planning coach. In 2-3 short sentences: acknowledge progress, point at what matters most right now, and give one practical nudge. No lists, no headings, at most one emoji. Speak directly to 'you'. Do not include any reasoning or preamble — output only the final briefing text."
@@ -376,8 +434,23 @@ export default function Today() {
 
   async function toggleTask(t: Task) {
     const state: TaskState = t.state === 'done' ? 'open' : 'done'
+    // finishing the task you're timing stops the clock (and saves the time)
+    if (state === 'done' && timer?.taskId === t.id) await stopTimer()
     const saved = await patchAndQueue(db.tasks, 'task', t.id, { state, completedAt: nextCompletedAt(t.state, t.completedAt, state) })
     if (saved?.goalId) await rollUpGoal(saved.goalId)
+    syncNow()
+  }
+
+  /** Bring a task from an earlier day onto today (keeping its time of day),
+      after today's list. */
+  async function moveToToday(list: Task[]) {
+    let order = Math.max(-1, ...tasks.map((x) => x.sortOrder ?? 0))
+    for (const task of list) {
+      const patch: Partial<Task> = { due: today, sortOrder: ++order }
+      if (task.timeBlockStart) patch.timeBlockStart = today + task.timeBlockStart.slice(10)
+      if (task.timeBlockEnd) patch.timeBlockEnd = today + task.timeBlockEnd.slice(10)
+      await patchAndQueue(db.tasks, 'task', task.id, patch)
+    }
     syncNow()
   }
 
@@ -419,6 +492,13 @@ export default function Today() {
   const [hello, emoji] = greeting(t)
   const name = currentUser()
   const doneCount = tasks.filter((x) => x.state === 'done').length
+  const focused = tasks.reduce((n, x) => n + (x.actualHours ?? 0), 0)
+  const ago = (due: string) => {
+    const n = Math.round((new Date(today + 'T00:00').getTime() - new Date(due + 'T00:00').getTime()) / 86400_000)
+    return n === 1 ? t('today.yesterday') : t('today.daysAgo', { n })
+  }
+  const OVERDUE_SHOWN = 5
+  const overdueShown = showAllOverdue ? overdue : overdue.slice(0, OVERDUE_SHOWN)
   const pct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0
   const spark = areaPath(mom.series)
 
@@ -452,7 +532,7 @@ export default function Today() {
               </button>
             )}
           </div>
-          <div className="bt"><Typewriter text={aiBrief ?? briefingText(tasks, t)} /></div>
+          <div className="bt"><Typewriter text={aiBrief ?? briefingText(tasks, overdue.length, t)} /></div>
         </div>
         {tasks.length > 0 && (
           <div className="hero-ring" style={{ ['--p' as string]: pct }} aria-label={`${pct}% of today done`}>
@@ -565,7 +645,40 @@ export default function Today() {
     </div>
 
     <div className="ga-tasks">
-      <div className="section-h">{t('today.tasks')}</div>
+      <div className="section-h">
+        {t('today.tasks')}
+        {(tasks.length > 0 || focused > 0) && (
+          <span className="sec-sum num">
+            {t('today.doneOf', { done: doneCount, n: tasks.length })}
+            {focused > 0 && <> · ⏱ {t('today.focused', { time: hm(focused) })}</>}
+          </span>
+        )}
+      </div>
+      {overdue.length > 0 && (
+        <div className="card overdue-card" role="region" aria-label={t('today.overdue')}>
+          <div className="overdue-h">
+            <span className="overdue-lbl">{t('today.overdue')} <b className="num">{overdue.length}</b></span>
+            <button type="button" className="btn overdue-all" onClick={() => moveToToday(overdue)}>
+              {t(overdue.length === 1 ? 'today.moveOneToday' : 'today.moveAllToday', { n: overdue.length })}
+            </button>
+          </div>
+          {overdueShown.map((task) => (
+            <div key={task.id} className="overdue-row">
+              <button className="check" onClick={() => toggleTask(task)} aria-label={t('today.markDone', { title: task.title })}>✓</button>
+              <button type="button" className="overdue-title" onClick={() => setEditing(task)} title={task.title}>{task.title}</button>
+              <span className="overdue-age">{ago(task.due!)}</span>
+              <button type="button" className="overdue-move" onClick={() => moveToToday([task])} aria-label={t('today.moveTodayFor', { title: task.title })}>
+                {t('today.moveToday')}
+              </button>
+            </div>
+          ))}
+          {overdue.length > OVERDUE_SHOWN && (
+            <button type="button" className="clear-link overdue-more" onClick={() => setShowAllOverdue((v) => !v)}>
+              {showAllOverdue ? t('today.showLess') : t('today.showMore', { n: overdue.length - OVERDUE_SHOWN })}
+            </button>
+          )}
+        </div>
+      )}
       {tasks.length === 0 ? (
         <div className="card empty-cta">
           <p>{t('today.emptyTasks')}</p>
@@ -582,6 +695,7 @@ export default function Today() {
                   key={task.id}
                   task={task}
                   proj={task.projectId ? projects[task.projectId] : undefined}
+                  timingSince={timer?.taskId === task.id ? timer.startedAt : undefined}
                   onToggle={() => toggleTask(task)}
                   onEdit={() => setEditing(task)}
                   t={t}

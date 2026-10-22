@@ -6,6 +6,7 @@ export type IconName =
   | 'today' | 'plan' | 'board' | 'goals' | 'reviews' | 'sketches' | 'stats'
   | 'settings' | 'search' | 'close' | 'trash' | 'folder' | 'pencil'
   | 'chevronLeft' | 'chevronRight' | 'plus' | 'check' | 'sparkle' | 'image' | 'move' | 'pin'
+  | 'play' | 'stop' | 'timer'
 
 const PATHS: Record<IconName, React.ReactNode> = {
   image: (
@@ -16,6 +17,14 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   move: <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />,
+  play: <path d="M8 5.5v13l10.5-6.5z" />,
+  stop: <rect x="6.5" y="6.5" width="11" height="11" rx="2" />,
+  timer: (
+    <>
+      <circle cx="12" cy="13.5" r="7.5" />
+      <path d="M12 9.5v4l2.6 1.8M9.5 2.5h5M12 2.5V6" />
+    </>
+  ),
   // a push pin, tilted as if stuck in (the head is one closed shape, so a
   // pinned state can simply fill it)
   pin: (

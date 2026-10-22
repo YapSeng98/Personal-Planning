@@ -3,7 +3,9 @@ import { db, uuid, todayStr, writeAndQueue, patchAndQueue, rollUpGoal, nextCompl
 import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
+import AutoTextarea from './AutoTextarea'
 import { useLang } from '../lib/i18n'
+import { hm } from '../lib/timer'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 
 // One form for BOTH adding and editing a task, so the two can never diverge.
@@ -40,8 +42,23 @@ function daysBetween(from: string, to: string): number {
 const REMINDER_MAX_DAYS = 3
 const REMINDER_LABELS = ['task.reminderOnDueDay', 'task.reminder1Day', 'task.reminder2Days', 'task.reminder3Days']
 /** Fields this form edits — only those that differ from the task as opened are saved. */
-const EDITABLE: (keyof Task)[] = ['title', 'state', 'due', 'timeBlockStart', 'timeBlockEnd', 'estimatedHours',
-  'completedAt', 'goalId', 'projectId', 'isMit', 'reminderDaysBefore', 'recurrence', 'seriesId']
+const EDITABLE: (keyof Task)[] = ['title', 'notes', 'state', 'priority', 'due', 'timeBlockStart', 'timeBlockEnd', 'estimatedHours',
+  'actualHours', 'completedAt', 'goalId', 'projectId', 'isMit', 'reminderDaysBefore', 'recurrence', 'seriesId']
+
+/** Priority 1 critical … 5 optional; the form offers three levels (the
+    card's colour follows: 1–2 high, 3 medium, 4–5 low). */
+const PRIORITIES = [{ value: 1, key: 'task.prioHigh' }, { value: 3, key: 'task.prioMed' }, { value: 5, key: 'task.prioLow' }] as const
+const prioLevel = (p: number) => (p <= 2 ? 1 : p === 3 ? 3 : 5)
+
+/** Estimate choices, in hours. */
+const ESTIMATES = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8]
+
+/** The Monday after `from` (YYYY-MM-DD). */
+function nextMonday(from: string): string {
+  const d = new Date(from + 'T00:00')
+  d.setDate(d.getDate() + (((8 - d.getDay()) % 7) || 7))
+  return todayStr(d)
+}
 
 
 const GOAL_LEVELS: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
@@ -68,6 +85,9 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [reminderDays, setReminderDays] = useState<number | undefined>(task?.reminderDaysBefore ?? undefined)
   const [recurrence, setRecurrence] = useState<Task['recurrence']>(task?.recurrence)
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
+  const [notes, setNotes] = useState(task?.notes ?? '')
+  const [priority, setPriority] = useState(task?.priority ?? 3)
+  const [spent, setSpent] = useState<number | undefined>(task?.actualHours)
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -190,14 +210,15 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
         id,
         sysId: task?.sysId,
         title: title.trim(),
-        notes: task?.notes,
+        notes: notes.trim() ? notes : undefined,
         state,
-        priority: task?.priority ?? 3,
+        // an unchanged level keeps an in-between value (2, 4) as it was
+        priority: task && prioLevel(task.priority) === priority ? task.priority : priority,
         due,
         timeBlockStart: start ? `${due}T${start}` : undefined,
         timeBlockEnd: end ? `${due}T${end}` : undefined,
         estimatedHours: hours,
-        actualHours: task?.actualHours,
+        actualHours: spent,
         completedAt: nextCompletedAt(task?.state ?? 'open', task?.completedAt, state),
         goalId: goalId || undefined,
         projectId: projectId || undefined,
@@ -263,6 +284,40 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
               <label className="fl">{t('task.due')}</label>
               <div className={`date-wrap ${due ? '' : 'no-val'}`} data-ph={t('task.tapToSet')}>
                 <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+              </div>
+              <div className="quick-dates" role="group" aria-label={t('task.due')}>
+                {([['task.today', todayStr()], ['task.tomorrow', todayStr(new Date(Date.now() + 86400_000))], ['task.nextWeek', nextMonday(todayStr())]] as const).map(([key, d]) => (
+                  <button key={key} type="button" className={`qd ${due === d ? 'on' : ''}`} aria-pressed={due === d} onClick={() => setDue(d)}>{t(key)}</button>
+                ))}
+              </div>
+            </div>
+            <div className="f-pair prio-pair">
+              <div className="f">
+                <label className="fl">{t('task.priority')}</label>
+                <div className="prio-seg" role="radiogroup" aria-label={t('task.priority')}>
+                  {PRIORITIES.map((p) => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={prioLevel(priority) === p.value}
+                      className={`prio p${p.value} ${prioLevel(priority) === p.value ? 'on' : ''}`}
+                      onClick={() => setPriority(p.value)}
+                    >{t(p.key)}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="f">
+                <label className="fl">{t('task.estimate')}</label>
+                <Select
+                  ariaLabel={t('task.estimate')}
+                  value={hours ? String(hours) : ''}
+                  onChange={(v) => setHours(v ? Number(v) : undefined)}
+                  options={[
+                    { value: '', label: t('task.noEstimate') },
+                    ...[...new Set([...ESTIMATES, ...(hours && !ESTIMATES.includes(hours) ? [hours] : [])])].sort((a, b) => a - b).map((h) => ({ value: String(h), label: hm(h) })),
+                  ]}
+                />
               </div>
             </div>
             <div className="f">
@@ -349,6 +404,23 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
             >
               ⭐ {t('task.mitFull')} {isMit ? t('task.on') : ''}
             </button>
+            <div className="f">
+              <label className="fl">{t('task.notes')}</label>
+              <AutoTextarea
+                className="task-notes"
+                rows={2}
+                value={notes}
+                placeholder={t('task.notesPh')}
+                onChange={(e) => setNotes(e.target.value)}
+                aria-label={t('task.notes')}
+              />
+            </div>
+            {editing && (spent ?? 0) > 0 && (
+              <div className="f spent-row">
+                <span>⏱ {t('task.spent', { time: hm(spent) })}{hours ? ` · ${t('task.ofEstimate', { time: hm(hours) })}` : ''}</span>
+                <button type="button" className="clear-link" onClick={() => setSpent(undefined)}>{t('task.resetSpent')}</button>
+              </div>
+            )}
           </div>
         </div>
         <div className="row sheet-actions" style={{ justifyContent: editing ? 'space-between' : 'flex-end' }}>

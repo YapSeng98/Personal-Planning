@@ -1880,3 +1880,71 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 .hx.done::after { content: ''; position: absolute; left: 50%; bottom: -0.6rem; width: 5px; height: 5px; margin-left: -2.5px;
   border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
 @media (max-width: 640px) { .hx.done::after { bottom: -0.5rem; } }
+
+/* ======================================================================
+   Daily tracking: overdue tasks, focus timer, task form additions
+   ====================================================================== */
+/* today's tasks header: "3/8 done · ⏱ 1h 20m focused" on the right */
+.section-h .sec-sum { margin-left: auto; text-transform: none; letter-spacing: 0; font-size: 0.74rem; font-weight: 700; color: var(--text-2); }
+
+/* Overdue: open tasks from earlier days, with one tap to bring them to today */
+.overdue-card { margin-top: 0.6rem; padding: 0.75rem 0.85rem 0.55rem; border-color: color-mix(in srgb, var(--danger) 35%, var(--hairline)); }
+.overdue-h { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
+.overdue-lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 800; color: var(--danger); display: inline-flex; align-items: center; gap: 0.4rem; }
+.overdue-lbl b { font-size: 0.68rem; background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); border-radius: 999px; padding: 0.05rem 0.45rem; letter-spacing: 0; }
+.overdue-all { padding: 0.32rem 0.8rem; font-size: 0.78rem; }
+.overdue-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0; border-top: 1px solid var(--hairline); }
+.overdue-row:first-of-type { border-top: none; }
+.overdue-title { flex: 1; min-width: 0; text-align: left; background: none; border: none; padding: 0; font: inherit; font-size: 0.88rem; font-weight: 600; color: var(--text-1); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overdue-title:hover { color: var(--accent-bright); }
+.overdue-age { font-size: 0.7rem; color: var(--danger); font-weight: 700; white-space: nowrap; }
+.overdue-move { flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.28rem 0.7rem; border-radius: 999px; cursor: pointer; font: inherit; font-size: 0.74rem; font-weight: 700;
+  background: var(--accent-wash); color: var(--accent-bright); border: 1px solid color-mix(in srgb, var(--accent-bright) 40%, var(--hairline)); transition: background 150ms var(--ease), transform 150ms var(--ease); }
+.overdue-move::before { content: '→'; }
+.overdue-move:hover { background: color-mix(in srgb, var(--accent-bright) 22%, transparent); }
+.overdue-move:active { transform: scale(0.95); }
+.overdue-more { display: block; margin: 0.15rem 0 0.1rem; }
+
+/* Focus timer on a task card */
+.tcard .ttimer { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; height: 28px; min-width: 28px; padding: 0 0.45rem; border-radius: 999px; cursor: pointer;
+  background: var(--glass-strong); border: 1px solid var(--hairline); color: var(--text-2); font: inherit; font-size: 0.74rem; font-weight: 700; transition: background 150ms var(--ease), color 150ms var(--ease); }
+.tcard .ttimer:hover { color: var(--accent-bright); border-color: color-mix(in srgb, var(--accent-bright) 45%, var(--hairline)); }
+.tcard .ttimer svg { fill: currentColor; }
+.tcard .ttimer.on { background: var(--accent-wash); color: var(--accent-bright); border-color: color-mix(in srgb, var(--accent-bright) 55%, var(--hairline)); }
+.tcard.timing { border-color: color-mix(in srgb, var(--accent-bright) 50%, var(--hairline)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-bright) 30%, transparent), 0 6px 18px color-mix(in srgb, var(--accent-bright) 14%, transparent); }
+.tcard .tnote { font-size: 0.72rem; }
+.tcard .tspent { font-size: 0.66rem; font-weight: 700; color: var(--text-3); white-space: nowrap; }
+.tcard .tspent.over { color: var(--danger); }
+
+/* the task being timed, on every screen */
+@keyframes tb-pulse { 0%, 100% { opacity: 1; transform: scale(1) } 50% { opacity: 0.35; transform: scale(0.8) } }
+.timer-bar { display: flex; align-items: center; gap: 0.55rem; margin: 0 0 1rem; padding: 0.5rem 0.6rem 0.5rem 0.9rem; border-radius: 14px; font-size: 0.86rem; font-weight: 600;
+  background: var(--accent-wash); border: 1px solid color-mix(in srgb, var(--accent-bright) 40%, var(--hairline)); color: var(--text-1); }
+.timer-bar svg { color: var(--accent-bright); flex-shrink: 0; }
+.timer-bar .tb-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-bright); flex-shrink: 0; animation: tb-pulse 1.6s ease-in-out infinite; }
+.timer-bar .tb-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timer-bar .tb-clock { font-weight: 800; color: var(--accent-bright); }
+.timer-bar .btn { padding: 0.35rem 0.9rem; font-size: 0.82rem; flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) { .timer-bar .tb-pulse { animation: none; } }
+
+/* Task form: quick dates, priority, notes, time spent */
+.quick-dates { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.15rem; }
+.quick-dates .qd { padding: 0.3rem 0.75rem; border-radius: 999px; font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+  background: var(--glass); color: var(--text-2); border: 1px solid var(--hairline); transition: background 150ms var(--ease), color 150ms var(--ease); }
+.quick-dates .qd:hover { color: var(--text-1); }
+.quick-dates .qd.on { background: var(--accent-wash); color: var(--accent-bright); border-color: color-mix(in srgb, var(--accent-bright) 50%, var(--hairline)); }
+/* phones: priority gets the full width (three labels don't fit in half) */
+@media (max-width: 560px) { .prio-pair { grid-template-columns: 1fr; } }
+.prio-seg { display: grid; grid-template-columns: repeat(3, 1fr); height: 2.75rem; border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; background: var(--glass); }
+.prio-seg .prio { border: none; background: none; font: inherit; font-size: 0.85rem; font-weight: 700; color: var(--text-2); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; }
+.prio-seg .prio + .prio { border-left: 1px solid var(--hairline); }
+.prio-seg .prio::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.prio-seg .p1 { --c: var(--accent); }
+.prio-seg .p3 { --c: var(--amber); }
+.prio-seg .p5 { --c: var(--ok); }
+.prio-seg .prio.on { background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--text-1); }
+.task-notes { width: 100%; box-sizing: border-box; min-height: 3.2rem; resize: vertical; background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
+  padding: 0.6rem 0.8rem; color: var(--text-1); font: inherit; font-size: 0.92rem; line-height: 1.45; }
+.task-notes:focus { outline: none; border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright); }
+.spent-row { flex-direction: row; align-items: center; justify-content: space-between; font-size: 0.85rem; color: var(--text-2); }
+.spent-row .clear-link { padding: 0; }

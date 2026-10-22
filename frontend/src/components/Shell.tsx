@@ -8,6 +8,7 @@ import SearchModal from './SearchModal'
 import { VideoProvider } from './VideoPlayer'
 import Icon, { type IconName } from './Icon'
 import { updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
+import { useRunningTimer, useElapsed, stopTimer, clock, type RunningTimer } from '../lib/timer'
 
 const links: { to: string; key: string; ico: IconName }[] = [
   { to: '/', key: 'nav.today', ico: 'today' },
@@ -22,6 +23,21 @@ const links: { to: string; key: string; ico: IconName }[] = [
 /** Anywhere in the app can request the quick-add sheet. */
 export const openQuickAdd = () => window.dispatchEvent(new CustomEvent('planner:quickadd'))
 
+/** The task being timed, on every screen, with a Stop button. */
+function TimerBar({ timer }: { timer: RunningTimer }) {
+  const sec = useElapsed(timer.startedAt)
+  const { t } = useLang()
+  return (
+    <div className="timer-bar" role="status">
+      <span className="tb-pulse" aria-hidden />
+      <Icon name="timer" size={16} />
+      <span className="tb-title">{timer.title}</span>
+      <span className="tb-clock num">{clock(sec)}</span>
+      <button type="button" className="btn btn-primary" onClick={() => stopTimer()}>{t('timer.stop')}</button>
+    </div>
+  )
+}
+
 const syncKey: Record<SyncState, string> = {
   idle: 'sync.idle', syncing: 'sync.syncing', offline: 'sync.offline',
   'local-only': 'sync.local', error: 'sync.error', 'signed-out': 'sync.signedOut',
@@ -33,6 +49,7 @@ export default function Shell() {
   const [searchTask, setSearchTask] = useState<Task | null>(null)
   const [sync, setSync] = useState<SyncState>('idle')
   const [hasUpdate, setHasUpdate] = useState(updateReady())
+  const timer = useRunningTimer()
   const { t } = useLang()
   useEffect(() => onSyncState(setSync), [])
   useEffect(() => onUpdateReady(() => setHasUpdate(true)), [])
@@ -46,6 +63,14 @@ export default function Shell() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setSearching(true)
+        return
+      }
+      // N: new task — unless typing somewhere, or a sheet is already open
+      const el = e.target as HTMLElement | null
+      const typing = !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))
+      if (e.key.toLowerCase() === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey && !typing && !document.querySelector('.sheet-backdrop')) {
+        e.preventDefault()
+        setAdding(true)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -85,6 +110,7 @@ export default function Shell() {
             <NavLink className="btn btn-primary" to={sync === 'signed-out' ? '/login?signedout=1' : '/login'}>{t('app.signIn')}</NavLink>
           </div>
         )}
+        {timer && <TimerBar timer={timer} />}
         {hasUpdate && (
           <div className="update-bar" role="status">
             <span>{t('app.updateReady')}</span>
