@@ -6,6 +6,28 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-22
+
+- **Overdue tasks show on Today** — an unfinished task from an earlier day
+  used to disappear from Today once its day passed. Now open tasks from the
+  last two weeks are listed at the top of Today's tasks, with a "Today"
+  button on each and "Move all to today" (a moved task keeps its time of
+  day). Older never-ticked tasks stay on their own day in Plan and Board, so
+  years of old tasks can't bury today. The briefing mentions them too.
+  ([0fd837e](https://github.com/YapSeng98/Personal-Planning/commit/0fd837e))
+- **Focus timer** — tap ▶ on a task to time it. The running task shows at
+  the top of every screen with a Stop button, keeps running if you close or
+  reload the app, and stopping it (or ticking the task done, or starting
+  another) adds the time to the task, synced to every device. Cards show
+  time spent against the estimate ("⏱ 25m / 1h"), and Today's header shows
+  "3/8 done · 1h 20m focused".
+  ([0fd837e](https://github.com/YapSeng98/Personal-Planning/commit/0fd837e))
+- **Fuller task form** — priority (High / Medium / Low, which colours the
+  card), an estimate, notes (📝 on the card), and quick dates (Today /
+  Tomorrow / Next week). Press **N** anywhere on a computer to add a task.
+  "Next block" in the briefing now skips times already past.
+  ([0fd837e](https://github.com/YapSeng98/Personal-Planning/commit/0fd837e))
+
 ## 2026-10-08
 
 - **Pin a note to the top in Sketches** — every note card has a pin button
