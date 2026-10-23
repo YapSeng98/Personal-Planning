@@ -205,11 +205,15 @@ function Typewriter({ text }: { text: string }) {
   )
 }
 
+// Fanned out on one arc around the button (radius 100px, 80° → 190°, 27.5°
+// apart): the 44px bubbles never touch, and the first stays inside the
+// right edge of a phone screen.
 const QUICK_APPS = [
-  { href: 'https://yapseng98.github.io/personal_business/#/', icon: '💼', color: 'var(--project-blue)', tx: '13px', ty: '-75px', labelKey: 'today.bizLink' as const },
-  { href: 'https://yapseng98.github.io/Personal-Money-Tracker/', icon: '💰', color: 'var(--project-teal)', tx: '-30px', ty: '-70px', labelKey: 'today.moneyLink' as const },
-  { href: 'https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776', icon: '🎮', color: 'var(--project-purple)', tx: '-64px', ty: '-41px', labelKey: 'today.gameLink' as const },
-  { href: 'https://yapseng98.github.io/Knowledge_Management_System/', icon: '📚', color: 'var(--ok)', tx: '-76px', ty: '0px', labelKey: 'today.kmsLink' as const },
+  { href: 'https://yapseng98.github.io/personal_business/#/', icon: '💼', color: 'var(--project-blue)', tx: '17px', ty: '-98px', labelKey: 'today.bizLink' as const },
+  { href: 'https://yapseng98.github.io/Personal-Money-Tracker/', icon: '💰', color: 'var(--project-teal)', tx: '-30px', ty: '-95px', labelKey: 'today.moneyLink' as const },
+  { href: 'https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776', icon: '🎮', color: 'var(--project-purple)', tx: '-71px', ty: '-71px', labelKey: 'today.gameLink' as const },
+  { href: 'https://yapseng98.github.io/Knowledge_Management_System/', icon: '📚', color: 'var(--ok)', tx: '-95px', ty: '-30px', labelKey: 'today.kmsLink' as const },
+  { href: 'https://yapseng98.github.io/trading_pages/report.html', icon: '📈', color: 'var(--amber)', tx: '-98px', ty: '17px', labelKey: 'today.tradingLink' as const },
 ]
 
 function QuickLaunch({ t }: { t: TFn }) {

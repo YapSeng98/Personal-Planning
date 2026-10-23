@@ -933,7 +933,7 @@ button.goal-card:hover { background: var(--glass-strong); }
 .m-streak .big { font-family: var(--font-display); font-size: 1.95rem; font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1; }
 .m-streak .sl { font-size: 0.64rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
 
-/* Quick-launch orbit: the four app shortcuts collapse into one gradient FAB.
+/* Quick-launch orbit: the app shortcuts collapse into one gradient FAB.
    Tap/click (open, from React state), or focus (keyboard) fans them out along
    an arc from the same 44px footprint. Mouse "hover" is deliberately NOT a
    plain CSS :hover trigger — the fanned-out satellites sit visually far from
@@ -991,8 +991,9 @@ button.goal-card:hover { background: var(--glass-strong); }
 .ql-sat:nth-of-type(2) { transition-delay: 45ms; }
 .ql-sat:nth-of-type(3) { transition-delay: 90ms; }
 .ql-sat:nth-of-type(4) { transition-delay: 135ms; }
+.ql-sat:nth-of-type(5) { transition-delay: 180ms; }
 
-/* Name tooltips are a mouse-only bonus — on touch the four emoji (already
+/* Name tooltips are a mouse-only bonus — on touch the emoji (already
    the user's own, familiar apps) are identification enough, and a
    hover-only tooltip has no reliable trigger on a touchscreen anyway. */
 @media (hover: hover) and (pointer: fine) {
