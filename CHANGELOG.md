@@ -6,6 +6,14 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-24
+
+- **Trading Hub in quick apps** — Today's quick-apps menu (the ⋮⋮⋮ button
+  above +) has a fifth shortcut, 📈 Trading Hub, opening the gold (XAU/USD)
+  report. The shortcuts now sit on a slightly wider arc so all five fit on a
+  phone without touching.
+  ([98dd442](https://github.com/YapSeng98/Personal-Planning/commit/98dd442))
+
 ## 2026-10-23
 
 - **Steps inside a task** — a checklist in the task form ("Add a step…"):
