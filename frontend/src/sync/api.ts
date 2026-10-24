@@ -101,14 +101,19 @@ export function localDataOwner(): string | null {
   return localStorage.getItem(DATA_OWNER_KEY)
 }
 
-/** The signed-in account's id, read synchronously from the stored session
-    (null when signed out). */
+/** The account this device's data belongs to (else the signed-in one, read
+    synchronously from the stored session; null when neither). The data's
+    owner comes first: the browser's sign-in is shared with other apps on
+    the site and can briefly be someone else's (see 'other-account' in
+    sync/engine.ts). */
 export function accountId(): string | null {
+  const owner = localDataOwner()
+  if (owner) return owner
   try {
     const s = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as { user?: { id?: string } } | null
-    return s?.user?.id ?? localDataOwner()
+    return s?.user?.id ?? null
   } catch {
-    return localDataOwner()
+    return null
   }
 }
 export function setLocalDataOwner(uid: string | null) {

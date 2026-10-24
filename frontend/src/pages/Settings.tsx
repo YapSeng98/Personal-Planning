@@ -147,7 +147,7 @@ export default function Settings() {
   ]
   const stateLabel: Record<SyncState, string> = {
     idle: t('set.syncIdle'), syncing: t('set.syncSyncing'), offline: t('set.syncOffline'),
-    'local-only': t('set.syncLocal'), error: t('set.syncError'), 'signed-out': t('set.syncSignedOut'),
+    'local-only': t('set.syncLocal'), error: t('set.syncError'), 'signed-out': t('set.syncSignedOut'), 'other-account': t('set.syncOtherAccount'),
   }
 
   useEffect(() => {

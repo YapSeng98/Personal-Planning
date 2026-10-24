@@ -15,8 +15,13 @@ import { startLiveSync } from './live'
 
 /** 'signed-out': this device's data belongs to an account, but its sign-in
     ended (revoked or expired) — nothing syncs until you sign in again.
+    'other-account': this browser is signed in as a different account than
+    the one this device's data belongs to — another app on the same site
+    (Daily Brief) shares the sign-in, so signing in there switches it here
+    too. Nothing syncs: it would push this account's changes into that one
+    and pull that one's data in here.
     'local-only': the offline demo, never signed in. */
-export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only' | 'signed-out'
+export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'local-only' | 'signed-out' | 'other-account'
 
 let listeners: ((s: SyncState, detail?: string) => void)[] = []
 let current: SyncState = 'idle'
@@ -164,6 +169,8 @@ let rerun = false
 
 /** No session to sync as right now (see syncSession) — nothing was sent. */
 class NoSession extends Error {}
+/** Signed in as an account this device's data doesn't belong to. */
+class OtherAccount extends Error {}
 
 // Couldn't reach the server (or refresh the sign-in): try again shortly —
 // 3s, 6s, 12s, then every 15s — instead of waiting for the next poll.
@@ -218,7 +225,9 @@ export async function syncNow(): Promise<void> {
     if (!sess) throw new NoSession()
     // Installs from before ownership was tracked: the data here belongs to
     // whoever is signed in now (one account per device until then).
-    if (!localDataOwner()) setLocalDataOwner(sess.uid)
+    const owner = localDataOwner()
+    if (!owner) setLocalDataOwner(sess.uid)
+    else if (owner !== sess.uid) throw new OtherAccount()
     if (serverFields === undefined) {
       try {
         serverFields = JSON.parse((await db.meta.get('serverFields'))?.value ?? 'null')
@@ -508,6 +517,8 @@ export async function syncNow(): Promise<void> {
     if (!isAuthed()) {
       // the sign-in ended during this sync (revoked, or another tab signed out)
       setState(accountDevice() ? 'signed-out' : 'local-only')
+    } else if (err instanceof OtherAccount) {
+      setState('other-account')
     } else if (err instanceof NoSession || err instanceof NetworkError) {
       // offline for a moment (typical right after the device wakes) — not an error
       setState('offline', "Couldn't reach the server — trying again shortly")

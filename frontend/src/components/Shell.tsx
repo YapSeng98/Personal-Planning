@@ -97,7 +97,7 @@ function ReminderBanners() {
 
 const syncKey: Record<SyncState, string> = {
   idle: 'sync.idle', syncing: 'sync.syncing', offline: 'sync.offline',
-  'local-only': 'sync.local', error: 'sync.error', 'signed-out': 'sync.signedOut',
+  'local-only': 'sync.local', error: 'sync.error', 'signed-out': 'sync.signedOut', 'other-account': 'sync.otherAccount',
 }
 
 export default function Shell() {
@@ -161,10 +161,10 @@ export default function Shell() {
         </NavLink>
       </nav>
       <main className="shell-main">
-        {(sync === 'signed-out' || sync === 'local-only') && (
-          <div className={`update-bar ${sync === 'signed-out' ? 'warn-bar' : ''}`} role="status">
-            <span>{t(sync === 'signed-out' ? 'app.signedOut' : 'app.demoBar')}</span>
-            <NavLink className="btn btn-primary" to={sync === 'signed-out' ? '/login?signedout=1' : '/login'}>{t('app.signIn')}</NavLink>
+        {(sync === 'signed-out' || sync === 'local-only' || sync === 'other-account') && (
+          <div className={`update-bar ${sync !== 'local-only' ? 'warn-bar' : ''}`} role="status">
+            <span>{t(sync === 'signed-out' ? 'app.signedOut' : sync === 'other-account' ? 'app.otherAccount' : 'app.demoBar')}</span>
+            <NavLink className="btn btn-primary" to={sync === 'signed-out' ? '/login?signedout=1' : sync === 'other-account' ? '/login?other=1' : '/login'}>{t('app.signIn')}</NavLink>
           </div>
         )}
         <ReminderBanners />

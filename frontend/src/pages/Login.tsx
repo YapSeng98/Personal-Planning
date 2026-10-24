@@ -10,10 +10,12 @@ export default function Login() {
   const [params] = useSearchParams()
   // this device has an account's data and its sign-in ended (App.tsx)
   const signedOut = params.get('signedout') === '1'
+  // the browser's sign-in switched to another account (another app on the site)
+  const otherAccount = params.get('other') === '1'
   const [mode, setMode] = useState<'signin' | 'register'>('signin')
   // (installs from before the username was remembered: the name shown in
   // the app, which is the username unless a display name was chosen)
-  const [username, setUsername] = useState(() => (signedOut ? localStorage.getItem('planner_login') ?? localStorage.getItem('planner_user') ?? '' : ''))
+  const [username, setUsername] = useState(() => (signedOut || otherAccount ? localStorage.getItem('planner_login') ?? localStorage.getItem('planner_user') ?? '' : ''))
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -74,6 +76,7 @@ export default function Login() {
         <p className="tagline">{t('login.tagline')}</p>
         <p className="sub">{mode === 'signin' ? t('login.subSignin') : t('login.subRegister')}</p>
         {signedOut && <p className="login-note" role="status">{t('login.signedOut')}</p>}
+        {otherAccount && <p className="login-note" role="status">{t('login.otherAccount')}</p>}
         <input
           type="text"
           placeholder={t('login.username')}
@@ -103,7 +106,7 @@ export default function Login() {
           {mode === 'signin' ? t('login.toRegister') : t('login.toSignin')}
         </button>
         {/* not offered on a device that has an account's data: it's signing back in */}
-        {!signedOut && (
+        {!signedOut && !otherAccount && (
           <>
             <div className="divider">{t('login.or')}</div>
             <button className="btn" type="button" onClick={tryOffline}>
