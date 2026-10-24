@@ -63,6 +63,12 @@ left open. The rule that keeps one device from undoing another's changes:
 - Adding a synced field: `SYNC_FIELDS` + `LATER_FIELDS` in src/sync/fields.ts,
   `TABLES` + `LATER` in supabase/gen_sync_push.py, and its column in
   schema.sql (`add column if not exists`) → `apply` → `npm run test:sql`.
+- The browser's sign-in is shared with the Daily Brief app (same site, same
+  Supabase storage key): signing in or out there does the same here. A
+  device's data belongs to `planner_data_owner`; when the session is a
+  different account, sync stops ('other-account' state) — never push one
+  account's local data into another. Daily Brief writes Planner tasks only
+  through `sync_push` (footer "— Daily Brief ·" in the notes; see lib/tasks.ts).
 - The app deploys itself; schema.sql is run by hand — so the app is often
   ahead of the database. `sync_pull` lists the fields the server has, and a
   change to a field that isn't listed is held back (stays queued, Settings

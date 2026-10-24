@@ -8,6 +8,14 @@ those.
 
 ## 2026-10-24
 
+- **Fix: another app's sign-in could switch the Planner's account** — the
+  Planner and Daily Brief share one sign-in per browser, so signing in to
+  Daily Brief as a different account switched the Planner too, and its
+  changes then went into that account (while it said "Synced"). Now the
+  Planner stops syncing and says the browser is on a different account;
+  signing back in with your Planner account (username filled in) carries on,
+  with nothing lost and nothing mixed.
+  ([5a66b6c](https://github.com/YapSeng98/Personal-Planning/commit/5a66b6c))
 - **Move a task to another priority with one tap** — in Today's "By
   priority" view every card has ▲ / ▼ to move it to the group above or
   below, so changing priority doesn't need a drag. On phones the drag
