@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { Fragment, useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  DndContext, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors,
-  closestCenter, type DragEndEvent,
+  DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable, MeasuringStrategy,
+  closestCenter, pointerWithin, getFirstCollision,
+  type CollisionDetection, type UniqueIdentifier, type DragEndEvent, type DragOverEvent, type DragMoveEvent, type DragStartEvent, type SensorDescriptor, type SensorOptions,
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -117,8 +118,11 @@ function TimerButton({ task, since, t }: { task: Task; since?: number; t: TFn })
   )
 }
 
-function TodayCard({ task, proj, timingSince, onToggle, onEdit, t }: {
-  task: Task; proj?: Project; timingSince?: number; onToggle: () => void; onEdit: () => void; t: TFn
+function TodayCard({ task, proj, timingSince, dropHint, onToggle, onEdit, t }: {
+  task: Task; proj?: Project; timingSince?: number
+  /** a card dragged from another group would land above / below this one */
+  dropHint?: 'above' | 'below'
+  onToggle: () => void; onEdit: () => void; t: TFn
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const done = task.state === 'done'
@@ -128,7 +132,7 @@ function TodayCard({ task, proj, timingSince, onToggle, onEdit, t }: {
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={`tcard ${timingSince !== undefined ? 'timing' : ''}`}
+      className={`tcard ${timingSince !== undefined ? 'timing' : ''} ${dropHint ? `drop-${dropHint}` : ''}`}
     >
       <span className="acc" style={{ background: done ? 'var(--ok)' : accentFor(task.priority) }} />
       <button className="drag-grip" aria-label="Drag to reorder" {...listeners} {...attributes}>⠿</button>
@@ -166,6 +170,154 @@ function TodayCard({ task, proj, timingSince, onToggle, onEdit, t }: {
           : t('today.anytime')}
       </span>
     </div>
+  )
+}
+
+/** Priority groups for the "By priority" view, matching the card colours
+    (1–2 high, 3 medium, 4–5 low). Dropping a task in a group gives it that
+    group's priority (what the task form sets). */
+type Level = 'high' | 'med' | 'low'
+const LEVELS: { key: Level; value: number; label: string; color: string }[] = [
+  { key: 'high', value: 1, label: 'task.prioHigh', color: 'var(--accent)' },
+  { key: 'med', value: 3, label: 'task.prioMed', color: 'var(--amber)' },
+  { key: 'low', value: 5, label: 'task.prioLow', color: 'var(--ok)' },
+]
+const levelOf = (p: number): Level => (p <= 2 ? 'high' : p === 3 ? 'med' : 'low')
+type Groups = Record<Level, string[]>
+
+/** A whole group (header included) takes a drop — the empty ones too. */
+function GroupDrop({ level, empty, target, children }: { level: Level; empty: boolean; target: boolean; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id: `group:${level}` })
+  return <section ref={setNodeRef} className={`pgroup pgroup-${level} ${empty ? 'is-empty' : ''} ${target ? 'over' : ''}`}>{children}</section>
+}
+
+/** Where a dragged card would land in another group. */
+interface DropHint { level: Level; id?: string; below?: boolean }
+
+/** Today's tasks under High / Medium / Low (an empty group shows as a slim
+    "drag one here" row). Drag within a group to reorder (the cards make
+    room as you go), into another group to change the task's priority: the
+    lists stay still while you drag between groups —
+    the group lights up and a line shows where the card will land — and it
+    moves when you let go. (Moving it between stacked groups mid-drag slid
+    the groups below under the finger and carried the card on past where it
+    was aimed.) */
+function PriorityList({ tasks, sensors, renderCard, onCommit, t }: {
+  tasks: Task[]
+  sensors: SensorDescriptor<SensorOptions>[]
+  renderCard: (task: Task, hint?: 'above' | 'below') => React.ReactNode
+  onCommit: (groups: Groups, moved: string, to: Level | null) => void
+  t: TFn
+}) {
+  const build = useCallback((): Groups => {
+    const g: Groups = { high: [], med: [], low: [] }
+    for (const x of [...tasks].sort(byDoneThenOrder)) g[levelOf(x.priority)].push(x.id)
+    return g
+  }, [tasks])
+  const [groups, setGroups] = useState<Groups>(build)
+  const [active, setActive] = useState<string | null>(null)
+  const [hint, setHint] = useState<DropHint | null>(null)
+  // follow changes (a sync, a tick) — but never mid-drag
+  useEffect(() => { if (!active) setGroups(build()) }, [build, active])
+  const byId = new Map(tasks.map((x) => [x.id, x]))
+  const isGroup = (id: UniqueIdentifier) => String(id).startsWith('group:')
+  const find = (id: UniqueIdentifier): Level | undefined =>
+    isGroup(id) ? (String(id).slice(6) as Level) : LEVELS.find((l) => groups[l.key].includes(String(id)))?.key
+
+  // The group under the finger decides where it goes. In the card's own
+  // group: the nearest card, as in the one-list view (the cards make room);
+  // in another group: that group's nearest card, or the group if it's empty.
+  const lastGroup = useRef<Level | null>(null)
+  const collision: CollisionDetection = useCallback((args) => {
+    const groupHits = pointerWithin({ ...args, droppableContainers: args.droppableContainers.filter((c) => isGroup(c.id)) })
+    const hit = getFirstCollision(groupHits, 'id')
+    if (hit != null) lastGroup.current = String(hit).slice(6) as Level
+    const level = lastGroup.current
+    if (!level) return []
+    const ids = groups[level]
+    if (!ids.length) return [{ id: `group:${level}` }]
+    return closestCenter({ ...args, droppableContainers: args.droppableContainers.filter((c) => ids.includes(String(c.id))) })
+  }, [groups])
+
+  /** The landing spot in another group, or null within the same group. */
+  function target(a: DragOverEvent['active'], over: DragOverEvent['over']): DropHint | null {
+    if (!over) return null
+    const from = find(a.id), to = find(over.id)
+    if (!from || !to || from === to) return null
+    if (isGroup(over.id)) return { level: to }
+    const r = a.rect.current.translated
+    const below = !!r && r.top + r.height / 2 > over.rect.top + over.rect.height / 2
+    return { level: to, id: String(over.id), below }
+  }
+
+  function onDragStart(e: DragStartEvent) {
+    const id = String(e.active.id)
+    lastGroup.current = LEVELS.find((l) => groups[l.key].includes(id))?.key ?? null
+    setActive(id)
+  }
+  function onDragOver({ active: a, over }: DragOverEvent) {
+    const h = target(a, over)
+    setHint((cur) => (cur?.level === h?.level && cur?.id === h?.id && cur?.below === h?.below ? cur : h))
+  }
+  function onDragMove({ active: a, over }: DragMoveEvent) { onDragOver({ active: a, over } as DragOverEvent) }
+  function onDragEnd({ active: a, over }: DragEndEvent) {
+    const id = String(a.id), from = find(id)
+    const h = target(a, over)
+    let next = groups
+    if (from && h) {
+      // into another group, at the spot the line showed
+      const dst = groups[h.level].filter((x) => x !== id)
+      const i = h.id ? dst.indexOf(h.id) : -1
+      dst.splice(i < 0 ? dst.length : i + (h.below ? 1 : 0), 0, id)
+      next = { ...groups, [from]: groups[from].filter((x) => x !== id), [h.level]: dst }
+    } else if (from && over && find(over.id) === from && !isGroup(over.id)) {
+      const list = groups[from], oldI = list.indexOf(id), newI = list.indexOf(String(over.id))
+      if (oldI >= 0 && newI >= 0 && oldI !== newI) next = { ...groups, [from]: arrayMove(list, oldI, newI) }
+    }
+    setGroups(next)
+    setActive(null)
+    setHint(null)
+    if (next !== groups) onCommit(next, id, h?.level ?? from ?? null)
+  }
+  const dragged = active ? byId.get(active) : undefined
+
+  return (
+    // near the screen's edge the page scrolls — gently, so a drop aimed at
+    // the bottom group doesn't race past it
+    // Positions are measured once, as the drag starts: measured again mid-drag
+    // they'd include the cards sliding aside, and the dragged card would seem
+    // to be under the finger — a drop then kept the old order. (So nothing
+    // may appear mid-drag: empty groups are always shown.)
+    <DndContext sensors={sensors} collisionDetection={collision} autoScroll={{ threshold: { x: 0, y: 0.1 }, acceleration: 4 }}
+      measuring={{ droppable: { strategy: MeasuringStrategy.BeforeDragging } }}
+      onDragStart={onDragStart} onDragOver={onDragOver} onDragMove={onDragMove} onDragEnd={onDragEnd}
+      onDragCancel={() => { setActive(null); setHint(null); setGroups(build()) }}>
+      {LEVELS.map((l) => {
+        const list = groups[l.key]
+        return (
+          <GroupDrop key={l.key} level={l.key} empty={!list.length} target={hint?.level === l.key}>
+            <div className="pgroup-h"><i style={{ background: l.color }} aria-hidden />{t(l.label)}<b className="num">{list.length}</b></div>
+            <SortableContext id={l.key} items={list} strategy={verticalListSortingStrategy}>
+              <div className="tstack">
+                {list.map((id) => byId.get(id) && (
+                  <Fragment key={id}>{renderCard(byId.get(id)!, hint?.id === id ? (hint.below ? 'below' : 'above') : undefined)}</Fragment>
+                ))}
+                {!list.length && <div className="pgroup-empty">{t('prio.empty', { level: t(l.label).toLowerCase() })}</div>}
+              </div>
+            </SortableContext>
+          </GroupDrop>
+        )
+      })}
+      <DragOverlay dropAnimation={null}>
+        {dragged && (
+          <div className="tcard drag-ghost">
+            <span className="acc" style={{ background: dragged.state === 'done' ? 'var(--ok)' : accentFor(dragged.priority) }} />
+            <span className="drag-grip" aria-hidden>⠿</span>
+            <div className={`ttitle ${dragged.state === 'done' ? 'done' : ''}`}>{dragged.title}</div>
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   )
 }
 
@@ -297,6 +449,8 @@ export default function Today() {
   const [showAllOverdue, setShowAllOverdue] = useState(false)
   const [tomorrowCount, setTomorrowCount] = useState(0)
   const [planning, setPlanning] = useState(false)
+  const [view, setView] = useState<'order' | 'priority'>(() => (localStorage.getItem('planner_today_view') === 'priority' ? 'priority' : 'order'))
+  const pickView = (v: 'order' | 'priority') => { localStorage.setItem('planner_today_view', v); setView(v) }
   const [wrapHidden, setWrapHidden] = useState(() => localStorage.getItem('planner_wrap_hidden') === todayStr())
   const timer = useRunningTimer()
   const [reminders, setReminders] = useState<Reminder[]>([])
@@ -462,6 +616,21 @@ export default function Today() {
     syncNow()
   }
 
+  /** A drop in the priority view: the moved task takes its group's
+      priority, and the day's order becomes High, then Medium, then Low. */
+  async function commitPriority(groups: Groups, moved: string, to: Level | null) {
+    const task = tasks.find((x) => x.id === moved)
+    if (task && to && levelOf(task.priority) !== to) {
+      await patchAndQueue(db.tasks, 'task', moved, { priority: LEVELS.find((l) => l.key === to)!.value })
+    }
+    const order = [...groups.high, ...groups.med, ...groups.low]
+    for (let i = 0; i < order.length; i++) {
+      const x = tasks.find((y) => y.id === order[i])
+      if (x && x.sortOrder !== i) await patchAndQueue(db.tasks, 'task', x.id, { sortOrder: i })
+    }
+    syncNow()
+  }
+
   async function tickHabit(h: HabitView) {
     const existing = await db.habitLogs.where('[habitId+date]').equals([h.id, today]).first()
     if (existing) {
@@ -497,6 +666,17 @@ export default function Today() {
     const n = Math.round((new Date(today + 'T00:00').getTime() - new Date(due + 'T00:00').getTime()) / 86400_000)
     return n === 1 ? t('today.yesterday') : t('today.daysAgo', { n })
   }
+  const card = (task: Task, dropHint?: 'above' | 'below') => (
+    <TodayCard
+      task={task}
+      dropHint={dropHint}
+      proj={task.projectId ? projects[task.projectId] : undefined}
+      timingSince={timer?.taskId === task.id ? timer.startedAt : undefined}
+      onToggle={() => toggleTask(task)}
+      onEdit={() => setEditing(task)}
+      t={t}
+    />
+  )
   const OVERDUE_SHOWN = 5
   const overdueShown = showAllOverdue ? overdue : overdue.slice(0, OVERDUE_SHOWN)
   const pct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0
@@ -703,23 +883,31 @@ export default function Today() {
           </button>
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={tasks.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-            <div className="tstack">
-              {tasks.map((task) => (
-                <TodayCard
-                  key={task.id}
-                  task={task}
-                  proj={task.projectId ? projects[task.projectId] : undefined}
-                  timingSince={timer?.taskId === task.id ? timer.startedAt : undefined}
-                  onToggle={() => toggleTask(task)}
-                  onEdit={() => setEditing(task)}
-                  t={t}
-                />
-              ))}
+        <>
+          {tasks.length > 1 && (
+            <div className="task-tools">
+              {view === 'priority' && <span className="task-tools-hint">{t('prio.hint')}</span>}
+              <div className="view-seg" role="radiogroup" aria-label={t('prio.view')}>
+                {(['order', 'priority'] as const).map((v) => (
+                  <button key={v} type="button" role="radio" aria-checked={view === v} className={view === v ? 'on' : ''} onClick={() => pickView(v)}>
+                    {t(v === 'order' ? 'prio.myOrder' : 'prio.byPriority')}
+                  </button>
+                ))}
+              </div>
             </div>
-          </SortableContext>
-        </DndContext>
+          )}
+          {view === 'priority' && tasks.length > 1 ? (
+            <PriorityList tasks={tasks} sensors={sensors} renderCard={card} onCommit={commitPriority} t={t} />
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={tasks.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+                <div className="tstack">
+                  {tasks.map((task) => <Fragment key={task.id}>{card(task)}</Fragment>)}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </>
       )}
       <button type="button" className="ptm-open" onClick={() => setPlanning(true)}>
         🌙 {t('ptm.title')}{tomorrowCount > 0 && <span className="num"> · {t('ptm.planned', { n: tomorrowCount })}</span>}

@@ -2044,3 +2044,29 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 .rem-card .rem-lead { margin-top: 0.9rem; max-width: 18rem; }
 .rem-card .ai-status { margin-top: 0.6rem; }
 .rem-test { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-top: 0.8rem; }
+
+/* Today: "My order" / "By priority", and the priority groups */
+.task-tools { display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; }
+.task-tools-hint { margin-right: auto; font-size: 0.72rem; color: var(--text-3); }
+.view-seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--glass); border: 1px solid var(--hairline); }
+.view-seg button { border: none; background: none; font: inherit; font-size: 0.76rem; font-weight: 700; color: var(--text-2); padding: 0.32rem 0.85rem; border-radius: 999px; cursor: pointer; transition: background 150ms var(--ease), color 150ms var(--ease); }
+.view-seg button:hover { color: var(--text-1); }
+.view-seg button.on { background: var(--accent-wash); color: var(--accent-bright); }
+.pgroup { margin-top: 0.85rem; }
+.pgroup-h { display: flex; align-items: center; gap: 0.45rem; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); }
+.pgroup-h i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pgroup-h b { font-size: 0.68rem; letter-spacing: 0; color: var(--text-2); background: var(--glass-strong); border-radius: 999px; padding: 0.05rem 0.45rem; }
+.pgroup { border-radius: 16px; transition: background 150ms var(--ease); }
+.pgroup .tstack { margin-top: 0.4rem; }
+.pgroup-empty { min-height: 2.6rem; display: flex; align-items: center; justify-content: center; padding: 0.6rem; text-align: center; font-size: 0.78rem; color: var(--text-3);
+  border: 1.5px dashed var(--hairline); border-radius: 14px; transition: border-color 150ms var(--ease), background 150ms var(--ease), color 150ms var(--ease); }
+.pgroup.over { background: color-mix(in srgb, var(--accent-bright) 7%, transparent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent-bright) 7%, transparent); }
+.pgroup.over .pgroup-h { color: var(--accent-bright); }
+.pgroup.over .pgroup-empty { border-color: var(--accent-bright); background: var(--accent-wash); color: var(--accent-bright); }
+/* where a card dragged from another group will land: a line just outside
+   the card (a shadow — cards clip their insides, and it moves nothing) */
+.today-grid .tcard.drop-above { box-shadow: 0 -6px 0 -3px var(--accent-bright); }
+.today-grid .tcard.drop-below { box-shadow: 0 6px 0 -3px var(--accent-bright); }
+/* the copy of the card that follows the finger */
+.tcard.drag-ghost { cursor: grabbing; background: var(--surface-2); backdrop-filter: none; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28), 0 0 0 1px color-mix(in srgb, var(--accent-bright) 45%, transparent); transform: rotate(-1deg); }
+.tcard.drag-ghost .ttitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
