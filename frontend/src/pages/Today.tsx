@@ -20,7 +20,7 @@ import Icon from '../components/Icon'
 import { useLang, type TFn } from '../lib/i18n'
 import { startTimer, stopTimer, useRunningTimer, useElapsed, clock, hm } from '../lib/timer'
 import { spentHours, minutesByDay, stepCount } from '../lib/items'
-import { moveTasksTo } from '../lib/tasks'
+import { moveTasksTo, fromDailyBrief, DAILY_BRIEF_URL } from '../lib/tasks'
 import PlanTomorrow from '../components/PlanTomorrow'
 
 interface HabitView extends Habit {
@@ -118,10 +118,15 @@ function TimerButton({ task, since, t }: { task: Task; since?: number; t: TFn })
   )
 }
 
-function TodayCard({ task, proj, timingSince, dropHint, onToggle, onEdit, t }: {
+/** One tap to the priority group above / below (the "By priority" view) —
+    a way to move a task that doesn't need a drag. */
+interface PrioMove { up?: () => void; down?: () => void; upLabel?: string; downLabel?: string }
+
+function TodayCard({ task, proj, timingSince, dropHint, prioMove, onToggle, onEdit, t }: {
   task: Task; proj?: Project; timingSince?: number
   /** a card dragged from another group would land above / below this one */
   dropHint?: 'above' | 'below'
+  prioMove?: PrioMove
   onToggle: () => void; onEdit: () => void; t: TFn
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
@@ -148,7 +153,9 @@ function TodayCard({ task, proj, timingSince, dropHint, onToggle, onEdit, t }: {
                 <Icon name="check" size={11} strokeWidth={2.6} />{steps.done}/{steps.all}
               </span>
             )}
-            {task.notes && <span className="tnote" title={t('task.notes')}>📝</span>}
+            {fromDailyBrief(task)
+              ? <span className="tbrief" title={t('brief.badgeTitle')}>📋 {t('brief.badge')}</span>
+              : task.notes && <span className="tnote" title={t('task.notes')}>📝</span>}
             {(spent > 0 || !!task.estimatedHours) && (
               <span className={`tspent num ${task.estimatedHours && spent > task.estimatedHours ? 'over' : ''}`} title={t('timer.spentTitle')}>
                 ⏱ {spent > 0 ? hm(spent) : '0m'}{task.estimatedHours ? ` / ${hm(task.estimatedHours)}` : ''}
@@ -163,10 +170,18 @@ function TodayCard({ task, proj, timingSince, dropHint, onToggle, onEdit, t }: {
           </div>
         )}
       </button>
+      {prioMove && (
+        <span className="prio-move">
+          <button type="button" className={prioMove.up ? '' : 'none'} onClick={prioMove.up} disabled={!prioMove.up}
+            aria-label={prioMove.upLabel} title={prioMove.upLabel}>▲</button>
+          <button type="button" className={prioMove.down ? '' : 'none'} onClick={prioMove.down} disabled={!prioMove.down}
+            aria-label={prioMove.downLabel} title={prioMove.downLabel}>▼</button>
+        </span>
+      )}
       {!done && <TimerButton task={task} since={timingSince} t={t} />}
       <span className={`ttime ${task.timeBlockStart ? '' : 'faint'}`}>
         {task.timeBlockStart
-          ? `${task.timeBlockStart.slice(11, 16)}${task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}`
+          ? <>{task.timeBlockStart.slice(11, 16)}{task.timeBlockEnd && <span className="tend">–{task.timeBlockEnd.slice(11, 16)}</span>}</>
           : t('today.anytime')}
       </span>
     </div>
@@ -205,7 +220,7 @@ interface DropHint { level: Level; id?: string; below?: boolean }
 function PriorityList({ tasks, sensors, renderCard, onCommit, t }: {
   tasks: Task[]
   sensors: SensorDescriptor<SensorOptions>[]
-  renderCard: (task: Task, hint?: 'above' | 'below') => React.ReactNode
+  renderCard: (task: Task, hint?: 'above' | 'below', move?: PrioMove) => React.ReactNode
   onCommit: (groups: Groups, moved: string, to: Level | null) => void
   t: TFn
 }) {
@@ -281,6 +296,29 @@ function PriorityList({ tasks, sensors, renderCard, onCommit, t }: {
   }
   const dragged = active ? byId.get(active) : undefined
 
+  /** ▲ / ▼: to the group above / below, after its open tasks. */
+  function shift(id: string, dir: -1 | 1) {
+    const from = find(id)
+    const to = from ? LEVELS[LEVELS.findIndex((l) => l.key === from) + dir]?.key : undefined
+    if (!from || !to) return
+    const dst = [...groups[to]]
+    const at = byId.get(id)?.state === 'done' ? -1 : dst.findIndex((x) => byId.get(x)?.state === 'done')
+    dst.splice(at < 0 ? dst.length : at, 0, id)
+    const next = { ...groups, [from]: groups[from].filter((x) => x !== id), [to]: dst }
+    setGroups(next)
+    onCommit(next, id, to)
+  }
+  const moveFor = (level: Level, id: string): PrioMove => {
+    const i = LEVELS.findIndex((l) => l.key === level)
+    const above = LEVELS[i - 1], below = LEVELS[i + 1]
+    return {
+      up: above ? () => shift(id, -1) : undefined,
+      down: below ? () => shift(id, 1) : undefined,
+      upLabel: above ? t('prio.moveTo', { level: t(above.label) }) : undefined,
+      downLabel: below ? t('prio.moveTo', { level: t(below.label) }) : undefined,
+    }
+  }
+
   return (
     // near the screen's edge the page scrolls — gently, so a drop aimed at
     // the bottom group doesn't race past it
@@ -300,7 +338,7 @@ function PriorityList({ tasks, sensors, renderCard, onCommit, t }: {
             <SortableContext id={l.key} items={list} strategy={verticalListSortingStrategy}>
               <div className="tstack">
                 {list.map((id) => byId.get(id) && (
-                  <Fragment key={id}>{renderCard(byId.get(id)!, hint?.id === id ? (hint.below ? 'below' : 'above') : undefined)}</Fragment>
+                  <Fragment key={id}>{renderCard(byId.get(id)!, hint?.id === id ? (hint.below ? 'below' : 'above') : undefined, moveFor(l.key, id))}</Fragment>
                 ))}
                 {!list.length && <div className="pgroup-empty">{t('prio.empty', { level: t(l.label).toLowerCase() })}</div>}
               </div>
@@ -357,15 +395,16 @@ function Typewriter({ text }: { text: string }) {
   )
 }
 
-// Fanned out on one arc around the button (radius 100px, 80° → 190°, 27.5°
-// apart): the 44px bubbles never touch, and the first stays inside the
-// right edge of a phone screen.
+// Fanned out on one arc around the button (radius 106px, 80° → 210°, 26°
+// apart): the 44px bubbles never touch, the first stays inside the right
+// edge of a phone screen and the last clears the + button.
 const QUICK_APPS = [
-  { href: 'https://yapseng98.github.io/personal_business/#/', icon: '💼', color: 'var(--project-blue)', tx: '17px', ty: '-98px', labelKey: 'today.bizLink' as const },
-  { href: 'https://yapseng98.github.io/Personal-Money-Tracker/', icon: '💰', color: 'var(--project-teal)', tx: '-30px', ty: '-95px', labelKey: 'today.moneyLink' as const },
-  { href: 'https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776', icon: '🎮', color: 'var(--project-purple)', tx: '-71px', ty: '-71px', labelKey: 'today.gameLink' as const },
-  { href: 'https://yapseng98.github.io/Knowledge_Management_System/', icon: '📚', color: 'var(--ok)', tx: '-95px', ty: '-30px', labelKey: 'today.kmsLink' as const },
-  { href: 'https://yapseng98.github.io/trading_pages/report.html', icon: '📈', color: 'var(--amber)', tx: '-98px', ty: '17px', labelKey: 'today.tradingLink' as const },
+  { href: 'https://yapseng98.github.io/personal_business/#/', icon: '💼', color: 'var(--project-blue)', tx: '18px', ty: '-104px', labelKey: 'today.bizLink' as const },
+  { href: 'https://yapseng98.github.io/Personal-Money-Tracker/', icon: '💰', color: 'var(--project-teal)', tx: '-29px', ty: '-102px', labelKey: 'today.moneyLink' as const },
+  { href: 'https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776', icon: '🎮', color: 'var(--project-purple)', tx: '-71px', ty: '-79px', labelKey: 'today.gameLink' as const },
+  { href: 'https://yapseng98.github.io/Knowledge_Management_System/', icon: '📚', color: 'var(--ok)', tx: '-98px', ty: '-40px', labelKey: 'today.kmsLink' as const },
+  { href: 'https://yapseng98.github.io/trading_pages/report.html', icon: '📈', color: 'var(--amber)', tx: '-106px', ty: '7px', labelKey: 'today.tradingLink' as const },
+  { href: DAILY_BRIEF_URL, icon: '📋', color: 'var(--accent)', tx: '-92px', ty: '53px', labelKey: 'today.briefLink' as const },
 ]
 
 function QuickLaunch({ t }: { t: TFn }) {
@@ -666,10 +705,11 @@ export default function Today() {
     const n = Math.round((new Date(today + 'T00:00').getTime() - new Date(due + 'T00:00').getTime()) / 86400_000)
     return n === 1 ? t('today.yesterday') : t('today.daysAgo', { n })
   }
-  const card = (task: Task, dropHint?: 'above' | 'below') => (
+  const card = (task: Task, dropHint?: 'above' | 'below', prioMove?: PrioMove) => (
     <TodayCard
       task={task}
       dropHint={dropHint}
+      prioMove={prioMove}
       proj={task.projectId ? projects[task.projectId] : undefined}
       timingSince={timer?.taskId === task.id ? timer.startedAt : undefined}
       onToggle={() => toggleTask(task)}

@@ -992,6 +992,7 @@ button.goal-card:hover { background: var(--glass-strong); }
 .ql-sat:nth-of-type(3) { transition-delay: 90ms; }
 .ql-sat:nth-of-type(4) { transition-delay: 135ms; }
 .ql-sat:nth-of-type(5) { transition-delay: 180ms; }
+.ql-sat:nth-of-type(6) { transition-delay: 225ms; }
 
 /* Name tooltips are a mouse-only bonus — on touch the emoji (already
    the user's own, familiar apps) are identification enough, and a
@@ -2070,3 +2071,25 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 /* the copy of the card that follows the finger */
 .tcard.drag-ghost { cursor: grabbing; background: var(--surface-2); backdrop-filter: none; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28), 0 0 0 1px color-mix(in srgb, var(--accent-bright) 45%, transparent); transform: rotate(-1deg); }
 .tcard.drag-ghost .ttitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* tasks taken from the Daily Brief app */
+.tbrief { display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.64rem; font-weight: 700; white-space: nowrap; padding: 0.05rem 0.4rem; border-radius: 999px;
+  color: var(--text-2); background: var(--accent-wash); border: 1px solid color-mix(in srgb, var(--accent-bright) 30%, var(--hairline)); }
+.brief-link { align-self: flex-start; margin-top: 0.35rem; font-size: 0.8rem; font-weight: 600; color: var(--accent-bright); text-decoration: none; }
+.brief-link:hover { text-decoration: underline; }
+
+/* ▲ ▼ on cards in the priority view: to the group above / below */
+.prio-move { display: inline-flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.prio-move button { width: 26px; height: 17px; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  font-size: 0.55rem; line-height: 1; color: var(--text-2); background: var(--glass); border: 1px solid var(--hairline); border-radius: 6px;
+  transition: color 150ms var(--ease), border-color 150ms var(--ease), background 150ms var(--ease); }
+.prio-move button:hover { color: var(--accent-bright); border-color: color-mix(in srgb, var(--accent-bright) 45%, var(--hairline)); }
+.prio-move button:active { background: var(--accent-wash); }
+.prio-move button.none { display: none; }
+/* phones: the arrows' room comes from the time — the start is enough there */
+@media (max-width: 560px) { .pgroup .tcard .tend { display: none; } }
+/* fingers: bigger buttons, and a drag handle that's easy to press */
+@media (pointer: coarse) {
+  .prio-move button { width: 30px; height: 21px; font-size: 0.6rem; }
+  .tcard .drag-grip { padding: 0.9rem 0.45rem; margin: -0.9rem -0.3rem; font-size: 1rem; opacity: 0.6; }
+}

@@ -15,6 +15,7 @@ import { projectColorVar } from '../lib/projectColors'
 import { computeProjectStats, type ProjectStat } from '../lib/projectStats'
 import { useLang } from '../lib/i18n'
 import { stepCount } from '../lib/items'
+import { fromDailyBrief } from '../lib/tasks'
 
 const RING_R = 26
 const RING_C = 2 * Math.PI * RING_R
@@ -83,6 +84,7 @@ function byDue(a: Task, b: Task): number {
 
 function BoardCard({ task, proj, onEdit }: { task: Task; proj?: Project; onEdit: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
+  const { t } = useLang()
   const steps = stepCount(task.checklist)
   return (
     <button
@@ -95,10 +97,11 @@ function BoardCard({ task, proj, onEdit }: { task: Task; proj?: Project; onEdit:
     >
       {proj && <span className="b-acc" style={{ background: projectColorVar(proj.color) }} />}
       <div className="t">{task.title}</div>
-      {(task.due || Boolean(task.isMit) || task.recurrence || proj || steps.all > 0) && (
+      {(task.due || Boolean(task.isMit) || task.recurrence || proj || steps.all > 0 || fromDailyBrief(task)) && (
         <div className="meta">
           {Boolean(task.isMit) && <span>⭐</span>}
           {task.recurrence && <span>🔁</span>}
+          {fromDailyBrief(task) && <span className="tbrief" title={t('brief.badgeTitle')}>📋 {t('brief.badge')}</span>}
           {steps.all > 0 && <span className={`tsteps num ${steps.done === steps.all ? 'all' : ''}`}><Icon name="check" size={11} strokeWidth={2.6} />{steps.done}/{steps.all}</span>}
           {task.due && <span className="num">{task.due.slice(5)}</span>}
           {proj && (

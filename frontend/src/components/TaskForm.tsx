@@ -8,7 +8,7 @@ import Checklist from './Checklist'
 import { useLang } from '../lib/i18n'
 import { hm } from '../lib/timer'
 import { live, spentHours, clearFocus, type CheckItem } from '../lib/items'
-import { parseExtras } from '../lib/tasks'
+import { parseExtras, fromDailyBrief, DAILY_BRIEF_URL } from '../lib/tasks'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 
 // One form for BOTH adding and editing a task, so the two can never diverge.
@@ -402,6 +402,11 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                 onChange={(e) => setNotes(e.target.value)}
                 aria-label={t('task.notes')}
               />
+              {task && fromDailyBrief(task) && (
+                <a className="brief-link" href={DAILY_BRIEF_URL} target="_blank" rel="noopener noreferrer">
+                  📋 {t('brief.open')} ↗
+                </a>
+              )}
             </div>
             {editing && spent > 0 && !resetSpent && (
               <div className="f spent-row">

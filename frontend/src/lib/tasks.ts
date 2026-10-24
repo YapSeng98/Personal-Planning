@@ -2,6 +2,14 @@
 import { db, patchAndQueue, type Task } from '../db/db'
 import { syncNow } from '../sync/engine'
 
+/** The Daily Brief app (Work_Management_System) shares this Supabase account:
+    its "Take" creates Planner tasks through sync_push, with a footer line in
+    the notes ("— Daily Brief · …"; its first version wrote "— from Daily
+    Brief"). That line is how a task is recognised as one of its items. */
+export const DAILY_BRIEF_URL = 'https://yapseng98.github.io/Work_Management_System/'
+const BRIEF_FOOTER = /^— (from )?Daily Brief\b/m
+export const fromDailyBrief = (task: Pick<Task, 'notes'>): boolean => BRIEF_FOOTER.test(task.notes ?? '')
+
 /** Extract a time ("6am") and duration ("2h") from free text — the quick-add
     convenience. Returns the cleaned title plus any values found. */
 export function parseExtras(input: string) {
