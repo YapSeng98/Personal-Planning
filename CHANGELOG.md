@@ -8,6 +8,14 @@ those.
 
 ## 2026-10-24
 
+- **Arrange today's tasks by priority** — a "By priority" switch above
+  Today's tasks (next to "My order"; each device remembers your choice)
+  groups them under High, Medium and Low. Drag a task into another group to
+  change its priority — the group lights up and a line shows where it will
+  land — or within a group to reorder. The day's order then runs High →
+  Medium → Low in "My order" too. An empty group shows as a slim "drag one
+  here" row.
+  ([daabd3c](https://github.com/YapSeng98/Personal-Planning/commit/daabd3c))
 - **Trading Hub in quick apps** — Today's quick-apps menu (the ⋮⋮⋮ button
   above +) has a fifth shortcut, 📈 Trading Hub, opening the gold (XAU/USD)
   report. The shortcuts now sit on a slightly wider arc so all five fit on a
