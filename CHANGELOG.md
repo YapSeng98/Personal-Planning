@@ -8,6 +8,18 @@ those.
 
 ## 2026-10-24
 
+- **Move a task to another priority with one tap** — in Today's "By
+  priority" view every card has ▲ / ▼ to move it to the group above or
+  below, so changing priority doesn't need a drag. On phones the drag
+  handle is easier to press, and that view shows only a block's start
+  time so the title keeps its room.
+  ([64489c8](https://github.com/YapSeng98/Personal-Planning/commit/64489c8))
+- **Daily Brief tasks in the Planner** — tasks taken in the Daily Brief app
+  (Work Management System, same account) show a "📋 Brief" badge on Today
+  and Board, and their form has an "Open in Daily Brief" link. Daily Brief
+  is also a shortcut in Today's quick apps. Done, renamed or re-dated in the
+  Planner, they update in Daily Brief too.
+  ([64489c8](https://github.com/YapSeng98/Personal-Planning/commit/64489c8))
 - **Arrange today's tasks by priority** — a "By priority" switch above
   Today's tasks (next to "My order"; each device remembers your choice)
   groups them under High, Medium and Low. Drag a task into another group to
