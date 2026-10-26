@@ -6,6 +6,23 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-26
+
+- **Phone fit pass** — every page, sheet and popup checked on iPhone SE,
+  iPhone 15, a 360px Android and iPad mini, in English and Chinese, with
+  long titles and six habits:
+  - pages now open at their top (they opened where the previous page was
+    scrolled — half-way down); Back returns to where you were
+  - iPhone/iPad no longer zoom in when you tap a text box (steps, notes,
+    times, reviews, sign-in…) — pinch-zoom still works
+  - Today's cards: on phones the time sits under the title, so titles get the
+    width; the details line wraps and a long project name ends in "…"
+  - habits sit four to a row on phones (six in one row were too small to
+    read or tap)
+  - tick boxes are easier to hit with a finger; ▲ ▼ and the timer button are
+    bigger on touch screens; no text under ~11px on phones
+  ([5a5099b](https://github.com/YapSeng98/Personal-Planning/commit/5a5099b))
+
 ## 2026-10-24
 
 - **Fix: another app's sign-in could switch the Planner's account** — the
