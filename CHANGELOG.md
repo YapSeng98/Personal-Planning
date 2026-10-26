@@ -6,6 +6,22 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-27
+
+- **Fix: a deleted repeating task kept coming back** — deleting a daily task
+  only removed that day; the earlier days still repeated, so Plan kept
+  showing it on every future day and the next day's copy was made again.
+  - Delete on a repeating task now asks: **Only this day** (the repeat goes
+    on) or **This and all after** (the repeat stops; earlier days stay).
+  - Plan's faded future copies can be tapped: **Skip this day** or **Stop
+    repeating** — use this to end a repeat deleted with the old version.
+  - Turning Repeat off in the form stops it on every day.
+  - Two copies of the same repeating task (same title, day and time) now
+    collapse to one for good, rather than one copy being removed each day.
+  - Reminders for repeating tasks follow the same rules (schema.sql — run
+    it to update the server's reminder list).
+  ([72d3283](https://github.com/YapSeng98/Personal-Planning/commit/72d3283))
+
 ## 2026-10-26
 
 - **Phone fit pass** — every page, sheet and popup checked on iPhone SE,
