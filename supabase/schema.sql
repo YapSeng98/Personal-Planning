@@ -1569,10 +1569,15 @@ as $$
        and not t.deleted and t.state in ('open', 'in_progress')
   ),
   latest as (
+    -- the series' newest day, as the app sees it (activeRecurringSeries in
+    -- db.ts): a deleted day counts — a skipped one the series goes on from —
+    -- unless it's ahead of today; and only while a day still there repeats
     select distinct on (t.series_id) t.*
       from public.tasks t
-     where t.series_id is not null and not t.deleted
+     where t.series_id is not null
+       and (not t.deleted or t.due <= current_date)
        and t.user_id in (select s.user_id from subs s)
+       and exists (select 1 from public.tasks k where k.series_id = t.series_id and not k.deleted and k.recurrence is not null)
      order by t.series_id, t.due desc nulls last
   ),
   projected as (

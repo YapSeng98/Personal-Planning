@@ -5,7 +5,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, uuid, todayStr, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, nextCompletedAt, CHANGED, type Task, type TaskState, type Goal, type Habit, type Review } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, endSeries, skipOccurrence, nextCompletedAt, CHANGED, type Task, type TaskState, type Goal, type Habit, type Review } from '../db/db'
 import { syncNow } from '../sync/engine'
 import TaskForm from '../components/TaskForm'
 import { useLang, type TFn } from '../lib/i18n'
@@ -15,9 +15,10 @@ interface DayView {
   name: string
   tasks: Task[]
   /** Recurring tasks projected onto this day even though no real row exists
-      here yet — e.g. the rest of this week for a daily task. Titles only;
-      not interactive, since there's nothing to check off until it's real. */
-  previews: string[]
+      here yet — e.g. the rest of this week for a daily task. Nothing to tick
+      until it's real; tapping one offers to skip that day or stop the repeat.
+      `series` is the series' latest occurrence (it may be a skipped day). */
+  previews: { title: string; series: Task }[]
 }
 
 interface MonthCell {
@@ -67,7 +68,7 @@ function TaskRow({ task, onToggle, onEdit, t }: { task: Task; onToggle: () => vo
 }
 
 function DayColumn({
-  day, today, draft, onDraft, onAdd, onToggle, onEdit, t,
+  day, today, draft, onDraft, onAdd, onToggle, onEdit, onPreview, t,
 }: {
   day: DayView
   today: string
@@ -76,6 +77,7 @@ function DayColumn({
   onAdd: () => void
   onToggle: (task: Task) => void
   onEdit: (task: Task) => void
+  onPreview: (series: Task, date: string) => void
   t: TFn
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: day.date })
@@ -92,12 +94,12 @@ function DayColumn({
           <TaskRow key={task.id} task={task} onToggle={() => onToggle(task)} onEdit={() => onEdit(task)} t={t} />
         ))}
       </SortableContext>
-      {day.previews.map((title, i) => (
-        <div key={i} className="task-row preview-row" title={t('plan.previewHint')}>
+      {day.previews.map((p) => (
+        <button key={p.series.id} type="button" className="task-row preview-row" title={t('plan.previewHint')} onClick={() => onPreview(p.series, day.date)}>
           <span className="drag-grip" aria-hidden />
           <span className="check" aria-hidden>&#8635;</span>
-          <span className="title">{title}</span>
-        </div>
+          <span className="title">{p.title}</span>
+        </button>
       ))}
       <input
         className="add-inline"
@@ -117,6 +119,8 @@ export default function Plan() {
   const [monthGoals, setMonthGoals] = useState<Goal[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [editing, setEditing] = useState<Task | null>(null)
+  // a repeating task's preview tapped: skip that day, or stop the repeat
+  const [preview, setPreview] = useState<{ series: Task; date: string } | null>(null)
   const [weekOffset, setWeekOffset] = useState(0)
   const [view, setView] = useState<'week' | 'month'>('week')
   const [monthOffset, setMonthOffset] = useState(0)
@@ -150,11 +154,13 @@ export default function Plan() {
       const d = new Date(monday)
       d.setDate(monday.getDate() + i)
       const date = todayStr(d)
-      const tasks = (await db.tasks.where('due').equals(date).and((x) => !x.deleted).toArray()).sort(byOrder)
-      const realSeriesIds = new Set(tasks.map((x) => x.seriesId).filter(Boolean))
+      const onDay = await db.tasks.where('due').equals(date).toArray()
+      const tasks = onDay.filter((x) => !x.deleted).sort(byOrder)
+      // a series' day that has a row — even a deleted one ("only this day") — isn't previewed
+      const realSeriesIds = new Set(onDay.map((x) => x.seriesId).filter(Boolean))
       const previews = series
         .filter((s) => !realSeriesIds.has(s.seriesId) && isProjectedOccurrence(s, date))
-        .map((s) => s.title)
+        .map((s) => ({ title: s.title, series: s }))
       views.push({ date, name: d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined, { weekday: 'long' }), tasks, previews })
     }
     setDays(views)
@@ -440,6 +446,7 @@ export default function Plan() {
                 onAdd={() => addFor(d.date)}
                 onToggle={toggle}
                 onEdit={setEditing}
+                onPreview={(series, date) => setPreview({ series, date })}
                 t={t}
               />
             ))}
@@ -529,6 +536,26 @@ export default function Plan() {
         </>
       )}
       {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
+      {preview && (
+        <div className="sheet-backdrop" onClick={() => setPreview(null)}>
+          <div className="sheet repeat-sheet" role="dialog" aria-modal="true" aria-labelledby="rp-h" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-body">
+              <h2 id="rp-h">🔁 {preview.series.title}</h2>
+              <p className="row-sub">
+                {t('plan.repeatsOn', {
+                  how: t(`task.repeat${preview.series.recurrence === 'weekly' ? 'Weekly' : preview.series.recurrence === 'monthly' ? 'Monthly' : 'Daily'}`),
+                  date: new Date(preview.date + 'T00:00').toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined, { weekday: 'long', month: 'long', day: 'numeric' }),
+                })}
+              </p>
+            </div>
+            <div className="sheet-actions del-repeat-btns">
+              <button className="btn" onClick={() => setPreview(null)}>{t('common.cancel')}</button>
+              <button className="btn btn-danger" onClick={async () => { await skipOccurrence(preview.series, preview.date); syncNow(); setPreview(null) }}>{t('plan.skipDay')}</button>
+              <button className="btn btn-danger-solid" onClick={async () => { await endSeries(preview.series.seriesId!, preview.date); syncNow(); setPreview(null) }}>{t('plan.stopRepeat')}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

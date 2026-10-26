@@ -2127,3 +2127,16 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
   .prio-move button { width: 32px; height: 24px; font-size: 0.7rem; }
   .tcard .ttimer { height: 32px; min-width: 32px; }
 }
+
+/* deleting a repeating task: only this day, or this and all after */
+.del-repeat { display: flex; flex-direction: column; gap: 0.7rem; }
+.del-repeat p { margin: 0; font-size: 0.9rem; color: var(--text-1); line-height: 1.45; }
+.del-repeat-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+.btn-danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger-solid:hover { filter: brightness(1.06); }
+
+/* a repeating task's preview on Plan: tap → skip this day / stop repeating */
+button.preview-row { width: 100%; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+button.preview-row:hover .title { color: var(--accent-bright); }
+.repeat-sheet h2 { margin: 0 0 0.4rem; font-size: 1.15rem; }
+.repeat-sheet .sheet-actions { justify-content: flex-end; }

@@ -539,7 +539,8 @@ function nextOccurrence(date: string, recurrence: NonNullable<Task['recurrence']
     rollRecurringTasks (decides whether to generate the next real row) and
     the Plan screens (decide which future days to preview a repeat on). */
 export async function activeRecurringSeries(): Promise<Task[]> {
-  const all = await db.tasks.filter((t) => !t.deleted && !!t.seriesId).toArray()
+  const today = todayStr()
+  const all = await db.tasks.filter((t) => !!t.seriesId).toArray()
   const bySeries = new Map<string, Task[]>()
   for (const t of all) {
     const arr = bySeries.get(t.seriesId!) ?? []
@@ -548,10 +549,55 @@ export async function activeRecurringSeries(): Promise<Task[]> {
   }
   const latest: Task[] = []
   for (const rows of bySeries.values()) {
-    const l = rows.reduce((a, b) => ((a.due ?? '') > (b.due ?? '') ? a : b))
-    if (l.recurrence && l.due) latest.push(l)
+    // A deleted day counts: it was skipped ("Only this day"), and the series
+    // goes on from it. One ahead of today was skipped in advance and only
+    // removes that day.
+    const counted = rows.filter((r) => !r.deleted || (r.due ?? '') <= today)
+    if (!counted.length) continue
+    const l = counted.reduce((a, b) => ((a.due ?? '') > (b.due ?? '') ? a : b))
+    // Still repeating only while a day that's still there says so: stopping a
+    // series clears the repeat from every day (older versions left it on the
+    // deleted last day, which must not bring a stopped series back).
+    if (l.recurrence && l.due && rows.some((r) => !r.deleted && r.recurrence)) latest.push(l)
   }
   return latest
+}
+
+/** End a repeating series from `from` (YYYY-MM-DD): days from then on that
+    aren't done are deleted, and every day — deleted ones too — loses the
+    repeat, so nothing previews or comes back. Earlier days stay as history. */
+export async function endSeries(seriesId: string, from: string, alsoDelete?: string): Promise<void> {
+  for (const r of await db.tasks.filter((x) => x.seriesId === seriesId).toArray()) {
+    const drop = !r.deleted && (r.id === alsoDelete || ((r.due ?? '') >= from && r.state !== 'done'))
+    if (drop) await patchAndQueue(db.tasks, 'task', r.id, { deleted: 1, recurrence: undefined })
+    else if (r.recurrence) await patchAndQueue(db.tasks, 'task', r.id, { recurrence: undefined })
+  }
+}
+
+/** Skip one future day of a repeating series (from its preview on Plan): a
+    deleted occurrence with that day's id, so the day neither previews nor
+    gets created when it comes. */
+export async function skipOccurrence(latest: Task, day: string): Promise<void> {
+  const id = await uuidFrom(`${latest.seriesId}:${day}`)
+  if (await db.tasks.get(id)) {
+    await patchAndQueue(db.tasks, 'task', id, { deleted: 1 })
+    return
+  }
+  const time = (iso?: string) => (iso ? `${day}T${iso.slice(11, 16)}` : undefined)
+  await writeAndQueue(db.tasks, 'task', {
+    ...latest, id, sysId: undefined, rev: undefined, due: day,
+    timeBlockStart: time(latest.timeBlockStart), timeBlockEnd: time(latest.timeBlockEnd),
+    actualHours: undefined, focusLog: undefined, checklist: undefined, state: 'open',
+    completedAt: undefined, sortOrder: undefined, deleted: 1, updatedAt: Date.now(),
+  })
+}
+
+/** Delete a repeating task from this occurrence on ("This and all after"):
+    it and any later days go, and the earlier ones lose the repeat (they stay
+    as history). Deleting just the one day used to leave the earlier days
+    saying "daily", so the task kept showing on future days and came back. */
+export async function stopRepeatingFrom(task: Task): Promise<void> {
+  if (task.seriesId) await endSeries(task.seriesId, task.due ?? todayStr(), task.id)
 }
 
 /** True if `candidateDate` is a day this series would land on, projecting
@@ -585,7 +631,9 @@ async function dedupeRecurringOccurrences(): Promise<number> {
   const all = await db.tasks.filter((t) => !t.deleted && !!t.due).toArray()
   const byKey = new Map<string, Task[]>()
   for (const t of all) {
-    const key = `${t.title}|${t.due}`
+    // the start time too: the same task twice a day (morning and evening
+    // chart review) is meant, not a mis-click
+    const key = `${t.title}|${t.due}|${t.timeBlockStart?.slice(11, 16) ?? ''}`
     const arr = byKey.get(key) ?? []
     arr.push(t)
     byKey.set(key, arr)
@@ -597,6 +645,16 @@ async function dedupeRecurringOccurrences(): Promise<number> {
     for (const dupe of rows.slice(1)) {
       await patchAndQueue(db.tasks, 'task', dupe.id, { deleted: 1 })
       removed++
+    }
+    // Two copies of the same repeating task (each its own series): end all
+    // but one series too — removing just today's copy left the other
+    // repeating, so it was back the next day and showed twice on every
+    // future day. The series kept is the one with the lowest id, so every
+    // device picks the same one even before they've synced (picking by age
+    // could have each device stop a different one, and the repeat be lost).
+    for (const how of ['daily', 'weekly', 'monthly'] as const) {
+      const series = [...new Set(rows.filter((r) => r.seriesId && r.recurrence === how).map((r) => r.seriesId!))].sort()
+      for (const sid of series.slice(1)) await endSeries(sid, '9999-12-31')
     }
   }
   return removed
@@ -681,6 +739,8 @@ async function rollRecurringTasksInner() {
       state: 'open',
       completedAt: undefined,
       sortOrder: undefined,
+      // the series may go on from a skipped (deleted) day
+      deleted: 0,
       updatedAt: Date.now(),
     }
     await writeAndQueue(db.tasks, 'task', next, { derived: true })

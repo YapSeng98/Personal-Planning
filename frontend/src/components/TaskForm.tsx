@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { db, uuid, todayStr, writeAndQueue, patchAndQueue, editTaskList, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState, type GoalType } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, patchAndQueue, editTaskList, stopRepeatingFrom, endSeries, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState, type GoalType } from '../db/db'
 import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
@@ -177,16 +177,16 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
       // Turning repeat off ends the whole series: earlier occurrences still
       // carry `recurrence`, and the newest of them would otherwise restart
       // the series the next day. They keep their history, minus the badge.
+      // (every day of the series loses the repeat — deleted days too — and
+      // this one goes unless it's done: see endSeries)
       if (task && task.recurrence && !recurrence && task.seriesId) {
-        const series = await db.tasks.filter((x) => x.seriesId === task.seriesId && x.id !== task.id && !x.deleted && !!x.recurrence).toArray()
-        for (const row of series) await patchAndQueue(db.tasks, 'task', row.id, { recurrence: undefined })
-      }
-      if (task && task.recurrence && !recurrence && task.state !== 'done') {
-        await patchAndQueue(db.tasks, 'task', task.id, { deleted: 1 })
-        if (task.goalId) await rollUpGoal(task.goalId)
-        syncNow()
-        onClose()
-        return
+        await endSeries(task.seriesId, task.due ?? todayStr())
+        if (task.state !== 'done') {
+          if (task.goalId) await rollUpGoal(task.goalId)
+          syncNow()
+          onClose()
+          return
+        }
       }
 
       const id = task?.id ?? uuid()
@@ -234,10 +234,27 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
     }
   }
 
+  // a repeating task asks: only this day, or this and every day after?
+  const [askRepeat, setAskRepeat] = useState(false)
+  const repeating = !!task?.seriesId && !!task.recurrence
+
   async function remove() {
     if (!task) return
+    if (repeating) {
+      setAskRepeat(true)
+      return
+    }
     if (!window.confirm(t('task.deleteConfirm', { title: task.title }))) return
     await patchAndQueue(db.tasks, 'task', task.id, { deleted: 1 })
+    if (task.goalId) await rollUpGoal(task.goalId)
+    syncNow()
+    onClose()
+  }
+
+  async function removeRepeating(all: boolean) {
+    if (!task) return
+    if (all) await stopRepeatingFrom(task)
+    else await patchAndQueue(db.tasks, 'task', task.id, { deleted: 1 })
     if (task.goalId) await rollUpGoal(task.goalId)
     syncNow()
     onClose()
@@ -416,6 +433,16 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
             )}
           </div>
         </div>
+        {askRepeat ? (
+          <div className="sheet-actions del-repeat" role="alertdialog" aria-label={t('task.deleteRepeatQ')}>
+            <p>{t('task.deleteRepeatQ')}</p>
+            <div className="del-repeat-btns">
+              <button className="btn" onClick={() => setAskRepeat(false)}>{t('common.cancel')}</button>
+              <button className="btn btn-danger" onClick={() => removeRepeating(false)}>{t('task.deleteOne')}</button>
+              <button className="btn btn-danger-solid" onClick={() => removeRepeating(true)}>{t('task.deleteAllAfter')}</button>
+            </div>
+          </div>
+        ) : (
         <div className="row sheet-actions" style={{ justifyContent: editing ? 'space-between' : 'flex-end' }}>
           {editing && <button className="btn btn-danger" onClick={remove} disabled={submitting}>{t('common.delete')}</button>}
           <span style={{ display: 'flex', gap: '0.6rem' }}>
@@ -425,6 +452,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
             </button>
           </span>
         </div>
+        )}
       </div>
     </div>
   )
