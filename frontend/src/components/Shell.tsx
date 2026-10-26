@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigationType } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { onSyncState, type SyncState } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { type Task } from '../db/db'
@@ -95,6 +95,36 @@ function ReminderBanners() {
   )
 }
 
+/** Where each page was scrolled to, for going back to it. */
+const scrollMemory = new Map<string, number>()
+
+/** A page opens at its top (it used to open where the previous page was
+    scrolled to — half-way down, under the corner buttons on a phone); going
+    back returns to where you were on it. */
+function usePageScroll() {
+  const { pathname } = useLocation()
+  const navType = useNavigationType()
+  const current = useRef(pathname)
+  useEffect(() => {
+    let raf = 0
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => scrollMemory.set(current.current, window.scrollY)) }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', onScroll) }
+  }, [])
+  useLayoutEffect(() => {
+    if (current.current === pathname) return
+    current.current = pathname
+    const saved = navType === 'POP' ? scrollMemory.get(pathname) : undefined
+    if (saved === undefined) {
+      window.scrollTo(0, 0)
+      return
+    }
+    // the page's content loads from the database a moment later: try again as it grows
+    const timers = [0, 80, 250, 600].map((ms) => window.setTimeout(() => window.scrollTo(0, saved), ms))
+    return () => timers.forEach((id) => window.clearTimeout(id))
+  }, [pathname, navType])
+}
+
 const syncKey: Record<SyncState, string> = {
   idle: 'sync.idle', syncing: 'sync.syncing', offline: 'sync.offline',
   'local-only': 'sync.local', error: 'sync.error', 'signed-out': 'sync.signedOut', 'other-account': 'sync.otherAccount',
@@ -108,6 +138,7 @@ export default function Shell() {
   const [hasUpdate, setHasUpdate] = useState(updateReady())
   const timer = useRunningTimer()
   const { t } = useLang()
+  usePageScroll()
   useEffect(() => onSyncState(setSync), [])
   useEffect(() => onUpdateReady(() => setHasUpdate(true)), [])
   useEffect(() => {

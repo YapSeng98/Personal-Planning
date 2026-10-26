@@ -1024,7 +1024,16 @@ button.goal-card:hover { background: var(--glass-strong); }
   overflow: hidden; text-overflow: ellipsis;
 }
 .tcard .ttitle.done { color: var(--text-3); text-decoration: line-through; }
-.tcard .tmeta { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.28rem; }
+.tcard .tmeta { display: flex; flex-wrap: wrap; gap: 0.25rem 0.4rem; align-items: center; margin-top: 0.28rem; min-width: 0; }
+.tcard .tmeta .tchip { max-width: 100%; min-width: 0; overflow: hidden; }
+.tchip-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcard .ttime-m { display: none; font-size: 0.72rem; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+/* phones: the time moves under the title (the right-hand column took a
+   quarter of the card and squeezed titles into a narrow strip) */
+@media (max-width: 560px) {
+  .tcard .ttime { display: none; }
+  .tcard .ttime-m { display: inline; }
+}
 .tchip { font-size: 0.62rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
 .tchip .cd { width: 6px; height: 6px; border-radius: 50%; }
 .tcard .tstar { color: var(--amber); font-size: 0.72rem; }
@@ -1790,9 +1799,10 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 
 /* ---- habit tiles ----
    Ring (tap to log) + name + seven "week lights" (last 7 days, today last)
-   + streak. One row, always: tiles share the width and shrink, so there's
-   never a second row or a scrollbar; a container query drops detail as a
-   tile gets narrow (phones with many habits). */
+   + streak. One row on wider screens: tiles share the width and shrink; a
+   container query drops detail as a tile gets narrow. Phones: rows of four
+   (sharing one row, six habits left ~44px tiles — names broken mid-word,
+   rings too small to tap). */
 .ga-habits { min-width: 0; }
 .hx-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 170px); gap: 0.7rem; }
 @media (max-width: 640px) { .hx-row { grid-auto-columns: minmax(0, 1fr); gap: 0.4rem; } }
@@ -1820,7 +1830,7 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 .hx.done .hx-ring span { animation: pop 0.35s var(--ease); }
 .hx-name { font-size: 0.74rem; font-weight: 650; color: var(--text-1); text-align: center; line-height: 1.25;
   background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
-  max-width: 100%; min-height: 2.5em; overflow-wrap: anywhere;
+  max-width: 100%; min-height: 2.5em; overflow-wrap: break-word;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .hx-name:hover { color: var(--accent-bright); }
 .hx-week { display: flex; gap: clamp(2px, 2.5cqi, 5px); }
@@ -1843,7 +1853,7 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 .hx-add:hover .plus { transform: rotate(90deg); }
 .hx-add-l { font-size: 0.72rem; font-weight: 650; text-align: center; }
 @container (max-width: 84px) {
-  .hx-name { font-size: 0.6rem; }
+  .hx-name { font-size: 0.66rem; }
   .hx-meta .cnt, .hx-add-l { display: none; }
 }
 
@@ -2086,10 +2096,34 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 .prio-move button:hover { color: var(--accent-bright); border-color: color-mix(in srgb, var(--accent-bright) 45%, var(--hairline)); }
 .prio-move button:active { background: var(--accent-wash); }
 .prio-move button.none { display: none; }
-/* phones: the arrows' room comes from the time — the start is enough there */
-@media (max-width: 560px) { .pgroup .tcard .tend { display: none; } }
+
 /* fingers: bigger buttons, and a drag handle that's easy to press */
 @media (pointer: coarse) {
   .prio-move button { width: 30px; height: 21px; font-size: 0.6rem; }
   .tcard .drag-grip { padding: 0.9rem 0.45rem; margin: -0.9rem -0.3rem; font-size: 1rem; opacity: 0.6; }
+}
+
+/* phones: habits in rows of four (see the habit tiles block) */
+@media (max-width: 640px) {
+  .hx-row { width: 100%; grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-columns: unset; }
+}
+
+/* fingers: tick boxes keep their look but take a tap ~40px across (22px
+   was easy to miss); the visible box stays where it is */
+@media (pointer: coarse) {
+  .check { position: relative; }
+  .check::after { content: ''; position: absolute; inset: -9px; }
+}
+
+/* phones: no text under ~11px (project tags, badges, chart day letters,
+   calendar numbers, swatch names were 9.6–10px) */
+@media (max-width: 640px) {
+  .tchip, .tbrief, .cb-lbl, .rcal-num, .bg-swatch span { font-size: 0.7rem; }
+  .hero-brief .bl { font-size: 0.66rem; }
+  .rcal-day.has .rcal-num, .hm-month, .hm-daylabel, .m-streak .sl { font-size: 0.68rem; }
+}
+/* fingers: the ▲ ▼ and timer buttons a little bigger */
+@media (pointer: coarse) {
+  .prio-move button { width: 32px; height: 24px; font-size: 0.7rem; }
+  .tcard .ttimer { height: 32px; min-width: 32px; }
 }

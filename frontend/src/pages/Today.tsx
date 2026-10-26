@@ -144,8 +144,12 @@ function TodayCard({ task, proj, timingSince, dropHint, prioMove, onToggle, onEd
       <button className={`check ${done ? 'on' : ''}`} onClick={onToggle} aria-label={task.title}>✓</button>
       <button className="tbody" onClick={onEdit} title={task.title}>
         <div className={`ttitle ${done ? 'done' : ''}`}>{task.title}</div>
-        {(Boolean(task.isMit) || task.recurrence || proj || task.notes || spent > 0 || task.estimatedHours || steps.all > 0) && (
+        {(Boolean(task.isMit) || task.recurrence || proj || task.notes || spent > 0 || task.estimatedHours || steps.all > 0 || task.timeBlockStart) && (
           <div className="tmeta">
+            {/* phones: the time sits here, so the title gets the width */}
+            {task.timeBlockStart && (
+              <span className="ttime-m num">{task.timeBlockStart.slice(11, 16)}{task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}</span>
+            )}
             {Boolean(task.isMit) && <span className="tstar">⭐</span>}
             {task.recurrence && <span className="trecur" title={t('task.repeat')}>🔁</span>}
             {steps.all > 0 && (
@@ -164,7 +168,7 @@ function TodayCard({ task, proj, timingSince, dropHint, prioMove, onToggle, onEd
             {proj && (
               <span className="tchip" style={{ background: 'var(--accent-wash)', color: 'var(--text-2)' }}>
                 <span className="cd" style={{ background: projectColorVar(proj.color) }} />
-                {proj.title}
+                <span className="tchip-t">{proj.title}</span>
               </span>
             )}
           </div>
