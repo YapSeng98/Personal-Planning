@@ -381,6 +381,8 @@ export const isOpenOneOff = (x: Task) =>
 
 /** Fired after any local write or applied sync pull; screens reload on it. */
 export const CHANGED = 'planner:changed'
+/** A sync brought task changes from the server (sync/engine.ts). */
+export const TASKS_PULLED = 'planner:tasks-pulled'
 export const notifyChange = () => window.dispatchEvent(new CustomEvent(CHANGED))
 
 type SyncRecord = { id: string; updatedAt: number; attachments?: NoteAttachment[] }
@@ -539,28 +541,40 @@ function nextOccurrence(date: string, recurrence: NonNullable<Task['recurrence']
     rollRecurringTasks (decides whether to generate the next real row) and
     the Plan screens (decide which future days to preview a repeat on). */
 export async function activeRecurringSeries(): Promise<Task[]> {
-  const today = todayStr()
-  const all = await db.tasks.filter((t) => !!t.seriesId).toArray()
+  const latest: Task[] = []
+  for (const rows of (await seriesRows()).values()) {
+    const l = lastDay(rows)
+    if (l?.recurrence && l.due && (!l.deleted || isSkip(l))) latest.push(l)
+  }
+  return latest
+}
+
+/** A skipped day of a repeating task ("Only this day", or Skip this day on
+    Plan): deleted and marked cancelled. The series goes on from it. A day
+    deleted any other way — every delete before 2026-10-27, when there was
+    no choice — means the task was deleted: if it's the series' last day, the
+    repeat is over. */
+export const isSkip = (t: Task) => !!t.deleted && t.state === 'cancelled'
+const SKIP = { deleted: 1, state: 'cancelled' } as const
+
+async function seriesRows(): Promise<Map<string, Task[]>> {
   const bySeries = new Map<string, Task[]>()
-  for (const t of all) {
+  for (const t of await db.tasks.filter((x) => !!x.seriesId).toArray()) {
     const arr = bySeries.get(t.seriesId!) ?? []
     arr.push(t)
     bySeries.set(t.seriesId!, arr)
   }
-  const latest: Task[] = []
-  for (const rows of bySeries.values()) {
-    // A deleted day counts: it was skipped ("Only this day"), and the series
-    // goes on from it. One ahead of today was skipped in advance and only
-    // removes that day.
-    const counted = rows.filter((r) => !r.deleted || (r.due ?? '') <= today)
-    if (!counted.length) continue
-    const l = counted.reduce((a, b) => ((a.due ?? '') > (b.due ?? '') ? a : b))
-    // Still repeating only while a day that's still there says so: stopping a
-    // series clears the repeat from every day (older versions left it on the
-    // deleted last day, which must not bring a stopped series back).
-    if (l.recurrence && l.due && rows.some((r) => !r.deleted && r.recurrence)) latest.push(l)
-  }
-  return latest
+  return bySeries
+}
+
+/** A series' newest day as far as repeating goes: deleted days count (a
+    skip, or the delete that ended it), except ones ahead of today — skipped
+    in advance, they only take out that day. */
+function lastDay(rows: Task[]): Task | undefined {
+  const today = todayStr()
+  const counted = rows.filter((r) => !r.deleted || (r.due ?? '') <= today)
+  if (!counted.length) return undefined
+  return counted.reduce((a, b) => ((a.due ?? '') > (b.due ?? '') ? a : b))
 }
 
 /** End a repeating series from `from` (YYYY-MM-DD): days from then on that
@@ -580,16 +594,22 @@ export async function endSeries(seriesId: string, from: string, alsoDelete?: str
 export async function skipOccurrence(latest: Task, day: string): Promise<void> {
   const id = await uuidFrom(`${latest.seriesId}:${day}`)
   if (await db.tasks.get(id)) {
-    await patchAndQueue(db.tasks, 'task', id, { deleted: 1 })
+    await patchAndQueue(db.tasks, 'task', id, SKIP)
     return
   }
   const time = (iso?: string) => (iso ? `${day}T${iso.slice(11, 16)}` : undefined)
   await writeAndQueue(db.tasks, 'task', {
     ...latest, id, sysId: undefined, rev: undefined, due: day,
     timeBlockStart: time(latest.timeBlockStart), timeBlockEnd: time(latest.timeBlockEnd),
-    actualHours: undefined, focusLog: undefined, checklist: undefined, state: 'open',
-    completedAt: undefined, sortOrder: undefined, deleted: 1, updatedAt: Date.now(),
+    actualHours: undefined, focusLog: undefined, checklist: undefined,
+    completedAt: undefined, sortOrder: undefined, ...SKIP, updatedAt: Date.now(),
   })
+}
+
+/** Skip just this day of a repeating task ("Only this day"): the repeat
+    goes on the next day. */
+export async function skipDay(task: Task): Promise<void> {
+  await patchAndQueue(db.tasks, 'task', task.id, SKIP)
 }
 
 /** Delete a repeating task from this occurrence on ("This and all after"):
@@ -643,21 +663,45 @@ async function dedupeRecurringOccurrences(): Promise<number> {
     if (rows.length <= 1) continue
     rows.sort((a, b) => (a.state === 'done' ? -1 : 1) - (b.state === 'done' ? -1 : 1) || a.updatedAt - b.updatedAt)
     for (const dupe of rows.slice(1)) {
-      await patchAndQueue(db.tasks, 'task', dupe.id, { deleted: 1 })
+      // removed as a skip: which copy of a repeat carries on is decided by
+      // dedupeRecurringSeries, the same way on every device — not by which
+      // row happened to be removed here
+      await patchAndQueue(db.tasks, 'task', dupe.id, SKIP)
       removed++
-    }
-    // Two copies of the same repeating task (each its own series): end all
-    // but one series too — removing just today's copy left the other
-    // repeating, so it was back the next day and showed twice on every
-    // future day. The series kept is the one with the lowest id, so every
-    // device picks the same one even before they've synced (picking by age
-    // could have each device stop a different one, and the repeat be lost).
-    for (const how of ['daily', 'weekly', 'monthly'] as const) {
-      const series = [...new Set(rows.filter((r) => r.seriesId && r.recurrence === how).map((r) => r.seriesId!))].sort()
-      for (const sid of series.slice(1)) await endSeries(sid, '9999-12-31')
     }
   }
   return removed
+}
+
+/** Two copies of the same repeating task — each its own series, landing on
+    the same days at the same time — are one repeat: the copy with the
+    lowest series id carries on (so every device keeps the same one) and the
+    others end. Removing one day's copy at a time (all dedupe used to do)
+    left both repeating, so the task showed twice on every future day. The
+    same title at different times (a morning and an evening chart review)
+    is meant and kept. */
+async function dedupeRecurringSeries(): Promise<void> {
+  const phase = (s: Task) => (s.recurrence === 'weekly' ? new Date(s.due + 'T00:00').getDay() : s.recurrence === 'monthly' ? s.due!.slice(8) : '')
+  const copies = new Map<string, string[]>()
+  for (const s of await activeRecurringSeries()) {
+    const key = `${s.title}|${s.recurrence}|${phase(s)}|${s.timeBlockStart?.slice(11, 16) ?? ''}`
+    copies.set(key, [...(copies.get(key) ?? []), s.seriesId!])
+  }
+  for (const ids of copies.values()) {
+    for (const sid of ids.sort().slice(1)) await endSeries(sid, '9999-12-31')
+  }
+}
+
+/** A series whose last day was deleted (not skipped) has ended — say so on
+    every day, so a device still on an older version (which looks past a
+    deleted day and would make the next one) and the server's reminders
+    agree. Mostly deletes made before 2026-10-27; a no-op once done. */
+async function endDeletedSeries(): Promise<void> {
+  for (const [sid, rows] of await seriesRows()) {
+    if (!rows.some((r) => r.recurrence)) continue
+    const l = lastDay(rows)
+    if (l?.deleted && !isSkip(l)) await endSeries(sid, '9999-12-31')
+  }
 }
 
 /** Recurring tasks are one row per occurrence, linked by seriesId — the
@@ -681,6 +725,8 @@ function rollRecurringTasksLocked(): Promise<number> {
   if (rollInFlight) return rollInFlight
   rollInFlight = (async () => {
     const removed = await dedupeRecurringOccurrences()
+    await dedupeRecurringSeries()
+    await endDeletedSeries()
     await rollRecurringTasksInner()
     return removed
   })().finally(() => {
@@ -759,14 +805,29 @@ async function rollRecurringTasksInner() {
     two intervals, both running forever) — harmless now that
     rollRecurringTasks itself is lock-protected, but wasteful. */
 let recurringLoopStarted = false
-export function startRecurringLoop() {
+export function startRecurringLoop(sync?: { settled: () => Promise<void>; now: () => void }) {
   if (recurringLoopStarted) return
   recurringLoopStarted = true
-  rollRecurringTasks()
+  const roll = async () => {
+    await rollRecurringTasks()
+    // a repeat ended here (endDeletedSeries) reaches the other devices soon
+    if (sync && (await db.outbox.count())) sync.now()
+  }
+  // At launch and on coming back, the roll waits for the sync that's under
+  // way (capped, so a slow network doesn't hold today's repeats back long):
+  // rolled from what was here before, the next day of a repeat deleted or
+  // stopped on another device meanwhile would be made again — and come back
+  // on every device.
+  const afterSync = () => {
+    Promise.race([sync?.settled(), new Promise((r) => setTimeout(r, 10_000))]).then(roll)
+  }
+  afterSync()
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') rollRecurringTasks()
+    if (document.visibilityState === 'visible') afterSync()
   })
-  setInterval(rollRecurringTasks, 30 * 60_000)
+  // task changes from another device: a repeat deleted there ends here too
+  window.addEventListener(TASKS_PULLED, () => { roll() })
+  setInterval(roll, 30 * 60_000)
 }
 
 /** Local mirror of the ServiceNow roll-up Business Rule (doc §06): a goal's

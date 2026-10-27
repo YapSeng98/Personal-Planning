@@ -323,6 +323,16 @@ check('…in the device\'s language, with the time', ps.body === '09:00–10:00 
 check('…tagged like the app tags it', ps.tag.endsWith(':2026-10-23T09:00') && d1.find((x) => x.title === 'Gym').tag === `block:${sid}:2026-10-23T09:00`)
 check('not before it\'s due (08:49)', (await due('2026-10-23T00:49:00Z')).length === 0)
 check('still sent a few minutes late (08:58), not after 10 minutes', (await due('2026-10-23T00:58:00Z')).length === 2 && (await due('2026-10-23T01:01:00Z')).length === 0)
+// a repeat's last day deleted (the task deleted) → no more reminders; skipped (deleted + cancelled) → it goes on
+const sDel = uuid(), sSkip = uuid()
+await push([
+  { ...blk('Deleted repeat', '2026-10-21', '09:00', '', { recurrence: 'daily', seriesId: sDel }), client_uuid: sDel },
+  blk('Deleted repeat', '2026-10-22', '09:00', '', { recurrence: 'daily', seriesId: sDel, deleted: 1 }),
+  { ...blk('Skipped repeat', '2026-10-21', '09:00', '', { recurrence: 'daily', seriesId: sSkip }), client_uuid: sSkip },
+  blk('Skipped repeat', '2026-10-22', '09:00', '', { recurrence: 'daily', seriesId: sSkip, deleted: 1, state: 'cancelled' }),
+])
+const t2 = (await due('2026-10-23T00:50:00Z')).map((x) => x.title).sort()
+check('a repeat whose last day was deleted reminds no more; one whose last day was skipped goes on', t2.includes('Skipped repeat') && !t2.includes('Deleted repeat') && t2.includes('Gym'), JSON.stringify(t2))
 await saveSub({ lang: 'zh', lead: 0 })
 d1 = await due('2026-10-23T01:00:00Z')
 check('lead and language follow the device\'s latest setting', d1.find((x) => x.title === 'Prepare slides')?.body === '09:00–10:00 · 现在开始')

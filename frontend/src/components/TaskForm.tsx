@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { db, uuid, todayStr, writeAndQueue, patchAndQueue, editTaskList, stopRepeatingFrom, endSeries, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState, type GoalType } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, patchAndQueue, editTaskList, stopRepeatingFrom, skipDay, endSeries, rollUpGoal, nextCompletedAt, type Task, type Goal, type Project, type TaskState, type GoalType } from '../db/db'
 import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import Select from './Select'
@@ -254,7 +254,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   async function removeRepeating(all: boolean) {
     if (!task) return
     if (all) await stopRepeatingFrom(task)
-    else await patchAndQueue(db.tasks, 'task', task.id, { deleted: 1 })
+    else await skipDay(task)
     if (task.goalId) await rollUpGoal(task.goalId)
     syncNow()
     onClose()

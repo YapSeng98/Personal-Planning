@@ -3,7 +3,7 @@
 // applies delta pulls when a connection and a sign-in exist. Offline, or
 // signed out, the app keeps working locally and catches up afterwards.
 
-import { db, notifyChange, cleanEmoji, type DrawingNote, type Review, type OutboxEntry, type NoteAttachment } from '../db/db'
+import { db, notifyChange, TASKS_PULLED, cleanEmoji, type DrawingNote, type Review, type OutboxEntry, type NoteAttachment } from '../db/db'
 import { SYNC_FIELDS, LATER_FIELDS, ITEM_FIELDS, applyAttachmentOps, norm, type SyncTable } from './fields'
 import { mergeItems, type ListItem } from '../lib/items'
 import { isAuthed, accountDevice, syncSession, syncPush, syncPull, NetworkError, localDataOwner, setLocalDataOwner, type PushItem } from './api'
@@ -200,13 +200,29 @@ function serverHas(table: SyncTable, field: string): boolean {
     nothing on the device is lost. */
 const RESYNC = '2026-10-07'
 
+let settledWaiters: (() => void)[] = []
+const settled = () => {
+  if (running) return
+  const w = settledWaiters
+  settledWaiters = []
+  for (const f of w) f()
+}
+/** Resolves once no sync is running (at once if none is) — however it
+    ended: done, offline, signed out. */
+export function syncSettled(): Promise<void> {
+  if (!running) return Promise.resolve()
+  return new Promise((res) => settledWaiters.push(res))
+}
+
 export async function syncNow(): Promise<void> {
   if (!isAuthed()) {
     setState(accountDevice() ? 'signed-out' : 'local-only')
+    settled()
     return
   }
   if (!navigator.onLine) {
     setState('offline')
+    settled()
     return
   }
   // One sync at a time (the minute timer, auto-save and "Sync now" can all
@@ -506,6 +522,7 @@ export async function syncNow(): Promise<void> {
     if (stillAwaited.length < awaited.size) rerun = true
     const aiChanged = await syncAiUrl().catch(() => false)
     if (pull.records.length > 0 || aiChanged) notifyChange()
+    if (pull.records.some((r) => r.table === 'task')) window.dispatchEvent(new CustomEvent(TASKS_PULLED))
     retryDelay = 0
     if (problems.length) setState('error', problems.join('\n'))
     else if (stillAwaited.length) {
@@ -532,6 +549,7 @@ export async function syncNow(): Promise<void> {
       rerun = false
       syncNow()
     }
+    settled()
   }
 }
 

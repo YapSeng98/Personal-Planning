@@ -95,10 +95,11 @@ function DayColumn({
         ))}
       </SortableContext>
       {day.previews.map((p) => (
-        <button key={p.series.id} type="button" className="task-row preview-row" title={t('plan.previewHint')} onClick={() => onPreview(p.series, day.date)}>
+        <button key={p.series.id} type="button" className="task-row preview-row" title={`${p.series.timeBlockStart ? p.series.timeBlockStart.slice(11, 16) + ' · ' : ''}${t('plan.previewHint')}`} onClick={() => onPreview(p.series, day.date)}>
           <span className="drag-grip" aria-hidden />
           <span className="check" aria-hidden>&#8635;</span>
           <span className="title">{p.title}</span>
+          {p.series.timeBlockStart && <span className="when num">{p.series.timeBlockStart.slice(11, 16)}</span>}
         </button>
       ))}
       <input
@@ -540,7 +541,7 @@ export default function Plan() {
         <div className="sheet-backdrop" onClick={() => setPreview(null)}>
           <div className="sheet repeat-sheet" role="dialog" aria-modal="true" aria-labelledby="rp-h" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-body">
-              <h2 id="rp-h">🔁 {preview.series.title}</h2>
+              <h2 id="rp-h">🔁 {preview.series.title}{preview.series.timeBlockStart && ` · ${preview.series.timeBlockStart.slice(11, 16)}`}</h2>
               <p className="row-sub">
                 {t('plan.repeatsOn', {
                   how: t(`task.repeat${preview.series.recurrence === 'weekly' ? 'Weekly' : preview.series.recurrence === 'monthly' ? 'Monthly' : 'Daily'}`),

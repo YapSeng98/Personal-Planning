@@ -13,7 +13,7 @@ import SketchDetail from './pages/SketchDetail'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import { isAuthed, accountDevice } from './sync/api'
-import { startSyncLoop, syncNow } from './sync/engine'
+import { startSyncLoop, syncNow, syncSettled } from './sync/engine'
 import { seedIfEmpty } from './db/seed'
 import { compactImages } from './lib/compact'
 import { startRecurringLoop } from './db/db'
@@ -39,8 +39,9 @@ export default function App() {
     // Demo users get seed top-ups (new demo content) at startup, not only
     // on the login button they'll never press again.
     if (localStorage.getItem('offline_mode') === '1') seedIfEmpty()
-    startRecurringLoop()
+    // the sync starts first: the first roll of repeating tasks waits for it
     startSyncLoop()
+    startRecurringLoop({ settled: syncSettled, now: syncNow })
     startReminderLoop()
     // Shrink oversized old images so they stop blocking the sync; push the
     // smaller copies right away if anything changed.
