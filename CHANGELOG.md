@@ -8,6 +8,21 @@ those.
 
 ## 2026-10-27
 
+- **Fix: repeats deleted before the fix still showed on Plan** — the first
+  fix below read every deleted day as "skip this day", so a repeating task
+  deleted with the old version kept repeating, and a doubled repeat kept
+  both copies.
+  - A deleted day now ends the repeat; only **Only this day** / **Skip this
+    day** skip it. Repeats deleted with the old version stop by themselves
+    on every device (and in the server's reminders once schema.sql is run).
+  - Two copies of the same repeating task (same title, day and time)
+    collapse to one even if the old version had already removed a copy.
+  - A device checks in with the server before making a new day's repeats,
+    so a repeat stopped on another device isn't made again.
+  - Future copies on Plan show their time (on phones; on desktop in the sheet
+    when you tap one), so a 09:00 and a 21:00 copy can be told apart.
+  ([a3da1d4](https://github.com/YapSeng98/Personal-Planning/commit/a3da1d4))
+
 - **Fix: a deleted repeating task kept coming back** — deleting a daily task
   only removed that day; the earlier days still repeated, so Plan kept
   showing it on every future day and the next day's copy was made again.
