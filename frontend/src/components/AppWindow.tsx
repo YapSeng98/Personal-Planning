@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from 'react'
 import Icon from './Icon'
 import { useLang } from '../lib/i18n'
-import { OPEN_APP, QUICK_APPS, openApp, type WebApp } from '../lib/appWindow'
+import { OPEN_APP, QUICK_APPS, openApp, useShownApps, type WebApp } from '../lib/appWindow'
 
 /* The owner's other apps (quick apps, Daily Brief), open over the Planner
    instead of in another tab. Lives in the Shell, so it stays open — and
@@ -92,6 +92,7 @@ export default function AppWindow() {
   const [reloads, setReloads] = useState<Record<string, number>>({})
   const [online, setOnline] = useState(navigator.onLine)
   const [menu, setMenu] = useState(false)
+  const shown = useShownApps()
   const swallowClick = useRef(false)
   const tabsRef = useRef<HTMLDivElement>(null)
 
@@ -313,7 +314,8 @@ export default function AppWindow() {
         </div>
         {menu && (
           <div className="appwin-menu" role="menu">
-            {QUICK_APPS.map((a) => (
+            {/* the apps ticked in Settings, and any open one that isn't */}
+            {QUICK_APPS.filter((a) => shown.includes(a) || apps.some((x) => x.url === a.url)).map((a) => (
               <button
                 key={a.url}
                 type="button"

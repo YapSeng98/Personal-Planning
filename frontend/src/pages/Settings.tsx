@@ -11,7 +11,8 @@ import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { getAiUrl, setAiUrl, askAI, clearAiUrlLocal } from '../lib/ai'
 import { getYoutubeUrl, setYoutubeUrl, extractYoutubeId } from '../lib/youtube'
 import { useLang, LANGS, type Lang } from '../lib/i18n'
-import { appsInWindow, setAppsInWindow } from '../lib/appWindow'
+import { appsInWindow, setAppsInWindow, QUICK_APPS, useShownApps, setAppShown } from '../lib/appWindow'
+import Icon from '../components/Icon'
 import Select from '../components/Select'
 import {
   LEADS, reminderPrefs, setReminderPrefs, notifySupport, enablePush, disablePush, registerPushQuietly,
@@ -140,6 +141,7 @@ export default function Settings() {
   const [pwState, setPwState] = useState<{ state: 'idle' | 'saving' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const { t, lang, setLang } = useLang()
   const [inWindow, setInWindow] = useState(appsInWindow)
+  const shownApps = useShownApps()
   const offlineMode = localStorage.getItem('offline_mode') === '1' && !isAuthed()
 
   const themes: { value: Theme; label: string; hint: string }[] = [
@@ -373,6 +375,30 @@ export default function Settings() {
               <span>{t(hint)}</span>
             </button>
           ))}
+        </div>
+        <div className="app-picks-h">
+          <b>{t('set.appsShow')}</b>
+          <div className="row-sub">{t('set.appsShowHint')}</div>
+        </div>
+        <div className="app-picks">
+          {QUICK_APPS.map((a) => {
+            const on = shownApps.includes(a)
+            return (
+              <button
+                key={a.id}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                className={`app-pick ${on ? 'on' : ''}`}
+                style={{ ['--ql-accent' as string]: a.color }}
+                onClick={() => setAppShown(a.id, !on)}
+              >
+                <span className="ico" aria-hidden>{a.icon}</span>
+                <span className="nm">{t(a.labelKey)}</span>
+                <span className="tick" aria-hidden>{on && <Icon name="check" size={13} strokeWidth={2.6} />}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 

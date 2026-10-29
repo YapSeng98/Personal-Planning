@@ -22,7 +22,7 @@ import { startTimer, stopTimer, useRunningTimer, useElapsed, clock, hm } from '.
 import { spentHours, minutesByDay, stepCount } from '../lib/items'
 import { moveTasksTo, fromDailyBrief } from '../lib/tasks'
 import PlanTomorrow from '../components/PlanTomorrow'
-import { openAppFromClick, QUICK_APPS } from '../lib/appWindow'
+import { openAppFromClick, useShownApps } from '../lib/appWindow'
 
 interface HabitView extends Habit {
   doneToday: number
@@ -406,6 +406,7 @@ function Typewriter({ text }: { text: string }) {
 const ORBIT = [['18px', '-104px'], ['-29px', '-102px'], ['-71px', '-79px'], ['-98px', '-40px'], ['-106px', '7px'], ['-92px', '53px']]
 
 function QuickLaunch({ t }: { t: TFn }) {
+  const apps = useShownApps()
   const [open, setOpen] = useState(false)
   const [hovering, setHovering] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -447,6 +448,8 @@ function QuickLaunch({ t }: { t: TFn }) {
 
   useEffect(() => () => cancelClose(), [])
 
+  // none ticked in Settings: no button at all
+  if (!apps.length) return null
   return (
     <div className={`ql-orbit ${visible ? 'open' : ''}`} ref={ref} onMouseEnter={onEnter} onMouseLeave={onLeave}>
       <button
@@ -461,7 +464,7 @@ function QuickLaunch({ t }: { t: TFn }) {
           {Array.from({ length: 9 }).map((_, i) => <span key={i} />)}
         </span>
       </button>
-      {QUICK_APPS.map((a, i) => (
+      {apps.map((a, i) => (
         <a
           key={a.url}
           href={a.url}

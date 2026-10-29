@@ -2266,3 +2266,27 @@ button.preview-row:hover .title { color: var(--accent-bright); }
 @media (max-width: 639px) {
   .appwin-pill { left: 0.9rem; transform: none; bottom: calc(5.1rem + env(safe-area-inset-bottom)); max-width: calc(100vw - 7rem); }
 }
+
+/* Settings → Quick apps: tick the apps to show (lib/appWindow.ts) */
+.app-picks-h { margin-top: 1rem; }
+.app-picks-h b { font-size: 0.92rem; }
+.app-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; margin-top: 0.7rem; }
+.app-pick {
+  --ql-accent: var(--accent);
+  display: flex; align-items: center; gap: 0.5rem; min-width: 0; min-height: 50px; padding: 0.45rem 0.55rem 0.45rem 0.6rem;
+  border-radius: 12px; border: 1.5px solid var(--hairline); background: var(--glass); color: var(--text-2);
+  font: inherit; font-size: 0.86rem; font-weight: 600; text-align: left; cursor: pointer;
+  transition: border-color 150ms var(--ease), background 150ms var(--ease);
+  -webkit-tap-highlight-color: transparent; /* the tile's own change is the feedback */
+}
+.app-pick .ico { font-size: 1.05rem; opacity: 0.55; }
+.app-pick .nm { flex: 1; min-width: 0; line-height: 1.25; }
+.app-pick .tick {
+  width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0; border: 1.5px solid var(--text-3);
+  display: inline-flex; align-items: center; justify-content: center; color: var(--on-grad);
+}
+.app-pick.on { color: var(--text-1); border-color: color-mix(in srgb, var(--ql-accent) 60%, transparent); background: color-mix(in srgb, var(--ql-accent) 12%, var(--glass)); }
+.app-pick.on .ico { opacity: 1; }
+.app-pick.on .tick { border-color: transparent; background: var(--grad); }
+/* phones: one per row, so every name fits on its line */
+@media (max-width: 480px) { .app-picks { grid-template-columns: 1fr; gap: 0.4rem; } }
