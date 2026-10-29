@@ -8,6 +8,17 @@ those.
 
 ## 2026-10-29
 
+- **Pop-up window: bigger, and resizable your way** — it opened too small
+  for apps like Trading Hub:
+  - on a computer it now opens roomy (wide, nearly the screen's height) and
+    you can resize it from any edge or corner, not just one small grip; it
+    remembers the size and place
+  - on a phone, drag the handle at the top of the sheet: up for taller, down
+    for shorter (remembered); all the way up is full screen, most of the way
+    down tucks it away; from full screen, pull it down to get the sheet back
+  - while an app loads, a thin bar at the top instead of a cover over it
+  ([927a81d](https://github.com/YapSeng98/Personal-Planning/commit/927a81d))
+
 - **Quick apps open in a pop-up window** — tapping Trading Hub, Daily
   Brief, Money Tracker or another quick app no longer leaves the Planner:
   - on a computer it opens in a small window you can drag by its top bar and
