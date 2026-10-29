@@ -8,6 +8,18 @@ those.
 
 ## 2026-10-29
 
+- **New look for the quick-apps menu** — tap the grid button on Today and
+  your apps rise above it as a neat column of buttons, each with its name
+  and coloured icon (the old round bubbles had no names on a phone and
+  looked lopsided with fewer apps). The page dims behind; the button turns
+  into × to close it, or tap anywhere outside. On a computer, hovering
+  still opens it.
+  ([77da20c](https://github.com/YapSeng98/Personal-Planning/commit/77da20c))
+- **Choose which quick apps to show** — Settings → Quick apps → Apps to
+  show: tick the ones you use; only those appear in the quick-apps menu and
+  the pop-up window's "+". Untick them all to hide the button. Set per
+  device. ([71b3a62](https://github.com/YapSeng98/Personal-Planning/commit/71b3a62))
+
 - **Pop-up window: bigger, and resizable your way** — it opened too small
   for apps like Trading Hub:
   - on a computer it now opens roomy (wide, nearly the screen's height) and
