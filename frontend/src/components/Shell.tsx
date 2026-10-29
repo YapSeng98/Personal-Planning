@@ -6,6 +6,7 @@ import { type Task } from '../db/db'
 import TaskForm from './TaskForm'
 import SearchModal from './SearchModal'
 import { VideoProvider } from './VideoPlayer'
+import AppWindow from './AppWindow'
 import Icon, { type IconName } from './Icon'
 import { updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
 import { useRunningTimer, useElapsed, stopTimer, startTimer, clock, type RunningTimer } from '../lib/timer'
@@ -223,6 +224,7 @@ export default function Shell() {
         />
       )}
       {searchTask && <TaskForm task={searchTask} onClose={() => setSearchTask(null)} />}
+      <AppWindow />
     </div>
     </VideoProvider>
   )

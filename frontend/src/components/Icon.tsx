@@ -6,7 +6,7 @@ export type IconName =
   | 'today' | 'plan' | 'board' | 'goals' | 'reviews' | 'sketches' | 'stats'
   | 'settings' | 'search' | 'close' | 'trash' | 'folder' | 'pencil'
   | 'chevronLeft' | 'chevronRight' | 'plus' | 'check' | 'sparkle' | 'image' | 'move' | 'pin'
-  | 'play' | 'stop' | 'timer'
+  | 'play' | 'stop' | 'timer' | 'external' | 'minimise' | 'expand' | 'shrink' | 'reload'
 
 const PATHS: Record<IconName, React.ReactNode> = {
   image: (
@@ -17,6 +17,22 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   move: <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />,
+  // window chrome (components/AppWindow.tsx)
+  external: (
+    <>
+      <path d="M13.5 4.5h6v6M19.5 4.5l-8 8" />
+      <path d="M17.5 13.5v4.2a1.8 1.8 0 0 1-1.8 1.8H6.3a1.8 1.8 0 0 1-1.8-1.8V8.3a1.8 1.8 0 0 1 1.8-1.8h4.2" />
+    </>
+  ),
+  minimise: <path d="M6 17.5h12" />,
+  expand: <path d="M14.5 4.5h5v5M9.5 19.5h-5v-5M19.5 4.5l-5.5 5.5M4.5 19.5l5.5-5.5" />,
+  shrink: <path d="M14 5v5h5M10 19v-5H5M14 10l5.5-5.5M10 14l-5.5 5.5" />,
+  reload: (
+    <>
+      <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
+      <path d="M19.8 4.5v4h-4" />
+    </>
+  ),
   play: <path d="M8 5.5v13l10.5-6.5z" />,
   stop: <rect x="6.5" y="6.5" width="11" height="11" rx="2" />,
   timer: (

@@ -9,6 +9,7 @@ import { useLang } from '../lib/i18n'
 import { hm } from '../lib/timer'
 import { live, spentHours, clearFocus, type CheckItem } from '../lib/items'
 import { parseExtras, fromDailyBrief, DAILY_BRIEF_URL } from '../lib/tasks'
+import { openAppFromClick } from '../lib/appWindow'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 
 // One form for BOTH adding and editing a task, so the two can never diverge.
@@ -420,7 +421,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
                 aria-label={t('task.notes')}
               />
               {task && fromDailyBrief(task) && (
-                <a className="brief-link" href={DAILY_BRIEF_URL} target="_blank" rel="noopener noreferrer">
+                <a className="brief-link" href={DAILY_BRIEF_URL} target="_blank" rel="noopener noreferrer" onClick={(e) => openAppFromClick(e, { url: DAILY_BRIEF_URL, title: t('today.briefLink'), icon: '📋', color: 'var(--accent)' })}>
                   📋 {t('brief.open')} ↗
                 </a>
               )}

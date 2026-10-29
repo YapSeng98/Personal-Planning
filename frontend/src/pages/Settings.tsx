@@ -11,6 +11,7 @@ import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { getAiUrl, setAiUrl, askAI, clearAiUrlLocal } from '../lib/ai'
 import { getYoutubeUrl, setYoutubeUrl, extractYoutubeId } from '../lib/youtube'
 import { useLang, LANGS, type Lang } from '../lib/i18n'
+import { appsInWindow, setAppsInWindow } from '../lib/appWindow'
 import Select from '../components/Select'
 import {
   LEADS, reminderPrefs, setReminderPrefs, notifySupport, enablePush, disablePush, registerPushQuietly,
@@ -138,6 +139,7 @@ export default function Settings() {
   const [newPw, setNewPw] = useState('')
   const [pwState, setPwState] = useState<{ state: 'idle' | 'saving' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const { t, lang, setLang } = useLang()
+  const [inWindow, setInWindow] = useState(appsInWindow)
   const offlineMode = localStorage.getItem('offline_mode') === '1' && !isAuthed()
 
   const themes: { value: Theme; label: string; hint: string }[] = [
@@ -355,6 +357,24 @@ export default function Settings() {
           </div>
         </>
       )}
+
+      <div className="section-h">{t('set.apps')}</div>
+      <div className="card">
+        <div className="seg" role="radiogroup" aria-label={t('set.apps')}>
+          {([[true, 'set.appsWindow', 'set.appsWindowHint'], [false, 'set.appsTab', 'set.appsTabHint']] as const).map(([on, label, hint]) => (
+            <button
+              key={label}
+              role="radio"
+              aria-checked={inWindow === on}
+              className={`seg-btn ${inWindow === on ? 'on' : ''}`}
+              onClick={() => { setAppsInWindow(on); setInWindow(on) }}
+            >
+              <b>{t(label)}</b>
+              <span>{t(hint)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="section-h">{t('set.language')}</div>
       <div className="card">

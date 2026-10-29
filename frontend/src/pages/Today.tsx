@@ -20,8 +20,9 @@ import Icon from '../components/Icon'
 import { useLang, type TFn } from '../lib/i18n'
 import { startTimer, stopTimer, useRunningTimer, useElapsed, clock, hm } from '../lib/timer'
 import { spentHours, minutesByDay, stepCount } from '../lib/items'
-import { moveTasksTo, fromDailyBrief, DAILY_BRIEF_URL } from '../lib/tasks'
+import { moveTasksTo, fromDailyBrief } from '../lib/tasks'
 import PlanTomorrow from '../components/PlanTomorrow'
+import { openAppFromClick, QUICK_APPS } from '../lib/appWindow'
 
 interface HabitView extends Habit {
   doneToday: number
@@ -402,14 +403,7 @@ function Typewriter({ text }: { text: string }) {
 // Fanned out on one arc around the button (radius 106px, 80° → 210°, 26°
 // apart): the 44px bubbles never touch, the first stays inside the right
 // edge of a phone screen and the last clears the + button.
-const QUICK_APPS = [
-  { href: 'https://yapseng98.github.io/personal_business/#/', icon: '💼', color: 'var(--project-blue)', tx: '18px', ty: '-104px', labelKey: 'today.bizLink' as const },
-  { href: 'https://yapseng98.github.io/Personal-Money-Tracker/', icon: '💰', color: 'var(--project-teal)', tx: '-29px', ty: '-102px', labelKey: 'today.moneyLink' as const },
-  { href: 'https://yapseng98.github.io/Love-Points-Tracker/?fresh=1785915091776', icon: '🎮', color: 'var(--project-purple)', tx: '-71px', ty: '-79px', labelKey: 'today.gameLink' as const },
-  { href: 'https://yapseng98.github.io/Knowledge_Management_System/', icon: '📚', color: 'var(--ok)', tx: '-98px', ty: '-40px', labelKey: 'today.kmsLink' as const },
-  { href: 'https://yapseng98.github.io/trading_pages/report.html', icon: '📈', color: 'var(--amber)', tx: '-106px', ty: '7px', labelKey: 'today.tradingLink' as const },
-  { href: DAILY_BRIEF_URL, icon: '📋', color: 'var(--accent)', tx: '-92px', ty: '53px', labelKey: 'today.briefLink' as const },
-]
+const ORBIT = [['18px', '-104px'], ['-29px', '-102px'], ['-71px', '-79px'], ['-98px', '-40px'], ['-106px', '7px'], ['-92px', '53px']]
 
 function QuickLaunch({ t }: { t: TFn }) {
   const [open, setOpen] = useState(false)
@@ -467,15 +461,18 @@ function QuickLaunch({ t }: { t: TFn }) {
           {Array.from({ length: 9 }).map((_, i) => <span key={i} />)}
         </span>
       </button>
-      {QUICK_APPS.map((a) => (
+      {QUICK_APPS.map((a, i) => (
         <a
-          key={a.href}
-          href={a.href}
+          key={a.url}
+          href={a.url}
           target="_blank"
           rel="noopener noreferrer"
           className="ql-sat"
-          style={{ ['--ql-accent' as string]: a.color, ['--tx' as string]: a.tx, ['--ty' as string]: a.ty }}
-          onClick={() => { setOpen(false); setHovering(false); cancelClose() }}
+          style={{ ['--ql-accent' as string]: a.color, ['--tx' as string]: ORBIT[i][0], ['--ty' as string]: ORBIT[i][1] }}
+          onClick={(e) => {
+            openAppFromClick(e, { url: a.url, title: t(a.labelKey), icon: a.icon, color: a.color })
+            setOpen(false); setHovering(false); cancelClose()
+          }}
           aria-label={t(a.labelKey)}
         >
           <span aria-hidden>{a.icon}</span>
