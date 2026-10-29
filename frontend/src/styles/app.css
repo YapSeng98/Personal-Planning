@@ -2209,13 +2209,35 @@ button.preview-row:hover .title { color: var(--accent-bright); }
 }
 .appwin-note.offline { background: var(--surface-2); }
 .appwin-note b { font-weight: 600; color: var(--text-1); max-width: 30ch; line-height: 1.5; }
-.appwin-spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--hairline); border-top-color: var(--accent-bright); animation: appwin-spin 0.8s linear infinite; }
-@keyframes appwin-spin { to { transform: rotate(360deg); } }
-.appwin-resize {
-  position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none;
-  background: linear-gradient(135deg, transparent 52%, var(--text-3) 52% 60%, transparent 60% 70%, var(--text-3) 70% 78%, transparent 78%);
-  opacity: 0.7;
+.appwin-loadbar { position: absolute; top: 0; left: 0; right: 0; height: 3px; overflow: hidden; pointer-events: none; }
+.appwin-loadbar::before {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 3px;
+  background: var(--grad); animation: appwin-load 1.1s var(--ease) infinite;
 }
+@keyframes appwin-load { from { left: -40%; } to { left: 100%; } }
+/* resize from any edge or corner; the bottom-right corner shows a grip */
+.appwin-edge { position: absolute; z-index: 3; touch-action: none; }
+.appwin-edge.n, .appwin-edge.s { left: 14px; right: 14px; height: 6px; cursor: ns-resize; }
+.appwin-edge.n { top: 0; }
+.appwin-edge.s { bottom: 0; }
+.appwin-edge.e, .appwin-edge.w { top: 14px; bottom: 14px; width: 6px; cursor: ew-resize; }
+.appwin-edge.e { right: 0; }
+.appwin-edge.w { left: 0; }
+.appwin-edge.ne, .appwin-edge.nw, .appwin-edge.sw { width: 14px; height: 14px; }
+.appwin-edge.ne { top: 0; right: 0; cursor: nesw-resize; }
+.appwin-edge.nw { top: 0; left: 0; cursor: nwse-resize; }
+.appwin-edge.sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.appwin-edge.se {
+  right: 0; bottom: 0; width: 22px; height: 22px; cursor: nwse-resize; opacity: 0.75;
+  background: linear-gradient(135deg, transparent 52%, var(--text-3) 52% 60%, transparent 60% 70%, var(--text-3) 70% 78%, transparent 78%);
+}
+.appwin-edge.se:hover { opacity: 1; }
+/* phones: drag the handle to make the sheet taller or shorter */
+.appwin-grab {
+  flex-shrink: 0; height: 22px; margin-bottom: -6px; display: flex; align-items: center; justify-content: center;
+  touch-action: none; cursor: ns-resize; background: var(--glass);
+}
+.appwin-grab::before { content: ''; width: 42px; height: 5px; border-radius: 3px; background: var(--text-3); opacity: 0.6; }
 .appwin-pill {
   position: fixed; z-index: 40; left: 50%; bottom: 2rem; transform: translateX(-50%);
   display: flex; align-items: center; max-width: min(60vw, 300px);

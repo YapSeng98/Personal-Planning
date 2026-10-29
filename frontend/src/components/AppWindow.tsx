@@ -8,15 +8,21 @@ import { OPEN_APP, QUICK_APPS, openApp, type WebApp } from '../lib/appWindow'
    each app keeps its place — while you move between pages. Several apps
    open as tabs; each keeps its own frame, so switching doesn't reload.
 
-   Desktop: a small window you drag by its title bar and resize from the
+   Desktop: a window you drag by its title bar and resize from any edge or
    corner (both remembered), or full screen. Phones: a sheet from the
-   bottom, or full screen. Minimised, it's a pill at the bottom. */
+   bottom, taller or shorter by dragging its handle (remembered), or full
+   screen. Minimised, it's a pill at the bottom. */
 
 type Size = 'small' | 'full'
 interface Box { x: number; y: number; w: number; h: number }
+type Edge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+const EDGES: Edge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
 
-const BOX_KEY = 'planner_appwin_box'
+// a new key: windows remembered at the first, smaller default start over
+const BOX_KEY = 'planner_appwin_box2'
 const SIZE_KEY = 'planner_appwin_size'
+const SHEET_KEY = 'planner_appwin_sheet'
+const SHEET = 0.84 // a phone sheet's height, of the screen's
 const MIN_W = 320
 const MIN_H = 360
 const PHONE = '(max-width: 639px)'
@@ -44,11 +50,24 @@ function fit(b: Box): Box {
   return { w, h, x: Math.min(Math.max(b.x, 8), vw - w - 8), y: Math.min(Math.max(b.y, 8), vh - h - 8) }
 }
 
-/** Bottom right, beside the add / quick-apps buttons rather than over them. */
+/** Roomy, nearly the screen's height, beside the add / quick-apps buttons
+    rather than over them. */
 function defaultBox(): Box {
   const vw = window.innerWidth, vh = window.innerHeight
-  const w = Math.min(440, vw - 140), h = Math.min(700, vh - 64)
-  return fit({ w, h, x: vw - w - 112, y: vh - h - 32 })
+  const w = Math.min(720, vw - 140), h = vh - 48
+  return fit({ w, h, x: vw - w - 112, y: 24 })
+}
+
+/** `b` with the given edge (or corner) dragged by dx, dy — the opposite
+    edges stay put; never smaller than the minimum or past the screen. */
+function resized(b: Box, edge: Edge, dx: number, dy: number): Box {
+  const vw = window.innerWidth, vh = window.innerHeight
+  let { x, y, w, h } = b
+  if (edge.includes('e')) w = Math.min(Math.max(b.w + dx, MIN_W), vw - b.x - 8)
+  if (edge.includes('s')) h = Math.min(Math.max(b.h + dy, MIN_H), vh - b.y - 8)
+  if (edge.includes('w')) { x = Math.min(Math.max(b.x + dx, 8), b.x + b.w - MIN_W); w = b.x + b.w - x }
+  if (edge.includes('n')) { y = Math.min(Math.max(b.y + dy, 8), b.y + b.h - MIN_H); h = b.y + b.h - y }
+  return { x, y, w, h }
 }
 
 function savedBox(): Box {
@@ -63,6 +82,10 @@ export default function AppWindow() {
   const [size, setSize] = useState<Size>(() => (load(SIZE_KEY) === 'full' ? 'full' : 'small'))
   const [minimised, setMinimised] = useState(false)
   const [box, setBox] = useState<Box>(savedBox)
+  const [sheet, setSheet] = useState(() => {
+    const f = Number(load(SHEET_KEY))
+    return f >= 0.4 && f <= 0.95 ? f : SHEET
+  })
   const [phone, setPhone] = useState(() => window.matchMedia(PHONE).matches)
   const [moving, setMoving] = useState(false)
   const [loaded, setLoaded] = useState<Record<string, boolean>>({})
@@ -145,7 +168,7 @@ export default function AppWindow() {
   // still a tap. Followed on the whole page (a quick first move can leave
   // the bar before it sees one), and the frames stop taking the pointer
   // meanwhile — a drag over one would otherwise be lost to the app inside.
-  const begin = (kind: 'move' | 'resize') => (e: ReactPointerEvent<HTMLElement>) => {
+  const begin = (kind: 'move' | Edge) => (e: ReactPointerEvent<HTMLElement>) => {
     if (!floating || e.button !== 0) return
     if (kind === 'move' && (e.target as HTMLElement).closest('.appwin-btns, .appwin-tab-x, .appwin-add')) return
     const d = { kind, sx: e.clientX, sy: e.clientY, b: box, moved: false }
@@ -154,11 +177,7 @@ export default function AppWindow() {
       const dx = ev.clientX - d.sx, dy = ev.clientY - d.sy
       if (!d.moved && Math.abs(dx) + Math.abs(dy) < 5) return
       d.moved = true
-      if (kind === 'move') setBox(fit({ ...d.b, x: d.b.x + dx, y: d.b.y + dy }))
-      else {
-        const vw = window.innerWidth, vh = window.innerHeight
-        setBox(fit({ ...d.b, w: Math.min(Math.max(d.b.w + dx, MIN_W), vw - d.b.x - 8), h: Math.min(Math.max(d.b.h + dy, MIN_H), vh - d.b.y - 8) }))
-      }
+      setBox(kind === 'move' ? fit({ ...d.b, x: d.b.x + dx, y: d.b.y + dy }) : resized(d.b, kind, dx, dy))
     }
     const onUp = () => {
       window.removeEventListener('pointermove', onMove)
@@ -182,7 +201,53 @@ export default function AppWindow() {
     window.addEventListener('pointercancel', onUp)
   }
 
-  const style: CSSProperties | undefined = floating ? { left: box.x, top: box.y, width: box.w, height: box.h } : undefined
+  // Phones: the handle on top makes the sheet taller or shorter; pulled
+  // right up it goes full screen, pulled most of the way down it's
+  // minimised. From full screen, pulling it down makes it a sheet again.
+  const grab = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.button !== 0) return
+    const vh = window.innerHeight
+    const wasFull = size === 'full'
+    const start = wasFull ? 1 : sheet
+    const sy = e.clientY
+    let frac = start
+    let moved = false
+    setMoving(true)
+    const onMove = (ev: PointerEvent) => {
+      const dy = ev.clientY - sy
+      if (!moved && Math.abs(dy) < 5) return
+      if (!moved && wasFull) pickSize('small')
+      moved = true
+      frac = Math.min(Math.max(start - dy / vh, 0.25), 0.95)
+      setSheet(frac)
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      setMoving(false)
+      if (!moved) return
+      const before = wasFull ? sheet : start
+      if (frac <= 0.3) {
+        setMinimised(true)
+        setSheet(before)
+      } else if (frac >= 0.94) {
+        pickSize('full')
+        setSheet(before)
+      } else {
+        const f = Math.max(frac, 0.4)
+        setSheet(f)
+        save(SHEET_KEY, f)
+      }
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+  }
+
+  const style: CSSProperties | undefined = floating
+    ? { left: box.x, top: box.y, width: box.w, height: box.h }
+    : phone && size === 'small' ? { height: `min(${(sheet * 100).toFixed(1)}dvh, calc(100dvh - env(safe-area-inset-top)))` } : undefined
 
   return (
     <>
@@ -193,6 +258,7 @@ export default function AppWindow() {
         aria-modal="false"
         aria-label={current.title}
       >
+        {phone && <div className="appwin-grab" onPointerDown={grab} aria-hidden />}
         <div
           className="appwin-bar"
           onPointerDown={begin('move')}
@@ -290,14 +356,12 @@ export default function AppWindow() {
               <b>{t('appwin.offline', { app: current.title })}</b>
             </div>
           ) : !loaded[current.url] && (
-            <div className="appwin-note" aria-live="polite">
-              <span className="appwin-spin" aria-hidden />
-              <span>{t('appwin.opening', { app: current.title })}</span>
-            </div>
+            // a thin bar, as browsers do: the app shows as it draws, not under a cover
+            <div className="appwin-loadbar" role="progressbar" aria-label={t('appwin.opening', { app: current.title })} />
           )}
         </div>
         {floating && (
-          <div className="appwin-resize" onPointerDown={begin('resize')} aria-hidden />
+          EDGES.map((edge) => <div key={edge} className={`appwin-edge ${edge}`} onPointerDown={begin(edge)} aria-hidden />)
         )}
       </div>
       {minimised && (
