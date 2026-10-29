@@ -6,6 +6,23 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-29
+
+- **Quick apps open in a pop-up window** — tapping Trading Hub, Daily
+  Brief, Money Tracker or another quick app no longer leaves the Planner:
+  - on a computer it opens in a small window you can drag by its top bar and
+    resize from the corner (it remembers where), make full screen (button or
+    double-click the bar), minimise to a pill at the bottom, or close
+  - on a phone it slides up from the bottom, or goes full screen
+  - several apps open as tabs and keep their place when you switch; "+" in
+    the window opens another one; the window stays open as you move between
+    Planner pages
+  - offline, it says the app needs the internet and loads once you're back
+  - prefer the old way? Settings → Quick apps → New tab (per device);
+    Ctrl/⌘-click still opens a tab. "Open in Daily Brief" on a task opens in
+    the window too
+  ([bb3d21e](https://github.com/YapSeng98/Personal-Planning/commit/bb3d21e))
+
 ## 2026-10-27
 
 - **Fix: repeats deleted before the fix still showed on Plan** — the first
