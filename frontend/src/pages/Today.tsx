@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, useCallback, useRef } from 'react'
+import { Fragment, useEffect, useState, useCallback, useRef, type PointerEvent as RPointerEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable, MeasuringStrategy,
@@ -400,11 +400,12 @@ function Typewriter({ text }: { text: string }) {
   )
 }
 
-// Fanned out on one arc around the button (radius 106px, 80° → 210°, 26°
-// apart): the 44px bubbles never touch, the first stays inside the right
-// edge of a phone screen and the last clears the + button.
-const ORBIT = [['18px', '-104px'], ['-29px', '-102px'], ['-71px', '-79px'], ['-98px', '-40px'], ['-106px', '7px'], ['-92px', '53px']]
-
+/* Quick apps: tap the grid button and the apps ticked in Settings rise
+   above it as a column of labelled buttons — the name always shown (a
+   hover tooltip never appears on a phone), the same neat stack for one app
+   or six. The page dims behind while it's open; tap outside, the ×, or
+   Escape to close. A mouse also opens it by hovering; with the keyboard,
+   Enter on the button, then Tab through the apps (leaving closes it). */
 function QuickLaunch({ t }: { t: TFn }) {
   const apps = useShownApps()
   const [open, setOpen] = useState(false)
@@ -419,25 +420,17 @@ function QuickLaunch({ t }: { t: TFn }) {
       closeTimer.current = null
     }
   }
-  // Fanned-out satellites sit visually far from the 52px trigger with empty
-  // page between them — a plain CSS :hover drops the instant the mouse
-  // crosses that gap on the way to one, closing the menu before it's
-  // reachable. A short close-delay (cancelled if the pointer lands back
-  // inside, e.g. on a satellite) gives a normal mouse move enough time to
-  // cross that gap without the menu disappearing underneath it.
-  const onEnter = () => { cancelClose(); setHovering(true) }
-  const onLeave = () => { closeTimer.current = window.setTimeout(() => setHovering(false), 260) }
+  const close = () => { setOpen(false); setHovering(false); cancelClose() }
+  // Hover is for a mouse only: a tap sends a "mouse enter" first, and a
+  // menu that opened on it would close again on the tap's click. Leaving
+  // waits a moment, so crossing the small gap to the list doesn't close it.
+  const onEnter = (e: RPointerEvent) => { if (e.pointerType === 'mouse') { cancelClose(); setHovering(true) } }
+  const onLeave = (e: RPointerEvent) => { if (e.pointerType === 'mouse') closeTimer.current = window.setTimeout(() => setHovering(false), 260) }
 
   useEffect(() => {
     if (!open) return
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-        setHovering(false)
-        cancelClose()
-      }
-    }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) close() }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
     document.addEventListener('mousedown', onDoc)
     document.addEventListener('keydown', onKey)
     return () => {
@@ -451,38 +444,53 @@ function QuickLaunch({ t }: { t: TFn }) {
   // none ticked in Settings: no button at all
   if (!apps.length) return null
   return (
-    <div className={`ql-orbit ${visible ? 'open' : ''}`} ref={ref} onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <button
-        type="button"
-        className="ql-fab"
-        aria-haspopup="true"
-        aria-expanded={visible}
-        aria-label={t('today.quickApps')}
-        onClick={() => setOpen((o) => !o)}
+    <>
+      {open && <div className="ql-scrim" aria-hidden />}
+      <div
+        className={`ql-orbit ${visible ? 'open' : ''}`}
+        ref={ref}
+        onPointerEnter={onEnter}
+        onPointerLeave={onLeave}
+        onBlur={(e) => { if (open && !ref.current?.contains(e.relatedTarget as Node | null)) close() }}
       >
-        <span className="ql-fab-grid" aria-hidden>
-          {Array.from({ length: 9 }).map((_, i) => <span key={i} />)}
-        </span>
-      </button>
-      {apps.map((a, i) => (
-        <a
-          key={a.url}
-          href={a.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ql-sat"
-          style={{ ['--ql-accent' as string]: a.color, ['--tx' as string]: ORBIT[i][0], ['--ty' as string]: ORBIT[i][1] }}
-          onClick={(e) => {
-            openAppFromClick(e, { url: a.url, title: t(a.labelKey), icon: a.icon, color: a.color })
-            setOpen(false); setHovering(false); cancelClose()
-          }}
-          aria-label={t(a.labelKey)}
+        <button
+          type="button"
+          className="ql-fab"
+          aria-haspopup="true"
+          aria-expanded={visible}
+          aria-label={t(visible ? 'common.close' : 'today.quickApps')}
+          onClick={() => (visible ? close() : setOpen(true))}
         >
-          <span aria-hidden>{a.icon}</span>
-          <span className="ql-tip">{t(a.labelKey)}</span>
-        </a>
-      ))}
-    </div>
+          {visible ? <Icon name="close" size={20} strokeWidth={2.4} /> : (
+            <span className="ql-fab-grid" aria-hidden>
+              {Array.from({ length: 9 }).map((_, i) => <span key={i} />)}
+            </span>
+          )}
+        </button>
+        <div className="ql-list" role="menu" aria-label={t('today.quickApps')}>
+          {apps.map((a, i) => (
+            <a
+              key={a.url}
+              href={a.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              role="menuitem"
+              className="ql-item"
+              // the one nearest the button comes first
+              style={{ ['--ql-accent' as string]: a.color, ['--i' as string]: apps.length - 1 - i }}
+              onClick={(e) => {
+                openAppFromClick(e, { url: a.url, title: t(a.labelKey), icon: a.icon, color: a.color })
+                e.currentTarget.blur()
+                close()
+              }}
+            >
+              <span className="ql-name">{t(a.labelKey)}</span>
+              <span className="ql-ico" aria-hidden>{a.icon}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </>
   )
 }
 
