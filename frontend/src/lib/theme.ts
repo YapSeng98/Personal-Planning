@@ -18,9 +18,10 @@ export function applyTheme(t: Theme = getTheme()) {
   if (t === 'system') root.removeAttribute('data-theme')
   else root.setAttribute('data-theme', t)
   const dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const cosmic = root.getAttribute('data-bg') === 'cosmic'
   let meta = document.querySelector('meta[name="theme-color"]')
   if (!meta) { meta = document.createElement('meta'); meta.setAttribute('name', 'theme-color'); document.head.appendChild(meta) }
-  meta.setAttribute('content', dark ? BAR.dark : BAR.light)
+  meta.setAttribute('content', cosmic ? '#050716' : dark ? BAR.dark : BAR.light)
 }
 
 // following the system: the bar changes when the system theme does

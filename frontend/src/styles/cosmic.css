@@ -1,0 +1,114 @@
+/* ======================================================================
+   Cosmic (2026-10-30) — the owner's "more future and advanced" look, from
+   their references: deep-space navy/violet, a glowing planet horizon,
+   neon cyan → violet → pink light on edges, rings and headings, glass
+   panels lit from within. A layer over glass.css, active only with the
+   Cosmic background (`data-bg='cosmic'`, lib/bg.ts) — Liquid and the other
+   backgrounds look exactly as before. Always dark: space has no light mode.
+   Data marks here: violet (--accent) + green (--ok) — distinct in hue and
+   lightness, also for colour-blind eyes.
+   ====================================================================== */
+
+:root[data-bg='cosmic'] {
+  color-scheme: dark;
+  --neon-a: #3FD6FF; --neon-b: #8B5CFF; --neon-c: #FF5FD2;
+  --surface: #060818; --surface-2: #0D1030;
+  --glass: rgba(120, 140, 255, 0.07); --glass-strong: rgba(130, 150, 255, 0.14);
+  --hairline: rgba(140, 160, 255, 0.14);
+  --text-1: #EEF1FF; --text-2: #A8B0D8; --text-3: #737CA6;
+  --accent: #8B7CFF; --accent-bright: #A99BFF; --ok: #34D399; --danger: #FF6B8B; --amber: #FFC46B;
+  --grad: linear-gradient(120deg, var(--neon-a), var(--neon-b) 55%, var(--neon-c));
+  --on-grad: #FFFFFF;
+  --accent-wash: rgba(139, 92, 255, 0.22);
+  --font-display: 'Sora Variable', 'Sora', var(--font-body);
+  /* glass: deep navy, lit edges, a violet glow underneath */
+  --g-t1: rgba(16, 20, 54, 0.52); --g-t2: rgba(44, 40, 110, 0.48);
+  --g-border: rgba(150, 165, 255, 0.20);
+  --g-rim: rgba(170, 210, 255, 0.42); --g-rim-side: rgba(150, 170, 255, 0.16); --g-rim-low: rgba(140, 100, 255, 0.10);
+  --g-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.85), 0 0 34px -14px rgba(120, 90, 255, 0.45);
+  --g-spec: rgba(130, 200, 255, 0.14);
+  --g-sheet: rgba(12, 14, 42, 0.92); --g-bar: rgba(10, 12, 38, 0.72);
+  --g-ink: #FFFFFF; --g-on-ink: #0A0C26;
+  /* the wallpaper: stars (three tiled layers that never line up), a planet's
+     glowing rim on the horizon, nebula light, deep space */
+  --app-bg:
+    radial-gradient(1.2px 1.2px at 37px 61px, rgba(255, 255, 255, 0.85), transparent 70%) 0 0 / 211px 211px,
+    radial-gradient(1px 1px at 141px 23px, rgba(200, 220, 255, 0.7), transparent 70%) 0 0 / 347px 347px,
+    radial-gradient(1.6px 1.6px at 260px 190px, rgba(255, 255, 255, 0.9), transparent 70%) 0 0 / 523px 523px,
+    radial-gradient(1px 1px at 90px 300px, rgba(180, 200, 255, 0.6), transparent 70%) 0 0 / 431px 431px,
+    radial-gradient(circle at 78% 168%, #070720 0 60vmax, rgba(190, 150, 255, 0.95) 60.25vmax, rgba(120, 80, 255, 0.55) 61vmax, rgba(90, 60, 230, 0.18) 64vmax, transparent 72vmax),
+    radial-gradient(70vmax 38vmax at 74% 100%, rgba(150, 70, 255, 0.42), transparent 70%),
+    radial-gradient(56vmax 44vmax at -6% -10%, rgba(40, 110, 255, 0.40), transparent 62%),
+    radial-gradient(48vmax 38vmax at 104% -4%, rgba(255, 70, 200, 0.30), transparent 62%),
+    radial-gradient(40vmax 30vmax at 40% 40%, rgba(90, 70, 255, 0.14), transparent 64%),
+    linear-gradient(180deg, #050716 0%, #0A0A2C 55%, #120A34 100%);
+}
+:root[data-bg='cosmic'] body { background-color: #050716; }
+/* the star layers carry their own tile sizes: the full shorthand, not background-image */
+:root[data-bg='cosmic'] body::before { background: var(--app-bg); }
+.bg-swatch.bg-cosmic { background: radial-gradient(circle at 80% 150%, #0a0a2a 0 55%, #b49bff 57%, transparent 66%), radial-gradient(circle at 0% 0%, #2a5bff, transparent 60%), radial-gradient(circle at 100% 0%, #d046c8, transparent 60%), #0a0a2c; }
+
+/* ---- type: futuristic headings, glowing gradient titles ---- */
+:root[data-bg='cosmic'] h1, :root[data-bg='cosmic'] h2, :root[data-bg='cosmic'] h3,
+:root[data-bg='cosmic'] .hero-hi, :root[data-bg='cosmic'] .nav-rail .brand { font-family: var(--font-display); letter-spacing: -0.02em; }
+/* bright titles with a neon glow (a gradient fill would turn emoji in a
+   title — "Analytics 📊", the greeting's weather — into blank shapes) */
+:root[data-bg='cosmic'] .page-head h1, :root[data-bg='cosmic'] .greet h1, :root[data-bg='cosmic'] .hero-hi {
+  color: #F6F7FF; -webkit-text-fill-color: currentColor; background: none;
+  text-shadow: 0 0 22px rgba(120, 150, 255, 0.55), 0 0 2px rgba(190, 210, 255, 0.6);
+}
+:root[data-bg='cosmic'] .nav-rail .brand { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* section titles: small caps with a glowing marker, as in a control deck */
+:root[data-bg='cosmic'] .section-h { font-family: var(--font-display); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: #B9C6FF; }
+:root[data-bg='cosmic'] .section-h::before { display: block; content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--neon-a); box-shadow: 0 0 10px var(--neon-a), 0 0 2px #fff; }
+:root[data-bg='cosmic'] .today-grid .section-h::before { display: block; }
+:root[data-bg='cosmic'] .section-h .sec-sum { text-transform: none; letter-spacing: 0; font-family: var(--font-body); }
+
+/* ---- glass panels: neon-lit rims ---- */
+:root[data-bg='cosmic'] .card, :root[data-bg='cosmic'] .tcard, :root[data-bg='cosmic'] .m-card, :root[data-bg='cosmic'] .board-card,
+:root[data-bg='cosmic'] .stat-tile, :root[data-bg='cosmic'] .hx-row, :root[data-bg='cosmic'] .hero-card {
+  --g-fill: linear-gradient(150deg, var(--g-t2), var(--g-t1) 40%, var(--g-t1) 72%, rgba(60, 40, 140, 0.42));
+}
+:root[data-bg='cosmic'] .tcard .acc { box-shadow: 0 0 12px currentColor; }
+
+/* ---- Today's header: a planet rising behind the briefing ---- */
+:root[data-bg='cosmic'] .hero-card {
+  background:
+    radial-gradient(circle at 92% 190%, transparent 0 62%, rgba(170, 140, 255, 0.55) 62.6%, rgba(110, 80, 255, 0.18) 66%, transparent 74%),
+    radial-gradient(60% 90% at 100% 110%, rgba(130, 70, 255, 0.35), transparent 70%),
+    radial-gradient(50% 70% at 0% 0%, rgba(60, 140, 255, 0.22), transparent 70%),
+    var(--g-fill);
+}
+:root[data-bg='cosmic'] .hero-card::before { background: conic-gradient(from var(--holo-a, 0deg), var(--neon-a), var(--neon-b), var(--neon-c), var(--neon-b), var(--neon-a)); opacity: 0.9; }
+:root[data-bg='cosmic'] .hero-wm { color: #9FB0E8; letter-spacing: 0.04em; }
+:root[data-bg='cosmic'] .hero-brief { background: rgba(10, 14, 44, 0.55); border-color: rgba(120, 160, 255, 0.22); box-shadow: inset 0 1px 0.5px rgba(170, 210, 255, 0.25); }
+:root[data-bg='cosmic'] .hero-brief .bl { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: 0.06em; }
+/* rings glow like instrument dials */
+:root[data-bg='cosmic'] .hero-ring { background: conic-gradient(var(--neon-a), var(--neon-b) calc(var(--p, 0) * 0.6%), var(--neon-c) calc(var(--p, 0) * 1%), rgba(140, 160, 255, 0.12) 0);
+  box-shadow: 0 0 22px rgba(110, 120, 255, 0.55), inset 0 0 6px rgba(0, 0, 0, 0.5); }
+:root[data-bg='cosmic'] .hero-ring i { background: #0B0E2E; color: #EEF1FF; box-shadow: inset 0 0 12px rgba(100, 120, 255, 0.35); }
+:root[data-bg='cosmic'] .hx-ring { background: conic-gradient(var(--neon-a), var(--ok) calc(var(--p, 0) * 1%), rgba(140, 160, 255, 0.14) 0); }
+:root[data-bg='cosmic'] .hx-ring::before { background: #0B0E2E; }
+:root[data-bg='cosmic'] .hx.done .hx-ring { box-shadow: 0 0 18px rgba(52, 211, 153, 0.6); }
+:root[data-bg='cosmic'] .hx { background: rgba(20, 26, 70, 0.5); }
+:root[data-bg='cosmic'] .hx.done { background: linear-gradient(180deg, rgba(52, 211, 153, 0.16), rgba(20, 26, 70, 0.5)); }
+
+/* ---- controls: neon primary, lit tick boxes, glowing progress ---- */
+:root[data-bg='cosmic'] .btn-primary { background: linear-gradient(120deg, #4C8DFF, var(--neon-b) 60%, #C24BFF); color: #fff;
+  box-shadow: 0 8px 22px -8px rgba(120, 90, 255, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+:root[data-bg='cosmic'] .check { border-color: rgba(150, 170, 255, 0.55); }
+:root[data-bg='cosmic'] .check.on { background: var(--ok); border-color: var(--ok); box-shadow: 0 0 12px rgba(52, 211, 153, 0.7); }
+:root[data-bg='cosmic'] .bar i, :root[data-bg='cosmic'] .pbar i, :root[data-bg='cosmic'] .goal-bar i { background: var(--grad); box-shadow: 0 0 10px rgba(120, 120, 255, 0.6); }
+:root[data-bg='cosmic'] .chip { background: rgba(120, 100, 255, 0.18); color: #C7BEFF; }
+
+/* ---- navigation: the page you're on glows ---- */
+:root[data-bg='cosmic'] .nav-link.active { color: #FFFFFF; background: linear-gradient(120deg, rgba(63, 214, 255, 0.20), rgba(139, 92, 255, 0.28));
+  box-shadow: inset 0 1px 0.5px rgba(170, 210, 255, 0.4), inset 0 0 0 0.5px rgba(150, 170, 255, 0.3), 0 0 22px -6px rgba(120, 100, 255, 0.7); }
+:root[data-bg='cosmic'] .nav-link.active .ico { color: var(--neon-a); filter: drop-shadow(0 0 6px var(--neon-a)); }
+@media (max-width: 639px) {
+  :root[data-bg='cosmic'] .nav-bottom .nav-link.active { color: #FFFFFF; }
+}
+/* the round buttons: + glows, quick apps lit */
+:root[data-bg='cosmic'] .fab { background: radial-gradient(circle at 35% 30%, #8FD8FF, #6C7CFF 45%, #7A3CFF 80%); color: #fff; border-color: rgba(190, 210, 255, 0.5);
+  box-shadow: 0 0 26px rgba(110, 110, 255, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.5); }
+:root[data-bg='cosmic'] .ql-fab { color: var(--neon-a); }
