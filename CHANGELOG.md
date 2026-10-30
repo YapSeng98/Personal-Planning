@@ -6,6 +6,22 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-30
+
+- **New look: Liquid Glass** — the whole app now has the iPhone iOS 26
+  "Liquid Glass" style you picked: see-through frosted glass panels with
+  light on their edges, over a wallpaper in the Sunrise colours (coral,
+  pink, gold, violet), in both light and dark.
+  - phone: a floating glass tab bar; it shrinks to the page you're on while
+    you scroll down — scroll up or tap it to open it again. The + and quick
+    apps buttons are round glass
+  - computer: a floating glass sidebar
+  - cleaner type (bigger, bolder page titles), capsule buttons, round tick
+    boxes, and Today's briefing card with a slowly turning colour edge
+  - every feature works exactly as before — only the look changed. Prefer
+    another wallpaper? Settings → Background (the new one is "Liquid")
+  ([9f29981](https://github.com/YapSeng98/Personal-Planning/commit/9f29981))
+
 ## 2026-10-29
 
 - **New look for the quick-apps menu** — tap the grid button on Today and
