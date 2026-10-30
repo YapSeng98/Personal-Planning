@@ -8,6 +8,13 @@ those.
 
 ## 2026-10-30
 
+- **Today on laptops: tidier header** — with a video set, the header now
+  spans the full width with the video on the right (16:9); the greeting stays
+  on one line with the % ring beside it, and the AI briefing reads across a
+  comfortable width instead of a thin strip. On windows about 1000–1200px
+  wide the tasks get the full width; habit names no longer break mid-word;
+  dark mode has more colour behind the glass.
+  ([c3235e9](https://github.com/YapSeng98/Personal-Planning/commit/c3235e9))
 - **Liquid Glass on laptops, polished** — Today on a computer is now laid
   out like the preview you approved: the greeting and briefing, then your
   tasks, on the left; habits and the overview on the right — everything on
