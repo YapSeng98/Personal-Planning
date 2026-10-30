@@ -8,6 +8,16 @@ those.
 
 ## 2026-10-30
 
+- **New look: Cosmic** — a futuristic deep-space design, from your
+  references: a starry night sky with a planet's glowing rim on the horizon,
+  neon cyan → violet → pink light on the glass panels, rings, progress bars
+  and buttons, glowing titles and a new heading font (Sora). It's now the
+  default on every device; Settings → Background → "Liquid" switches back.
+  Cosmic is always dark. ([bab3031](https://github.com/YapSeng98/Personal-Planning/commit/bab3031))
+- **Fix: a tap on the phone's tab bar sometimes did nothing** — after Back,
+  the app put the page where you'd left it, and that shrank the tab bar as
+  if you'd scrolled; your next tap only opened it again. Now only your own
+  scrolling shrinks it. ([dde1317](https://github.com/YapSeng98/Personal-Planning/commit/dde1317))
 - **Today on laptops: tidier header** — with a video set, the header now
   spans the full width with the video on the right (16:9); the greeting stays
   on one line with the % ring beside it, and the AI briefing reads across a

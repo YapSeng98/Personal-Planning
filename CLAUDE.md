@@ -163,7 +163,8 @@ the "Sunrise" identity. Two layers:
   cards, sheets, menus, banners, the pop-up window), a fixed wallpaper layer
   (`body::before`, `--app-bg`; iOS ignores `background-attachment: fixed`),
   the phone's floating glass tab bar (shrinks to the current page while
-  scrolling down — `.nav-bottom.compact`, Shell.tsx; a tap opens it again),
+  YOU scroll down — finger/wheel/keys only, never the app restoring a
+  scroll on Back — `.nav-bottom.compact`, Shell.tsx; a tap opens it again),
   the desktop's floating glass sidebar, round tick boxes, capsule buttons,
   solid-ink primary buttons (`--g-ink`), and Today's hero as glass with a
   turning colour edge. It changes looks only — no markup depends on it.
@@ -173,12 +174,24 @@ the "Sunrise" identity. Two layers:
 - Sheets/menus/tab bar keep enough tint (`--g-sheet` ~0.9, `--g-bar` ~0.7)
   to stay readable where the blur isn't drawn (Playwright WebKit doesn't
   render backdrop-filter; real Safari does).
-- **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `liquid` is
-  the default (every device switched to it once via `planner_bg_v2`), the
-  others stay selectable in Settings → Background.
-- **Typography**: Inter everywhere (`--font-display` = body font), iOS-style
-  tight, heavy large titles. Self-hosted via `@fontsource-variable/inter` so
-  the PWA works offline (Bricolage is no longer loaded).
+- `frontend/src/styles/cosmic.css` — loaded after glass.css; the **Cosmic**
+  look (since 2026-10-30, from the owner's "more future and advanced"
+  references), active only with `data-bg='cosmic'`: always dark, deep-space
+  wallpaper (tiled star layers — needs the `background` shorthand, not
+  `background-image` — a planet's glowing rim, nebula), neon cyan → violet →
+  pink rims/rings/bars/nav glow, Sora headings (`@fontsource-variable/sora`)
+  with glowing titles (no gradient-filled text: it blanks emoji in titles),
+  data marks violet (`--accent`) + green. Everything scoped under
+  `:root[data-bg='cosmic']`, so Liquid and the other backgrounds are untouched.
+- **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `cosmic` is
+  the default (every device switched to it once via `planner_bg_v3`; before
+  that `liquid` via `planner_bg_v2`), the others stay selectable in
+  Settings → Background. `applyBg` re-runs `applyTheme` so the window bar
+  colour follows (Cosmic: #050716).
+- **Typography**: Inter for body/UI; headings Inter (Liquid) or Sora
+  (Cosmic) — iOS-style tight, heavy large titles. Self-hosted via
+  `@fontsource-variable/*` so the PWA works offline (Bricolage is no longer
+  loaded).
 - **Icons**: `frontend/src/components/Icon.tsx` — a small hand-authored
   stroke-icon set (`currentColor`, themes for free) for nav/chrome.
   Genuinely expressive content (mood faces, the ✦ AI sparkle) stays emoji on
