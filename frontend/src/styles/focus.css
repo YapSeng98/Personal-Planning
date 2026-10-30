@@ -1,0 +1,101 @@
+/* ======================================================================
+   Focus mode (components/FocusMode.tsx) — the full-screen focus timer.
+   Deep space in every theme: one task, one glowing countdown ring, stars
+   drifting past, a planet's rim on the horizon. Breaks turn the ring green.
+   ====================================================================== */
+.focus-mode {
+  position: fixed; inset: 0; z-index: 80; overflow: hidden; color-scheme: dark;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.75rem;
+  padding: calc(1rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 2.5rem) calc(1.1rem + env(safe-area-inset-bottom));
+  color: #EEF1FF; font-family: var(--font-body);
+  background:
+    radial-gradient(60% 46% at 50% 44%, rgba(90, 70, 255, 0.22), transparent 70%),
+    radial-gradient(50% 40% at 0% 0%, rgba(40, 110, 255, 0.22), transparent 70%),
+    radial-gradient(44% 36% at 100% 0%, rgba(255, 70, 200, 0.14), transparent 70%),
+    linear-gradient(180deg, #03040F, #0A0A2C 70%, #120A34);
+  animation: fm-in 0.35s ease-out;
+}
+@keyframes fm-in { from { opacity: 0; transform: scale(1.02); } }
+.fm-stars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* the planet: centred below the screen, its rim just above the bottom */
+.fm-planet { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 50% calc(100% + 118vmax), #070720 0 125vmax, rgba(190, 150, 255, 0.85) calc(125vmax + 1px), rgba(120, 80, 255, 0.32) 126.4vmax, rgba(90, 60, 230, 0.10) 129vmax, transparent 134vmax); }
+.focus-mode > :not(.fm-stars):not(.fm-planet):not(.fm-cele) { position: relative; z-index: 1; }
+
+/* ---- top: the task, today's total, minimise ---- */
+.fm-top { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: start; gap: 0.9rem; }
+.fm-eyebrow { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #3FD6FF; }
+.fm-task { margin: 0.35rem 0 0; font-family: 'Sora Variable', 'Sora', var(--font-body); font-size: clamp(1.15rem, 3.4vw, 1.6rem); font-weight: 700;
+  letter-spacing: -0.02em; line-height: 1.25; overflow-wrap: anywhere; text-wrap: balance;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fm-today { text-align: right; font-size: 0.72rem; color: #8F98C4; white-space: nowrap; padding-top: 0.1rem; }
+.fm-today b { display: block; font-size: 1.05rem; font-weight: 800; color: #EEF1FF; }
+.fm-icon { width: 2.75rem; height: 2.75rem; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: #EEF1FF;
+  background: rgba(130, 150, 255, 0.12); border: 1px solid rgba(150, 165, 255, 0.25); }
+.fm-icon:hover { background: rgba(130, 150, 255, 0.22); }
+
+/* ---- the ring ---- */
+.fm-center { display: grid; place-items: center; min-height: 0; }
+.fm-ring { position: relative; width: min(74vw, 46vh, 360px); aspect-ratio: 1; max-width: 100%; }
+.fm-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.fm-track { fill: none; stroke: rgba(140, 160, 255, 0.13); stroke-width: 10; }
+.fm-prog { fill: none; stroke-width: 10; stroke-linecap: round; filter: drop-shadow(0 0 8px rgba(120, 120, 255, 0.85)); transition: stroke-dashoffset 1s linear; }
+.is-break .fm-prog { filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.8)); }
+.fm-readout { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; }
+.fm-clock { font-family: 'Sora Variable', 'Sora', var(--font-body); font-size: clamp(2.8rem, 13vw, 5rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1;
+  text-shadow: 0 0 26px rgba(120, 150, 255, 0.6); }
+.fm-phase { margin-top: 0.55rem; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #A8B0D8; }
+.is-break .fm-phase { color: #34D399; }
+.is-paused .fm-clock { opacity: 0.6; }
+.fm-dots { display: flex; gap: 6px; margin-top: 0.7rem; }
+.fm-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(140, 160, 255, 0.25); }
+.fm-dots i.on { background: #3FD6FF; box-shadow: 0 0 8px #3FD6FF; }
+
+/* ---- bottom: timer choice, controls, music ---- */
+.fm-bottom { display: grid; justify-items: center; gap: 0.95rem; }
+.fm-plans { display: inline-flex; padding: 3px; border-radius: 999px; background: rgba(8, 10, 34, 0.7); border: 1px solid rgba(150, 165, 255, 0.22); }
+.fm-plans button { border: 0; background: none; border-radius: 999px; padding: 0.5rem 0.9rem; font: inherit; font-size: 0.82rem; font-weight: 600; color: #A8B0D8; cursor: pointer; }
+.fm-plans button.on { background: rgba(130, 150, 255, 0.2); color: #fff; box-shadow: inset 0 1px 0.5px rgba(170, 210, 255, 0.42); }
+.fm-ctrl { display: flex; align-items: center; gap: clamp(1.25rem, 6vw, 2.5rem); }
+.fm-play { width: 4.6rem; height: 4.6rem; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: #fff;
+  border: 1px solid rgba(190, 210, 255, 0.5);
+  background: radial-gradient(circle at 35% 30%, #8FD8FF, #6C7CFF 45%, #7A3CFF 80%);
+  box-shadow: 0 0 30px rgba(110, 110, 255, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.5); }
+.is-break .fm-play { background: radial-gradient(circle at 35% 30%, #9BF5D6, #34D399 50%, #128a6a 90%); box-shadow: 0 0 30px rgba(52, 211, 153, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.5); }
+.fm-side { min-width: 4.5rem; white-space: nowrap; display: grid; justify-items: center; gap: 0.35rem; border: 0; background: none; color: #C9D2FF; font: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+.fm-side-ico { width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; background: rgba(130, 150, 255, 0.12); border: 1px solid rgba(150, 165, 255, 0.25); color: #EEF1FF; }
+.fm-side:hover .fm-side-ico { background: rgba(130, 150, 255, 0.22); }
+.fm-music { display: flex; align-items: center; gap: 0.55rem; max-width: min(100%, 26rem); padding: 0.35rem 0.4rem 0.35rem 0.8rem; border-radius: 999px;
+  background: rgba(8, 10, 34, 0.6); border: 1px solid rgba(150, 165, 255, 0.22); font-size: 0.8rem; color: #A8B0D8; }
+.fm-music-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-music button { flex-shrink: 0; border: 0; border-radius: 999px; padding: 0.3rem 0.7rem; font: inherit; font-size: 0.75rem; font-weight: 600; color: #EEF1FF; background: rgba(130, 150, 255, 0.18); cursor: pointer; }
+.fm-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; flex-shrink: 0; }
+.fm-eq i { width: 3px; height: 4px; border-radius: 1px; background: #3FD6FF; }
+.fm-eq.on i { animation: fm-eq 1s ease-in-out infinite; }
+.fm-eq.on i:nth-child(2) { animation-delay: -0.3s; }
+.fm-eq.on i:nth-child(3) { animation-delay: -0.6s; }
+@keyframes fm-eq { 0%, 100% { height: 4px; } 50% { height: 12px; } }
+.focus-mode button:focus-visible { outline: 2px solid #3FD6FF; outline-offset: 3px; }
+
+/* ---- "Mission complete" ---- */
+.fm-cele { position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: 0.5rem; text-align: center; padding: 1.5rem;
+  background: radial-gradient(circle at 50% 45%, rgba(139, 92, 255, 0.55), rgba(5, 7, 22, 0.9) 62%); animation: fm-in 0.3s ease-out; }
+.fm-burst { width: 8rem; height: 8rem; margin-bottom: 0.4rem; border-radius: 50%; border: 2px solid #3FD6FF;
+  box-shadow: 0 0 40px #3FD6FF, inset 0 0 30px #8B5CFF; animation: fm-burst 1.4s ease-out infinite; }
+@keyframes fm-burst { from { transform: scale(0.4); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+.fm-cele-big { font-family: 'Sora Variable', 'Sora', var(--font-body); font-size: clamp(1.9rem, 8vw, 2.8rem); font-weight: 800; letter-spacing: -0.03em;
+  text-shadow: 0 0 30px rgba(63, 214, 255, 0.9), 0 0 4px #fff; }
+.fm-cele small { color: #C9D2FF; font-size: 0.95rem; max-width: 30ch; }
+
+/* short screens (a phone on its side): tighter */
+@media (max-height: 520px) {
+  .focus-mode { gap: 0.4rem; }
+  .fm-bottom { gap: 0.5rem; }
+  .fm-play { width: 3.6rem; height: 3.6rem; }
+  .fm-side-ico { width: 2.5rem; height: 2.5rem; }
+  .fm-music { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus-mode, .fm-cele, .fm-burst, .fm-eq.on i { animation: none; }
+  .fm-prog { transition: none; }
+}

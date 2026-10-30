@@ -19,6 +19,7 @@ import { compactImages } from './lib/compact'
 import { startRecurringLoop } from './db/db'
 import { LangProvider } from './lib/i18n'
 import { startReminderLoop } from './lib/reminders'
+import { startFocusLoop } from './lib/focus'
 
 function Guard({ children }: { children: React.ReactNode }) {
   if (isAuthed()) return <>{children}</>
@@ -43,6 +44,7 @@ export default function App() {
     startSyncLoop()
     startRecurringLoop({ settled: syncSettled, now: syncNow })
     startReminderLoop()
+    startFocusLoop()
     // Shrink oversized old images so they stop blocking the sync; push the
     // smaller copies right away if anything changed.
     compactImages().then((n) => { if (n) syncNow() }).catch(() => {})

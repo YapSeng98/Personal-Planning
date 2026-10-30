@@ -2281,3 +2281,46 @@ button.preview-row:hover .title { color: var(--accent-bright); }
 .app-pick.on .tick { border-color: transparent; background: var(--grad); }
 /* phones: one per row, so every name fits on its line */
 @media (max-width: 480px) { .app-picks { grid-template-columns: 1fr; gap: 0.4rem; } }
+
+/* ---- the command bar on Today (components/AskBar.tsx) ---- */
+/* minmax(0, 1fr) and width: 0 on the input: Safari sizes a text box ~240px
+   wide by itself, which pushed the bar past a small phone's edge */
+.ask { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; margin-top: 0.85rem; }
+.ask-bar { position: relative; display: flex; align-items: center; gap: 0.55rem; padding: 0.3rem 0.3rem 0.3rem 1rem;
+  border-radius: 999px; background: var(--glass); border: 1px solid var(--hairline); isolation: isolate; }
+.ask-bar:focus-within { border-color: var(--accent); }
+.ask-spark { color: var(--accent-bright); font-size: 1.05rem; line-height: 1; }
+.ask-bar input { flex: 1 1 0; width: 0; min-width: 0; border: 0; background: none; outline: none; font: inherit; font-size: 1rem; color: var(--text-1); padding: 0.55rem 0; }
+.ask-bar input::placeholder { color: var(--text-3); }
+.ask-go { flex-shrink: 0; width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 0; display: grid; place-items: center;
+  background: var(--grad); color: var(--on-grad); cursor: pointer; }
+.ask-go:disabled { opacity: 0.45; cursor: default; }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.ask-chips button { border: 1px solid var(--hairline); background: var(--glass); color: var(--text-1); border-radius: 999px;
+  min-height: 2.125rem; padding: 0.42rem 0.85rem; font: inherit; font-size: 0.82rem; font-weight: 500; cursor: pointer; }
+.ask-chips button:hover { border-color: var(--accent); }
+.ask-answer { border-radius: 20px; padding: 0.8rem 1rem 0.95rem; background: var(--glass); border: 1px solid var(--hairline); animation: ask-in 0.25s ease-out; }
+@keyframes ask-in { from { opacity: 0; transform: translateY(-4px); } }
+.ask-who { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-bright); }
+.ask-x { width: 2rem; height: 2rem; margin: -0.4rem -0.5rem -0.4rem 0; border-radius: 50%; border: 0; background: none; color: var(--text-3);
+  display: grid; place-items: center; cursor: pointer; }
+.ask-x:hover { color: var(--text-1); background: var(--accent-wash); }
+.ask-q { color: var(--text-3); font-size: 0.82rem; margin-top: 0.25rem; overflow-wrap: anywhere; }
+.ask-a { margin-top: 0.35rem; color: var(--text-1); line-height: 1.5; overflow-wrap: anywhere; }
+.ask-line { display: block; }
+.ask-line + .ask-line { margin-top: 0.15rem; }
+.ask-a b { font-weight: 700; }
+.ask-answer.muted .ask-a { color: var(--text-2); }
+.ask-answer.ok .ask-who { color: var(--ok); }
+.ask-thinking { color: var(--text-3); background: linear-gradient(90deg, var(--text-3), var(--text-1), var(--text-3)) 0 0 / 200% 100%;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: ask-shimmer 1.2s linear infinite; }
+@keyframes ask-shimmer { to { background-position: -200% 0; } }
+.ask-acts { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.ask-acts .btn { padding: 0.5rem 1rem; font-size: 0.86rem; }
+@media (prefers-reduced-motion: reduce) { .ask-answer, .ask-thinking { animation: none; } }
+
+/* the timer bar opens focus mode (lib/focus.ts) */
+.timer-bar .tb-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.55rem; border: 0; background: none; padding: 0.15rem 0;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.timer-bar.is-break .tb-clock, .timer-bar.is-break svg { color: var(--ok); }

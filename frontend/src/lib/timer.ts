@@ -28,13 +28,15 @@ export function runningTimer(): RunningTimer | null {
   }
 }
 
-/** Stop the running timer (if any) and add its time to that task. */
-export async function stopTimer(): Promise<void> {
+/** Stop the running timer (if any) and add its time to that task — up to
+    `at` when given (a focus round that ended while the app was closed
+    counts to its end, not to when you came back). */
+export async function stopTimer(at?: number): Promise<void> {
   const cur = runningTimer()
   if (!cur) return
   localStorage.removeItem(KEY)
   emit()
-  const end = Date.now()
+  const end = Math.max(cur.startedAt, Math.min(at ?? Date.now(), Date.now()))
   const elapsedH = (end - cur.startedAt) / 3600_000
   // under half a minute is a mis-tap, not work
   if (elapsedH < 30 / 3600) return

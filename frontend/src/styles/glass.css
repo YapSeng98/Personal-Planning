@@ -100,7 +100,7 @@ body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-even
 
 /* ---- the glass material on every top-level surface ---- */
 .card, .tcard, .m-card, .board-card, .stat-tile, .hx-row, .hero-card, .search-modal, .sheet, .sel-list,
-.rem-banner, .update-bar, .timer-bar, .appwin, .appwin-pill, .appwin-menu, .ql-item, .ptm, .wrap-card,
+.rem-banner, .update-bar, .timer-bar, .appwin, .appwin-pill, .appwin-menu, .ql-item, .ptm, .wrap-card, .ask-bar, .ask-answer,
 .overdue, .day-card, .goal-card, .board-col {
   -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
   border-color: var(--g-border);
@@ -317,3 +317,13 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
 }
 .hx-name { overflow-wrap: normal; word-break: normal; hyphens: auto; }
 
+
+/* the command bar: a thin turning colour edge, like Today's hero */
+.ask-bar { border-color: transparent; }
+.ask-bar::before { content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px; z-index: -1; pointer-events: none;
+  background: conic-gradient(from var(--holo-a, 0deg), #FF7A57, #FFB03A, #FF6FA8, #9C8CFF, #6FCBFF, #FF7A57);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0.6; animation: holo-spin 9s linear infinite; }
+.ask-bar:focus-within::before { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .ask-bar::before { animation: none; } }

@@ -18,10 +18,13 @@ import TaskForm from '../components/TaskForm'
 import HabitEdit from '../components/HabitEdit'
 import Icon from '../components/Icon'
 import { useLang, type TFn } from '../lib/i18n'
-import { startTimer, stopTimer, useRunningTimer, useElapsed, clock, hm } from '../lib/timer'
+import { stopTimer, useRunningTimer, useElapsed, clock, hm } from '../lib/timer'
+import { openFocus } from '../lib/focus'
 import { spentHours, minutesByDay, stepCount } from '../lib/items'
 import { moveTasksTo, fromDailyBrief } from '../lib/tasks'
 import PlanTomorrow from '../components/PlanTomorrow'
+import AskBar from '../components/AskBar'
+import { PLAN_TOMORROW } from '../lib/command'
 import { openAppFromClick, useShownApps } from '../lib/appWindow'
 
 interface HabitView extends Habit {
@@ -99,8 +102,9 @@ interface Reminder {
   daysUntilDue: number
 }
 
-/** Start / stop timing this task. Running, it shows the live clock (its own
-    component, so the once-a-second tick re-renders only the button). */
+/** ▶ focuses on this task: the full-screen focus timer (lib/focus.ts).
+    Running, it shows the live clock (its own component, so the
+    once-a-second tick re-renders only the button) and opens the screen again. */
 function TimerButton({ task, since, t }: { task: Task; since?: number; t: TFn }) {
   const sec = useElapsed(since)
   const running = since !== undefined
@@ -108,10 +112,10 @@ function TimerButton({ task, since, t }: { task: Task; since?: number; t: TFn })
     <button
       type="button"
       className={`ttimer ${running ? 'on' : ''}`}
-      onClick={() => (running ? stopTimer() : startTimer(task))}
+      onClick={() => openFocus(running ? undefined : task)}
       aria-pressed={running}
-      aria-label={running ? t('timer.stopFor', { title: task.title }) : t('timer.startFor', { title: task.title })}
-      title={running ? t('timer.stop') : t('timer.start')}
+      aria-label={running ? t('focus.openFor', { title: task.title }) : t('focus.startFor', { title: task.title })}
+      title={running ? t('focus.open') : t('focus.start')}
     >
       <Icon name={running ? 'stop' : 'play'} size={13} strokeWidth={2.2} />
       {running && <span className="num">{clock(sec)}</span>}
@@ -595,6 +599,13 @@ export default function Today() {
     return () => window.removeEventListener(CHANGED, load)
   }, [load])
 
+  // the command bar's "plan tomorrow"
+  useEffect(() => {
+    const on = () => setPlanning(true)
+    window.addEventListener(PLAN_TOMORROW, on)
+    return () => window.removeEventListener(PLAN_TOMORROW, on)
+  }, [])
+
   // AI daily briefing — cached per day; reads its own fresh data so it doesn't
   // re-run on every task toggle. Silently falls back to the rule-based text.
   const generateBrief = useCallback(async (force = false) => {
@@ -772,6 +783,8 @@ export default function Today() {
           </div>
         )}
       </div>
+
+      <AskBar />
 
       <div className="hero-toprow">
         {reminders.length > 0 && (

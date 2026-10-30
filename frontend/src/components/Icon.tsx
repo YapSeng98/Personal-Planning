@@ -6,7 +6,7 @@ export type IconName =
   | 'today' | 'plan' | 'board' | 'goals' | 'reviews' | 'sketches' | 'stats'
   | 'settings' | 'search' | 'close' | 'trash' | 'folder' | 'pencil'
   | 'chevronLeft' | 'chevronRight' | 'plus' | 'check' | 'sparkle' | 'image' | 'move' | 'pin'
-  | 'play' | 'stop' | 'timer' | 'external' | 'minimise' | 'expand' | 'shrink' | 'reload'
+  | 'play' | 'pause' | 'stop' | 'timer' | 'down' | 'external' | 'minimise' | 'expand' | 'shrink' | 'reload'
 
 const PATHS: Record<IconName, React.ReactNode> = {
   image: (
@@ -34,6 +34,9 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   play: <path d="M8 5.5v13l10.5-6.5z" />,
+  pause: <path d="M9 6v12M15 6v12" />,
+  // focus mode's minimise: the screen folds down into the bar
+  down: <path d="M6 9.5l6 6 6-6" />,
   stop: <rect x="6.5" y="6.5" width="11" height="11" rx="2" />,
   timer: (
     <>

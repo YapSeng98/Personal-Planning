@@ -112,3 +112,14 @@
 :root[data-bg='cosmic'] .fab { background: radial-gradient(circle at 35% 30%, #8FD8FF, #6C7CFF 45%, #7A3CFF 80%); color: #fff; border-color: rgba(190, 210, 255, 0.5);
   box-shadow: 0 0 26px rgba(110, 110, 255, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.5); }
 :root[data-bg='cosmic'] .ql-fab { color: var(--neon-a); }
+
+/* ---- the command bar: a neon edge and a glow ---- */
+:root[data-bg='cosmic'] .ask-bar { background: rgba(8, 10, 34, 0.62); box-shadow: 0 0 26px -8px rgba(110, 120, 255, 0.65), inset 0 1px 0.5px rgba(170, 210, 255, 0.25); }
+:root[data-bg='cosmic'] .ask-bar::before { background: conic-gradient(from var(--holo-a, 0deg), var(--neon-a), var(--neon-b), var(--neon-c), var(--neon-b), var(--neon-a)); opacity: 0.85; }
+:root[data-bg='cosmic'] .ask-spark { color: var(--neon-a); text-shadow: 0 0 10px var(--neon-a); }
+:root[data-bg='cosmic'] .ask-go { background: linear-gradient(120deg, #4C8DFF, var(--neon-b) 60%, #C24BFF); color: #fff; box-shadow: 0 6px 18px -6px rgba(120, 90, 255, 0.9); }
+:root[data-bg='cosmic'] .ask-answer { background: rgba(10, 14, 44, 0.62); border-color: rgba(120, 160, 255, 0.24); }
+:root[data-bg='cosmic'] .ask-who { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+:root[data-bg='cosmic'] .ask-answer.ok .ask-who { background: none; color: var(--ok); }
+:root[data-bg='cosmic'] .ask-who .ask-x { -webkit-text-fill-color: currentColor; color: var(--text-3); }
+:root[data-bg='cosmic'] .ask-chips button { background: rgba(130, 150, 255, 0.10); border-color: rgba(150, 165, 255, 0.22); }

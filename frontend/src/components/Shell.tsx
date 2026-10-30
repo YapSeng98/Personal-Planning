@@ -9,7 +9,9 @@ import { VideoProvider } from './VideoPlayer'
 import AppWindow from './AppWindow'
 import Icon, { type IconName } from './Icon'
 import { updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
-import { useRunningTimer, useElapsed, stopTimer, startTimer, clock, type RunningTimer } from '../lib/timer'
+import { useRunningTimer, useElapsed, stopTimer, clock, type RunningTimer } from '../lib/timer'
+import { useFocus, openFocus, nextRound, endFocus, roundElapsed, remaining, type Focus } from '../lib/focus'
+import FocusMode from './FocusMode'
 import { reminderPrefs, reminderBody, type Reminder } from '../lib/reminders'
 
 const links: { to: string; key: string; ico: IconName }[] = [
@@ -25,17 +27,30 @@ const links: { to: string; key: string; ico: IconName }[] = [
 /** Anywhere in the app can request the quick-add sheet. */
 export const openQuickAdd = () => window.dispatchEvent(new CustomEvent('planner:quickadd'))
 
-/** The task being timed, on every screen, with a Stop button. */
-function TimerBar({ timer }: { timer: RunningTimer }) {
-  const sec = useElapsed(timer.startedAt)
+/** The task being timed — or in focus mode, its round or break — on every
+    screen. Tap it to open the focus screen; Stop saves the time. */
+function TimerBar({ timer, focus }: { timer: RunningTimer | null; focus: Focus | null }) {
+  const sec = useElapsed(timer?.startedAt ?? (focus ? 0 : undefined))
   const { t } = useLang()
+  const title = focus?.title ?? timer?.title ?? ''
+  let readout = clock(sec)
+  if (focus) {
+    if (focus.phase === 'ready') readout = t('focus.ready', { round: focus.round })
+    else if (focus.plan === 'free') readout = clock(Math.floor(roundElapsed(focus) / 1000))
+    else readout = `${focus.phase === 'break' ? t('focus.break') + ' ' : ''}${clock(Math.ceil(remaining(focus) / 1000))}`
+    if (focus.paused) readout += ` · ${t('focus.paused')}`
+  }
   return (
-    <div className="timer-bar" role="status">
+    <div className={`timer-bar ${focus?.phase === 'break' ? 'is-break' : ''}`} role="status">
       <span className="tb-pulse" aria-hidden />
-      <Icon name="timer" size={16} />
-      <span className="tb-title">{timer.title}</span>
-      <span className="tb-clock num">{clock(sec)}</span>
-      <button type="button" className="btn btn-primary" onClick={() => stopTimer()}>{t('timer.stop')}</button>
+      <button type="button" className="tb-open" onClick={() => openFocus()} aria-label={t('focus.openFor', { title })}>
+        <Icon name="timer" size={16} />
+        <span className="tb-title">{title}</span>
+        <span className="tb-clock num">{readout}</span>
+      </button>
+      {focus?.phase === 'ready'
+        ? <button type="button" className="btn btn-primary" onClick={() => { nextRound(); openFocus() }}>{t('focus.startRound', { round: focus.round })}</button>
+        : <button type="button" className="btn btn-primary" onClick={() => endFocus().then(() => stopTimer())}>{t('timer.stop')}</button>}
     </div>
   )
 }
@@ -85,7 +100,7 @@ function ReminderBanners() {
             <span className="num">{x.body}</span>
           </div>
           {x.taskId && (
-            <button type="button" className="btn btn-primary" onClick={() => { startTimer({ id: x.taskId!, title: x.title }); close(x.tag) }}>
+            <button type="button" className="btn btn-primary" onClick={() => { openFocus({ id: x.taskId!, title: x.title }); close(x.tag) }}>
               {t('rem.startTimer')}
             </button>
           )}
@@ -138,6 +153,7 @@ export default function Shell() {
   const [sync, setSync] = useState<SyncState>('idle')
   const [hasUpdate, setHasUpdate] = useState(updateReady())
   const timer = useRunningTimer()
+  const focus = useFocus()
   const { t } = useLang()
   usePageScroll()
   useEffect(() => onSyncState(setSync), [])
@@ -231,7 +247,7 @@ export default function Shell() {
           </div>
         )}
         <ReminderBanners />
-        {timer && <TimerBar timer={timer} />}
+        {(timer || focus) && <TimerBar timer={timer} focus={focus} />}
         {hasUpdate && (
           <div className="update-bar" role="status">
             <span>{t('app.updateReady')}</span>
@@ -260,6 +276,7 @@ export default function Shell() {
       )}
       {searchTask && <TaskForm task={searchTask} onClose={() => setSearchTask(null)} />}
       <AppWindow />
+      <FocusMode />
     </div>
     </VideoProvider>
   )
