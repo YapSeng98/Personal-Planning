@@ -8,7 +8,18 @@ those.
 
 ## 2026-10-31
 
-- **Today's clock, like focus mode.** The time is now big and glowing in
+- **Today's header, redesigned from your screenshot.** The clock and the
+  music visualization now stand on their own, no circle: the time in big
+  glowing digits, and under it a row of music bars (quiet dots at rest,
+  pulsing while your music plays), then today's progress as a slim bar
+  ("1 of 5 done"). On a laptop the clock leads, with the date and greeting
+  beside it. New **"Next"** line: your next time block (or top task), one
+  tap starts focus mode on it. The planet light in Cosmic is now a low arc
+  in the corner instead of a streak through the text, and nothing touches
+  the card's edge any more.
+  ([243368d](https://github.com/YapSeng98/Personal-Planning/commit/243368d))
+- **Today's clock, like focus mode** (replaced the same day by the
+  standalone clock above). The time is now big and glowing in
   the middle of a ring that fills as you finish today's tasks ("33% done"),
   beside your greeting. Around it, watch-style marks light up the passing
   second, and **while your music or video plays they turn into a music
