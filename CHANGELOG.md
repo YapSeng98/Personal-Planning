@@ -8,6 +8,14 @@ those.
 
 ## 2026-10-30
 
+- **Liquid Glass on laptops, polished** — Today on a computer is now laid
+  out like the preview you approved: the greeting and briefing, then your
+  tasks, on the left; habits and the overview on the right — everything on
+  one screen. The glass has the preview's soft sheen and light on every
+  edge, and light gathers where your mouse is. The top line shows the date
+  and time (no more "System online"), dark mode has a cleaner night
+  wallpaper, and the installed app's window bar matches the theme.
+  ([7ec3455](https://github.com/YapSeng98/Personal-Planning/commit/7ec3455))
 - **New look: Liquid Glass** — the whole app now has the iPhone iOS 26
   "Liquid Glass" style you picked: see-through frosted glass panels with
   light on their edges, over a wallpaper in the Sunrise colours (coral,
