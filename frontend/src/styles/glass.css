@@ -28,12 +28,17 @@
   --g-bar: rgba(30, 21, 30, 0.68);      /* the tab bar and sidebar */
   --g-ink: #FFFFFF;                     /* solid primary button */
   --g-on-ink: #1A1218;
-  --liquid:
-    radial-gradient(62vmax 52vmax at 4% -4%, rgba(255, 110, 74, 0.50), transparent 62%),
-    radial-gradient(56vmax 46vmax at 102% 8%, rgba(194, 69, 155, 0.46), transparent 62%),
-    radial-gradient(48vmax 42vmax at 8% 62%, rgba(255, 160, 67, 0.28), transparent 62%),
-    radial-gradient(60vmax 50vmax at 100% 84%, rgba(91, 72, 217, 0.50), transparent 62%),
-    radial-gradient(48vmax 40vmax at 42% 112%, rgba(46, 111, 216, 0.36), transparent 62%);
+  /* panels: a soft diagonal sheen of tinted glass (the preview's recipe) */
+  --g-t1: rgba(38, 27, 40, 0.40); --g-t2: rgba(74, 56, 78, 0.46);
+  --g-rim-side: rgba(255, 255, 255, 0.10);
+  --g-spec: rgba(255, 255, 255, 0.10);
+  --liquid: var(--liquid-night);
+  --liquid-night:
+    radial-gradient(52vmax 42vmax at -2% -6%, rgba(255, 110, 74, 0.40), transparent 62%),
+    radial-gradient(54vmax 46vmax at 104% -4%, rgba(194, 69, 155, 0.42), transparent 62%),
+    radial-gradient(50vmax 44vmax at -4% 104%, rgba(46, 111, 216, 0.34), transparent 62%),
+    radial-gradient(60vmax 52vmax at 104% 104%, rgba(98, 76, 226, 0.50), transparent 62%),
+    radial-gradient(36vmax 28vmax at 55% 45%, rgba(255, 160, 67, 0.08), transparent 60%);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
@@ -46,6 +51,7 @@
     --g-shadow: 0 12px 32px -14px rgba(110, 45, 25, 0.30);
     --g-sheet: rgba(255, 249, 246, 0.92); --g-bar: rgba(255, 252, 250, 0.72);
     --g-ink: #1E1714; --g-on-ink: #FFFFFF;
+    --g-t1: rgba(255, 255, 255, 0.34); --g-t2: rgba(255, 255, 255, 0.62); --g-rim-side: rgba(255, 255, 255, 0.55); --g-spec: rgba(255, 255, 255, 0.45);
     --liquid:
       radial-gradient(62vmax 52vmax at 4% -4%, rgba(255, 138, 101, 0.88), transparent 62%),
       radial-gradient(56vmax 46vmax at 102% 8%, rgba(255, 111, 168, 0.70), transparent 62%),
@@ -63,12 +69,8 @@
   --g-shadow: 0 16px 36px -16px rgba(0, 0, 0, 0.7);
   --g-sheet: rgba(30, 21, 30, 0.90); --g-bar: rgba(30, 21, 30, 0.68);
   --g-ink: #FFFFFF; --g-on-ink: #1A1218;
-  --liquid:
-    radial-gradient(62vmax 52vmax at 4% -4%, rgba(255, 110, 74, 0.50), transparent 62%),
-    radial-gradient(56vmax 46vmax at 102% 8%, rgba(194, 69, 155, 0.46), transparent 62%),
-    radial-gradient(48vmax 42vmax at 8% 62%, rgba(255, 160, 67, 0.28), transparent 62%),
-    radial-gradient(60vmax 50vmax at 100% 84%, rgba(91, 72, 217, 0.50), transparent 62%),
-    radial-gradient(48vmax 40vmax at 42% 112%, rgba(46, 111, 216, 0.36), transparent 62%);
+  --g-t1: rgba(38, 27, 40, 0.40); --g-t2: rgba(74, 56, 78, 0.46); --g-rim-side: rgba(255, 255, 255, 0.10); --g-spec: rgba(255, 255, 255, 0.10);
+  --liquid: var(--liquid-night);
 }
 :root[data-theme='light'] {
   --surface: #F6E8E1; --surface-2: #FFF8F4;
@@ -79,6 +81,7 @@
   --g-shadow: 0 12px 32px -14px rgba(110, 45, 25, 0.30);
   --g-sheet: rgba(255, 249, 246, 0.92); --g-bar: rgba(255, 252, 250, 0.72);
   --g-ink: #1E1714; --g-on-ink: #FFFFFF;
+  --g-t1: rgba(255, 255, 255, 0.34); --g-t2: rgba(255, 255, 255, 0.62); --g-rim-side: rgba(255, 255, 255, 0.55); --g-spec: rgba(255, 255, 255, 0.45);
   --liquid:
     radial-gradient(62vmax 52vmax at 4% -4%, rgba(255, 138, 101, 0.88), transparent 62%),
     radial-gradient(56vmax 46vmax at 102% 8%, rgba(255, 111, 168, 0.70), transparent 62%),
@@ -100,12 +103,17 @@ body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-even
 .overdue, .day-card, .goal-card, .board-col {
   -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
   border-color: var(--g-border);
-  box-shadow: inset 0 1px 0.5px var(--g-rim), inset 0 -1px 1px var(--g-rim-low), var(--g-shadow);
+  box-shadow: inset 0 1px 0.5px var(--g-rim), inset 1px 0 0.5px var(--g-rim-side), inset 0 -1px 1px var(--g-rim-low), inset -1px 0 0.5px var(--g-rim-low), var(--g-shadow);
 }
-.card, .tcard, .m-card, .board-card, .stat-tile { background: var(--glass); }
+.card, .tcard, .m-card, .board-card, .stat-tile, .hero-card, .hx-row {
+  --g-fill: linear-gradient(140deg, var(--g-t2), var(--g-t1) 42%, var(--g-t1) 70%, var(--g-t2));
+  background: var(--g-fill);
+}
+/* a mouse over a panel: light gathers where the pointer is (lib/glassLight.ts) */
+.g-lit { background: radial-gradient(320px circle at var(--gx, 50%) var(--gy, 0%), var(--g-spec), transparent 62%), var(--g-fill); }
 :root[data-bg]:not([data-bg='none']) .card, :root[data-bg]:not([data-bg='none']) .tcard,
 :root[data-bg]:not([data-bg='none']) .m-card, :root[data-bg]:not([data-bg='none']) .board-card,
-:root[data-bg]:not([data-bg='none']) .stat-tile { background: var(--glass); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
+:root[data-bg]:not([data-bg='none']) .stat-tile { -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
 /* glass inside glass doesn't blur twice (costly, and muddy) */
 .card .card, .sheet .card, .hero-card .card, .search-modal .card { -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
 /* sheets, menus and the search box: more tint so text over busy pages stays readable */
@@ -207,7 +215,7 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
 
 /* ---- Today's hero: a glass panel with the AI glow on its edge ---- */
 .hero-card {
-  background: var(--glass); border: 1px solid var(--g-border); border-radius: 28px; animation: none;
+  border: 1px solid var(--g-border); border-radius: 28px; animation: none;
   isolation: isolate;
 }
 .hero-card::before { /* the colourful AI edge, slowly turning */
@@ -246,7 +254,7 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
 .today-grid .m-card::before { display: none; }
 .spark-line { filter: none; }
 .today-grid .m-streak .big { animation: none; }
-.hx-row { background: var(--glass); border: 1px solid var(--g-border); border-radius: 28px; }
+.hx-row { border: 1px solid var(--g-border); border-radius: 28px; }
 .hx { background: color-mix(in srgb, var(--glass-strong) 55%, transparent); border-color: var(--g-border); border-radius: 20px; }
 .hx.done { background: color-mix(in srgb, var(--ok) 12%, var(--glass-strong)); }
 .hx-week i.today:not(.on) { animation: none; }
@@ -258,3 +266,18 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
   radial-gradient(circle at 20% 90%, #FFC15E, transparent 60%), radial-gradient(circle at 90% 90%, #9C8CFF, transparent 60%), #F6E8E1; }
 
 @media (prefers-reduced-motion: reduce) { .hero-card::before { animation: none; } }
+
+/* ---- laptop: Today as the preview — greeting + briefing, then tasks, on the
+   left; habits and the overview on the right. Three rows with spanning
+   areas let the columns flow on their own: tasks start right under the
+   greeting, the overview right under the habits, whichever is taller. ---- */
+@media (min-width: 1000px) {
+  .today-grid { grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); grid-template-rows: auto auto 1fr;
+    grid-template-areas: "hero habits" "tasks habits" "tasks side"; gap: 1.2rem 1.5rem; align-items: start; }
+  .today-grid > .ga-habits > .section-h { margin: 0 0.2rem 0.6rem; }
+  .today-grid > .ga-habits .hx-row { width: auto; max-width: none; margin: 0; grid-auto-flow: row; grid-auto-columns: auto;
+    grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); padding: 0.6rem; gap: 0.5rem; }
+  .hero-hi { font-size: 2.3rem; margin-top: 0.3rem; }
+  /* a clear lane for the floating + and quick-apps buttons */
+  .shell-main { padding-right: 6.5rem; }
+}

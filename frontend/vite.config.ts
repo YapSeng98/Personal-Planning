@@ -76,8 +76,8 @@ export default defineConfig({
         name: 'Personal Planning System',
         short_name: 'Planner',
         description: 'Vision → Year → Quarter → Month → Week → Day planning',
-        theme_color: '#0B0D14',
-        background_color: '#0B0D14',
+        theme_color: '#130C13',
+        background_color: '#130C13',
         display: 'standalone',
         icons: [
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },

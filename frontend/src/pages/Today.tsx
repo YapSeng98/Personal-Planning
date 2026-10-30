@@ -744,10 +744,9 @@ export default function Today() {
         <i className="hud-c tl" aria-hidden /><i className="hud-c tr" aria-hidden />
         <i className="hud-c bl" aria-hidden /><i className="hud-c br" aria-hidden />
         <div className="hero-wm">
-          <span className="hud-dot" aria-hidden />{t('today.online')} · {t('brand')} · <HudClock />
+          {dateLabel} · <HudClock />
         </div>
         <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
-        <div className="hero-dt">{dateLabel}</div>
         <HeroVideoSlot />
         <div className="hero-brief">
           <div className="bl">

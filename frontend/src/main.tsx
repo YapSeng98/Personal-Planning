@@ -7,6 +7,7 @@ import './styles/glass.css'
 import App from './App.tsx'
 import { applyTheme } from './lib/theme'
 import { applyBg } from './lib/bg'
+import { startGlassLight } from './lib/glassLight'
 import { startUpdates } from './lib/pwaUpdate'
 
 // iPhone / iPad Safari zooms into any text box under 16px when it's tapped,
@@ -21,6 +22,7 @@ if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'Mac
 applyTheme() // before first paint, so the saved theme doesn't flash
 applyBg()
 startUpdates()
+startGlassLight()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
