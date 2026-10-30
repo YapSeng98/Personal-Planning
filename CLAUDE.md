@@ -19,7 +19,7 @@ only — it is not live and should not be treated as current architecture.
 
 | Path | What it is |
 |---|---|
-| `frontend/` | React + TypeScript PWA (Vite). `src/db/db.ts` (Dexie schema, outbox, `patchAndQueue`), `src/sync/engine.ts` (push/pull orchestration), `src/sync/fields.ts` (which fields sync, change diffing), `src/sync/api.ts`+`supabase.ts` (Supabase client/auth), `src/lib/pwaUpdate.ts`+`public/sw-handoff.js` (how new versions reach devices), `src/styles/tokens.css`+`app.css` (design system), `src/components/Icon.tsx` (icon set). |
+| `frontend/` | React + TypeScript PWA (Vite). `src/db/db.ts` (Dexie schema, outbox, `patchAndQueue`), `src/sync/engine.ts` (push/pull orchestration), `src/sync/fields.ts` (which fields sync, change diffing), `src/sync/api.ts`+`supabase.ts` (Supabase client/auth), `src/lib/pwaUpdate.ts`+`public/sw-handoff.js` (how new versions reach devices), `src/styles/tokens.css`+`app.css` (design system), `src/components/Icon.tsx` (icon set), `src/lib/command.ts`+`components/AskBar.tsx` (Today's "Ask Planner" command bar: rule-based commands, AI fallback, every change undoable), `src/lib/focus.ts`+`components/FocusMode.tsx` (full-screen focus timer / Pomodoro on top of `lib/timer.ts`). |
 | `supabase/schema.sql` | Full Postgres schema: tables, RLS policies, `sync_push`/`sync_pull`/`recalc_goal` functions. Idempotent — safe to paste and re-run whole. This is the source of truth for the backend; there is no migration tool, just re-running this file in the Supabase SQL Editor. `sync_push`, `sync_pull` and the rev/field_times/txid block are **generated** by `supabase/gen_sync_push.py` (`python3 supabase/gen_sync_push.py apply` rewrites them in place) — edit the generator, not that SQL. |
 | `deploy/publish.sh` | Builds the frontend and publishes it — see Deploy below. |
 | `supabase/functions/push-reminders/` | Edge Function that sends reminder pushes (Web Push, encrypted per device). Called once a minute by the database (`send_due_reminders` in schema.sql, scheduled by `supabase/push_setup.sql`), which also works out what's due; the function has no secrets or database access — the VAPID private key comes from Vault with each request and only the app's own key is accepted. Deployed by hand in the dashboard (JWT verification off). The app's side: `src/lib/reminders.ts` (also reminds by itself while open), `public/sw-notify.js` (push + notification taps). `npm run test:push` checks its crypto. |
@@ -183,6 +183,8 @@ the "Sunrise" identity. Two layers:
   with glowing titles (no gradient-filled text: it blanks emoji in titles),
   data marks violet (`--accent`) + green. Everything scoped under
   `:root[data-bg='cosmic']`, so Liquid and the other backgrounds are untouched.
+- `frontend/src/styles/focus.css` — focus mode's full-screen deep-space
+  timer: its own always-dark look in every theme (not scoped to Cosmic).
 - **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `cosmic` is
   the default (every device switched to it once via `planner_bg_v3`; before
   that `liquid` via `planner_bg_v2`), the others stay selectable in

@@ -6,6 +6,28 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-10-31
+
+- **Ask Planner — a command bar on Today.** Type what you want in plain
+  words: "move journal to 9pm", "add call mom tomorrow 7pm", "done gym",
+  "focus on rebalance", "plan my evening", "what's next?", "what's
+  overdue?", "how am I doing?" — in English or Chinese. The answer comes as
+  a small card with a button that does it, and every change can be undone.
+  These work offline, without the AI; with AI set up in Settings you can
+  ask anything else and it can suggest the same kinds of changes. Press /
+  on a computer to jump to it.
+  ([b534adb](https://github.com/YapSeng98/Personal-Planning/commit/b534adb))
+- **Focus mode.** ▶ on a task now opens a full-screen deep-space timer: a
+  big glowing countdown ring, the task, your Today video's music, and a
+  choice of Free, 25 / 5 or 50 / 10 (four rounds, then a long break).
+  "Mission complete" when a round ends, a green ring for breaks, Done to
+  tick the task off. Minimise it and the timer bar keeps counting; tap the
+  bar to come back. Rounds are saved to the task and Stats like before —
+  and a round that ends while the app is closed counts only up to its end.
+  ([b534adb](https://github.com/YapSeng98/Personal-Planning/commit/b534adb))
+- **Database update run** (supabase/schema.sql): task steps and focus
+  sessions now sync between your devices.
+
 ## 2026-10-30
 
 - **New look: Cosmic** — a futuristic deep-space design, from your
