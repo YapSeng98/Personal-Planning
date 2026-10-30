@@ -172,14 +172,28 @@ export default function Shell() {
   const { pathname } = useLocation()
   useEffect(() => {
     let last = window.scrollY
+    // only scrolling you do shrinks it — not the app putting a page back
+    // where you left it (Back), which would leave your next tap opening
+    // the bar instead of the page you tapped
+    let gesture = 0
+    const mark = () => { gesture = Date.now() }
     const onScroll = () => {
       const y = window.scrollY
-      if (y > last + 8 && y > 120) setCompact(true)
+      const yours = Date.now() - gesture < 800
+      if (yours && y > last + 8 && y > 120) setCompact(true)
       else if (y < last - 8 || y < 60) setCompact(false)
       last = y
     }
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    window.addEventListener('touchmove', mark, { passive: true })
+    window.addEventListener('wheel', mark, { passive: true })
+    window.addEventListener('keydown', mark)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('touchmove', mark)
+      window.removeEventListener('wheel', mark)
+      window.removeEventListener('keydown', mark)
+    }
   }, [])
   useEffect(() => setCompact(false), [pathname])
 
