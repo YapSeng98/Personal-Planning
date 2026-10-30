@@ -123,3 +123,13 @@
 :root[data-bg='cosmic'] .ask-answer.ok .ask-who { background: none; color: var(--ok); }
 :root[data-bg='cosmic'] .ask-who .ask-x { -webkit-text-fill-color: currentColor; color: var(--text-3); }
 :root[data-bg='cosmic'] .ask-chips button { background: rgba(130, 150, 255, 0.10); border-color: rgba(150, 165, 255, 0.22); }
+
+/* ---- Today's clock dial: neon ring, glowing digits (like focus mode) ---- */
+:root[data-bg='cosmic'] .hero-dial { --dial-a: var(--neon-a); --dial-b: var(--neon-b); --dial-c: var(--neon-c); --dial-tick: rgba(170, 185, 255, 0.55); }
+:root[data-bg='cosmic'] .hd-track { stroke: rgba(140, 160, 255, 0.13); }
+:root[data-bg='cosmic'] .hd-prog { filter: drop-shadow(0 0 6px rgba(120, 120, 255, 0.85)); }
+:root[data-bg='cosmic'] .hd-time { color: #F6F7FF; text-shadow: 0 0 22px rgba(120, 150, 255, 0.65), 0 0 2px rgba(190, 210, 255, 0.6); }
+:root[data-bg='cosmic'] .hd-time small { color: #A8B0D8; text-shadow: none; }
+:root[data-bg='cosmic'] .hd-label { color: #9FB0E8; }
+:root[data-bg='cosmic'] .hero-dial::before { content: ''; position: absolute; inset: 12%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(90, 70, 255, 0.28), transparent 70%); }

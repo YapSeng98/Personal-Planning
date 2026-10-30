@@ -105,7 +105,7 @@ export default function FocusMode() {
   const [todayMin, setTodayMin] = useState(0)
   const [cele, setCele] = useState<Celebrate | null>(null)
   const playRef = useRef<HTMLButtonElement>(null)
-  const { videoId, playing, play, stop, nowPlaying } = useVideo()
+  const { videoId, playing, play, stop, nowPlaying, music: musicOn } = useVideo()
   const shown = open && !!f
   const counting = shown && !f.paused && f.phase !== 'ready'
   useTick(shown)
@@ -184,7 +184,6 @@ export default function FocusMode() {
   const bigLabel = f.phase === 'ready' ? t('focus.startRound', { round: f.round }) : f.paused ? t('focus.resume') : t('focus.pause')
   const onBig = () => (f.phase === 'ready' ? nextRound() : f.paused ? resumeFocus() : pauseFocus())
   const music = nowPlaying?.title ? `${nowPlaying.title}${nowPlaying.artist ? ` · ${nowPlaying.artist}` : ''}` : videoId ? t('focus.video') : ''
-  const musicOn = nowPlaying ? nowPlaying.playing : playing
 
   return (
     <div className={`focus-mode ${isBreak ? 'is-break' : ''} ${f.paused ? 'is-paused' : ''}`} role="dialog" aria-modal="true" aria-label={t('focus.title')}>

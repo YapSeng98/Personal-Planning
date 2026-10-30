@@ -332,6 +332,8 @@ const en: Dict = {
   'rem.test': 'Send a test notification', 'rem.testTitle': 'Planner', 'rem.testBody': 'Reminders are on — this is how they look.',
   'rem.testSent': 'Sent — it should appear now.', 'rem.testFailed': 'This device didn’t show it — check its notification settings.',
   'rem.startsNow': 'Starts now', 'rem.startsIn': 'Starts in {n} min', 'rem.startTimer': 'Focus',
+  // Today's clock dial (components/HeroDial.tsx)
+  'today.pctDone': '{n}% done', 'today.dialToday': 'Today',
   // focus mode (components/FocusMode.tsx)
   'focus.title': 'Focus mode', 'focus.eyebrow': 'Focus · round {round} of {n}', 'focus.eyebrowFree': 'Focus',
   'focus.today': 'Focused today', 'focus.minimise': 'Minimise (keeps running)', 'focus.plan': 'Timer',
@@ -672,6 +674,8 @@ const zh: Dict = {
   'rem.test': '发送测试通知', 'rem.testTitle': '规划器', 'rem.testBody': '提醒已开启——提醒就是这个样子。',
   'rem.testSent': '已发送——应该马上就会出现。', 'rem.testFailed': '本设备没有显示——请检查它的通知设置。',
   'rem.startsNow': '现在开始', 'rem.startsIn': '{n} 分钟后开始', 'rem.startTimer': '专注',
+  // 今日时钟
+  'today.pctDone': '完成 {n}%', 'today.dialToday': '今天',
   // 专注模式
   'focus.title': '专注模式', 'focus.eyebrow': '专注 · 第 {round}/{n} 轮', 'focus.eyebrowFree': '专注',
   'focus.today': '今日专注', 'focus.minimise': '最小化（继续计时）', 'focus.plan': '计时方式',

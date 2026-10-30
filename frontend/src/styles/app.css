@@ -2324,3 +2324,31 @@ button.preview-row:hover .title { color: var(--accent-bright); }
 .timer-bar .tb-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.55rem; border: 0; background: none; padding: 0.15rem 0;
   font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .timer-bar.is-break .tb-clock, .timer-bar.is-break svg { color: var(--ok); }
+
+/* ---- Today's clock dial (components/HeroDial.tsx): the time big and
+   glowing like focus mode's timer, inside the ring of today's progress, with
+   a watch bezel that turns into a music visualizer while music plays ---- */
+.hero-top { display: flex; align-items: center; gap: 1rem; }
+.hero-head { flex: 1; min-width: 0; }
+/* the old side margins kept room for the % ring / video beside the text */
+.hero-top .hero-wm, .hero-top .hero-hi { margin-right: 0 !important; }
+/* phones: a little smaller beside the dial, so the greeting takes two lines, not three */
+@media (max-width: 999px) { .hero-top .hero-hi { font-size: 1.5rem; } }
+.hero-dial { --dial-a: var(--accent-bright); --dial-b: #FFB03A; --dial-c: #FF6FA8; --dial-tick: var(--text-3);
+  position: relative; flex: none; width: 7.5rem; aspect-ratio: 1; display: grid; place-items: center; margin: 0.25rem 0.1rem 0.1rem 0; }
+.hd-bezel { position: absolute; inset: -16px; width: calc(100% + 32px); height: calc(100% + 32px); pointer-events: none; }
+.hd-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.hd-track { fill: none; stroke: var(--glass-strong); stroke-width: 7; }
+.hd-prog { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--dial-b) 70%, transparent)); }
+.hd-s1 { stop-color: var(--dial-a); } .hd-s2 { stop-color: var(--dial-b); } .hd-s3 { stop-color: var(--dial-c); }
+.hd-face { position: relative; display: grid; justify-items: center; text-align: center; }
+.hd-time { font-family: var(--font-display); font-size: 1.55rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1;
+  color: var(--text-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hd-time small { font-size: 0.48em; font-weight: 700; letter-spacing: 0; color: var(--text-2); margin-left: 1px; }
+.hd-label { margin-top: 0.4rem; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); white-space: nowrap; }
+@media (min-width: 1000px) {
+  .hero-dial { width: 9.25rem; }
+  .hd-time { font-size: 2rem; }
+  .hd-label { font-size: 0.66rem; }
+}

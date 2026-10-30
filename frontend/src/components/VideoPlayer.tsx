@@ -21,11 +21,15 @@ interface VideoCtx {
   /** A YouTube / YouTube Music tab reported by the browser extension. */
   nowPlaying: NowPlaying | null
   focusTab: () => void
+  /** Music is playing right now — the Today video (playing and not muted;
+      paused inside the player counts as not playing) or a YouTube tab the
+      extension follows. Drives the music bars on Today and in focus mode. */
+  music: boolean
 }
 
 const Ctx = createContext<VideoCtx>({
   videoId: null, playing: false, play: () => {}, stop: () => {}, setSlot: () => {},
-  nowPlaying: null, focusTab: () => {},
+  nowPlaying: null, focusTab: () => {}, music: false,
 })
 
 export const useVideo = () => useContext(Ctx)
@@ -73,10 +77,31 @@ export function VideoProvider({ children }: { children: ReactNode }) {
 
   // Reassert volume/mute once the (freshly mounted) player has loaded — the
   // iframe remounts every time playback (re)starts, which resets its state.
+  // The handshake asks the player to report its state (playing / paused).
   const onIframeLoad = useCallback(() => {
     postYoutubeCommand(iframeRef.current, 'setVolume', [volume])
     postYoutubeCommand(iframeRef.current, muted ? 'mute' : 'unMute')
+    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), 'https://www.youtube.com')
   }, [volume, muted])
+
+  // Playing or paused inside the player: null until it says (then a started
+  // video counts as playing — the player may never report, e.g. offline).
+  const [ytState, setYtState] = useState<boolean | null>(null)
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== 'https://www.youtube.com' || !iframeRef.current || e.source !== iframeRef.current.contentWindow) return
+      let d: { event?: string; info?: unknown }
+      try { d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data } catch { return }
+      const st = d?.event === 'onStateChange' ? d.info
+        : d?.event === 'infoDelivery' && d.info && typeof d.info === 'object' ? (d.info as { playerState?: number }).playerState : undefined
+      // 1 playing, 3 buffering; 2 paused, 0 ended, -1 unstarted, 5 cued
+      if (typeof st === 'number') setYtState(st === 1 || st === 3)
+    }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [])
+  useEffect(() => { if (!playing) setYtState(null) }, [playing])
+  const music = (playing && ytState !== false && !muted) || !!nowPlaying?.playing
 
   const changeVolume = useCallback((v: number) => {
     setVolume(v)
@@ -149,7 +174,7 @@ export function VideoProvider({ children }: { children: ReactNode }) {
     : undefined
 
   return (
-    <Ctx.Provider value={{ videoId, playing, play, stop, setSlot, nowPlaying, focusTab }}>
+    <Ctx.Provider value={{ videoId, playing, play, stop, setSlot, nowPlaying, focusTab, music }}>
       {children}
       {videoId && playing && (
         <div className={`hv-float ${docked ? 'docked' : 'mini'}`} style={style}>

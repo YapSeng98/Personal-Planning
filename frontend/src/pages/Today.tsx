@@ -12,6 +12,7 @@ import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
 import { aiEnabled, askAI } from '../lib/ai'
 import { HeroVideoSlot, useVideo } from '../components/VideoPlayer'
+import HeroDial from '../components/HeroDial'
 import { projectColorVar } from '../lib/projectColors'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
@@ -366,17 +367,6 @@ function PriorityList({ tasks, sensors, renderCard, onCommit, t }: {
       </DragOverlay>
     </DndContext>
   )
-}
-
-/** Live HH:MM:SS readout for the hero HUD. Its own component so the
-    once-a-second tick re-renders only this, not the whole Today page. */
-function HudClock() {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 1000)
-    return () => window.clearInterval(id)
-  }, [])
-  return <span className="hud-clock num">{now.toTimeString().slice(0, 8)}</span>
 }
 
 /** Types the briefing out a few characters at a time, like a terminal.
@@ -749,15 +739,19 @@ export default function Today() {
     <div className="today-grid">
     <div className="ga-hero">
       {/* ---- sunrise hero ---- */}
-      <div className={`hero-card ${tasks.length > 0 ? 'has-ring' : ''} ${videoId || nowPlaying ? 'has-video' : ''}`}>
+      <div className={`hero-card ${videoId || nowPlaying ? 'has-video' : ''}`}>
         <div className="hero-grid" aria-hidden />
         <div className="hero-scan" aria-hidden />
         <i className="hud-c tl" aria-hidden /><i className="hud-c tr" aria-hidden />
         <i className="hud-c bl" aria-hidden /><i className="hud-c br" aria-hidden />
-        <div className="hero-wm">
-          {dateLabel} · <HudClock />
+        {/* the date and greeting, and the clock dial beside them */}
+        <div className="hero-top">
+          <div className="hero-head">
+            <div className="hero-wm">{dateLabel}</div>
+            <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
+          </div>
+          <HeroDial pct={pct} hasTasks={tasks.length > 0} />
         </div>
-        <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
         <HeroVideoSlot />
         <div className="hero-brief">
           <div className="bl">
@@ -776,12 +770,6 @@ export default function Today() {
           </div>
           <div className="bt"><Typewriter text={aiBrief ?? briefingText(tasks, overdue.length, t)} /></div>
         </div>
-        {tasks.length > 0 && (
-          <div className="hero-ring" style={{ ['--p' as string]: pct }} aria-label={`${pct}% of today done`}>
-            <span className="hero-orbit" aria-hidden />
-            <i>{pct}%</i>
-          </div>
-        )}
       </div>
 
       <AskBar />

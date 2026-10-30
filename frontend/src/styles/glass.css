@@ -305,13 +305,12 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
   .today-grid > .ga-habits .hx-row { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
 }
 @media (min-width: 1000px) {
-  .today-grid .hero-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "wm ring" "hi ring" "brief brief";
-    column-gap: 1.2rem; align-items: start; min-height: 0; }
-  .today-grid .hero-card.has-video { grid-template-columns: minmax(0, 1fr) auto minmax(280px, 40%); grid-template-areas: "wm ring video" "hi ring video" "brief brief video"; }
-  .today-grid .hero-card > .hero-wm { grid-area: wm; margin-right: 0 !important; }
-  .today-grid .hero-card > .hero-hi { grid-area: hi; margin-right: 0 !important; font-size: clamp(1.8rem, 2.4vw, 2.3rem); text-wrap: balance; }
+  .today-grid .hero-card { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "brief";
+    column-gap: 1.4rem; align-items: start; min-height: 0; }
+  .today-grid .hero-card.has-video { grid-template-columns: minmax(0, 1fr) minmax(280px, 40%); grid-template-areas: "top video" "brief video"; }
+  .today-grid .hero-card > .hero-top { grid-area: top; }
+  .today-grid .hero-card .hero-hi { font-size: clamp(1.8rem, 2.4vw, 2.3rem); text-wrap: balance; }
   .today-grid .hero-card > .hero-brief { grid-area: brief; margin: 0.9rem 0 0 !important; max-width: none; }
-  .today-grid .hero-card > .hero-ring { grid-area: ring; position: relative !important; inset: auto !important; margin-top: 0.2rem; }
   .today-grid .hero-card > .hero-video { grid-area: video; position: relative !important; inset: auto !important; width: auto !important; height: auto !important;
     margin: 0 !important; aspect-ratio: 16 / 9; align-self: start; border-radius: 18px; }
 }
