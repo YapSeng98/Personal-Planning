@@ -8,6 +8,13 @@ those.
 
 ## 2026-10-31
 
+- **Today's clock, like focus mode.** The time is now big and glowing in
+  the middle of a ring that fills as you finish today's tasks ("33% done"),
+  beside your greeting. Around it, watch-style marks light up the passing
+  second, and **while your music or video plays they turn into a music
+  visualizer**: bars pulsing around the clock, stopping when you pause.
+  (The bars follow whether music is playing; a web page can't hear inside
+  YouTube.) ([6a526ea](https://github.com/YapSeng98/Personal-Planning/commit/6a526ea))
 - **Ask Planner — a command bar on Today.** Type what you want in plain
   words: "move journal to 9pm", "add call mom tomorrow 7pm", "done gym",
   "focus on rebalance", "plan my evening", "what's next?", "what's
