@@ -1,16 +1,26 @@
-// Curated app backgrounds. Each is a set of soft colour glows layered over
-// the theme surface (see tokens.css --app-bg), so one definition works in
-// both light and dark. When a background other than 'none' is active, cards
-// switch to frosted glass (backdrop blur) via the [data-bg] CSS state.
+// Curated app backgrounds (the wallpaper behind the glass). Each is a set of
+// soft colour glows over the theme surface (tokens.css / glass.css --app-bg).
+// 'liquid' is the Liquid Glass wallpaper (glass.css), and the default.
 
-export type Bg = 'none' | 'sunrise' | 'aurora' | 'dusk' | 'ember' | 'bloom'
-export const BGS: Bg[] = ['none', 'sunrise', 'aurora', 'dusk', 'ember', 'bloom']
+export type Bg = 'liquid' | 'none' | 'sunrise' | 'aurora' | 'dusk' | 'ember' | 'bloom'
+export const BGS: Bg[] = ['liquid', 'none', 'sunrise', 'aurora', 'dusk', 'ember', 'bloom']
 
 const KEY = 'planner_bg'
+// Liquid Glass shipped 2026-10-30: every device starts on its wallpaper once,
+// whatever it had before; a choice made after that sticks.
+const V2 = 'planner_bg_v2'
 
 export function getBg(): Bg {
-  const v = localStorage.getItem(KEY)
-  return (BGS as string[]).includes(v ?? '') ? (v as Bg) : 'none'
+  try {
+    if (!localStorage.getItem(V2)) {
+      localStorage.setItem(V2, '1')
+      localStorage.setItem(KEY, 'liquid')
+    }
+    const v = localStorage.getItem(KEY)
+    return (BGS as string[]).includes(v ?? '') ? (v as Bg) : 'liquid'
+  } catch {
+    return 'liquid'
+  }
 }
 
 export function applyBg(b: Bg = getBg()) {
@@ -18,6 +28,10 @@ export function applyBg(b: Bg = getBg()) {
 }
 
 export function setBg(b: Bg) {
-  localStorage.setItem(KEY, b)
+  try {
+    localStorage.setItem(KEY, b)
+  } catch {
+    /* storage blocked: applies for this visit */
+  }
   applyBg(b)
 }

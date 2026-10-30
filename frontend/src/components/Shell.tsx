@@ -166,6 +166,23 @@ export default function Shell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Phones: scrolling down, the floating tab bar shrinks to the page you're
+  // on (as on iOS 26); scrolling up or tapping it brings it back.
+  const [compact, setCompact] = useState(false)
+  const { pathname } = useLocation()
+  useEffect(() => {
+    let last = window.scrollY
+    const onScroll = () => {
+      const y = window.scrollY
+      if (y > last + 8 && y > 120) setCompact(true)
+      else if (y < last - 8 || y < 60) setCompact(false)
+      last = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  useEffect(() => setCompact(false), [pathname])
+
   const nav = (cls: string) =>
     links.map((l) => (
       <NavLink key={l.to} to={l.to} end={l.to === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''} ${cls}`}>
@@ -209,7 +226,11 @@ export default function Shell() {
         )}
         <Outlet />
       </main>
-      <nav className="nav-bottom" aria-label="Main">
+      <nav
+        className={`nav-bottom ${compact ? 'compact' : ''}`}
+        aria-label="Main"
+        onClickCapture={(e) => { if (compact) { e.preventDefault(); e.stopPropagation(); setCompact(false) } }}
+      >
         {nav('')}
       </nav>
       <button className="fab fab-desktop" aria-label="Add task" onClick={() => setAdding(true)}><Icon name="plus" size={24} strokeWidth={2.2} /></button>

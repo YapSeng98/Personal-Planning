@@ -1,0 +1,260 @@
+/* ======================================================================
+   Liquid Glass (2026-10-30) — the look the owner picked from the
+   planner-glass preview: frosted, see-through panels over a Sunrise-
+   coloured wallpaper, a floating glass tab bar, rim light on every edge,
+   iOS-style large titles. A layer over tokens.css + app.css: it changes
+   how things look, never what they do (no class or markup is required
+   from it). Data marks stay coral + green (validated pair); amber stays
+   decorative.
+   ====================================================================== */
+
+/* ---- tokens: dark (default) ---- */
+:root {
+  --surface: #130C13;
+  --surface-2: #1C141C;          /* opaque: inner fills (ring holes, menus' base) */
+  --glass: rgba(255, 255, 255, 0.075);
+  --glass-strong: rgba(255, 255, 255, 0.13);
+  --hairline: rgba(255, 255, 255, 0.10);
+  --text-1: #F7F3F1; --text-2: #B6ACB6; --text-3: #877C89;
+  --font-display: var(--font-body);
+  --radius-card: 24px;
+  /* the glass material */
+  --g-blur: blur(22px) saturate(175%);
+  --g-border: rgba(255, 255, 255, 0.11);
+  --g-rim: rgba(255, 255, 255, 0.20);
+  --g-rim-low: rgba(255, 255, 255, 0.05);
+  --g-shadow: 0 16px 36px -16px rgba(0, 0, 0, 0.7);
+  --g-sheet: rgba(30, 21, 30, 0.90);    /* sheets, menus: near-solid glass, readable over anything */
+  --g-bar: rgba(30, 21, 30, 0.68);      /* the tab bar and sidebar */
+  --g-ink: #FFFFFF;                     /* solid primary button */
+  --g-on-ink: #1A1218;
+  --liquid:
+    radial-gradient(62vmax 52vmax at 4% -4%, rgba(255, 110, 74, 0.50), transparent 62%),
+    radial-gradient(56vmax 46vmax at 102% 8%, rgba(194, 69, 155, 0.46), transparent 62%),
+    radial-gradient(48vmax 42vmax at 8% 62%, rgba(255, 160, 67, 0.28), transparent 62%),
+    radial-gradient(60vmax 50vmax at 100% 84%, rgba(91, 72, 217, 0.50), transparent 62%),
+    radial-gradient(48vmax 40vmax at 42% 112%, rgba(46, 111, 216, 0.36), transparent 62%);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --surface: #F6E8E1; --surface-2: #FFF8F4;
+    --glass: rgba(255, 255, 255, 0.46); --glass-strong: rgba(255, 255, 255, 0.66);
+    --hairline: rgba(90, 45, 30, 0.10);
+    --text-1: #1E1714; --text-2: #594E48; --text-3: #7E726A;
+    --g-border: rgba(255, 255, 255, 0.72);
+    --g-rim: rgba(255, 255, 255, 0.92); --g-rim-low: rgba(255, 255, 255, 0.3);
+    --g-shadow: 0 12px 32px -14px rgba(110, 45, 25, 0.30);
+    --g-sheet: rgba(255, 249, 246, 0.92); --g-bar: rgba(255, 252, 250, 0.72);
+    --g-ink: #1E1714; --g-on-ink: #FFFFFF;
+    --liquid:
+      radial-gradient(62vmax 52vmax at 4% -4%, rgba(255, 138, 101, 0.88), transparent 62%),
+      radial-gradient(56vmax 46vmax at 102% 8%, rgba(255, 111, 168, 0.70), transparent 62%),
+      radial-gradient(48vmax 42vmax at 8% 62%, rgba(255, 193, 94, 0.66), transparent 62%),
+      radial-gradient(60vmax 50vmax at 100% 84%, rgba(156, 140, 255, 0.70), transparent 62%),
+      radial-gradient(48vmax 40vmax at 42% 112%, rgba(111, 203, 255, 0.55), transparent 62%);
+  }
+}
+:root[data-theme='dark'] {
+  --surface: #130C13; --surface-2: #1C141C;
+  --glass: rgba(255, 255, 255, 0.075); --glass-strong: rgba(255, 255, 255, 0.13);
+  --hairline: rgba(255, 255, 255, 0.10);
+  --text-1: #F7F3F1; --text-2: #B6ACB6; --text-3: #877C89;
+  --g-border: rgba(255, 255, 255, 0.11); --g-rim: rgba(255, 255, 255, 0.20); --g-rim-low: rgba(255, 255, 255, 0.05);
+  --g-shadow: 0 16px 36px -16px rgba(0, 0, 0, 0.7);
+  --g-sheet: rgba(30, 21, 30, 0.90); --g-bar: rgba(30, 21, 30, 0.68);
+  --g-ink: #FFFFFF; --g-on-ink: #1A1218;
+  --liquid:
+    radial-gradient(62vmax 52vmax at 4% -4%, rgba(255, 110, 74, 0.50), transparent 62%),
+    radial-gradient(56vmax 46vmax at 102% 8%, rgba(194, 69, 155, 0.46), transparent 62%),
+    radial-gradient(48vmax 42vmax at 8% 62%, rgba(255, 160, 67, 0.28), transparent 62%),
+    radial-gradient(60vmax 50vmax at 100% 84%, rgba(91, 72, 217, 0.50), transparent 62%),
+    radial-gradient(48vmax 40vmax at 42% 112%, rgba(46, 111, 216, 0.36), transparent 62%);
+}
+:root[data-theme='light'] {
+  --surface: #F6E8E1; --surface-2: #FFF8F4;
+  --glass: rgba(255, 255, 255, 0.46); --glass-strong: rgba(255, 255, 255, 0.66);
+  --hairline: rgba(90, 45, 30, 0.10);
+  --text-1: #1E1714; --text-2: #594E48; --text-3: #7E726A;
+  --g-border: rgba(255, 255, 255, 0.72); --g-rim: rgba(255, 255, 255, 0.92); --g-rim-low: rgba(255, 255, 255, 0.3);
+  --g-shadow: 0 12px 32px -14px rgba(110, 45, 25, 0.30);
+  --g-sheet: rgba(255, 249, 246, 0.92); --g-bar: rgba(255, 252, 250, 0.72);
+  --g-ink: #1E1714; --g-on-ink: #FFFFFF;
+  --liquid:
+    radial-gradient(62vmax 52vmax at 4% -4%, rgba(255, 138, 101, 0.88), transparent 62%),
+    radial-gradient(56vmax 46vmax at 102% 8%, rgba(255, 111, 168, 0.70), transparent 62%),
+    radial-gradient(48vmax 42vmax at 8% 62%, rgba(255, 193, 94, 0.66), transparent 62%),
+    radial-gradient(60vmax 50vmax at 100% 84%, rgba(156, 140, 255, 0.70), transparent 62%),
+    radial-gradient(48vmax 40vmax at 42% 112%, rgba(111, 203, 255, 0.55), transparent 62%);
+}
+
+/* ---- the wallpaper: a fixed layer behind everything (iOS ignores
+   background-attachment: fixed, so it's its own element) ---- */
+:root[data-bg='liquid'] { --app-bg: var(--liquid); }
+body { background-image: none; background-attachment: scroll; letter-spacing: -0.006em; }
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: var(--app-bg); }
+.today-grid::before { display: none; }
+
+/* ---- the glass material on every top-level surface ---- */
+.card, .tcard, .m-card, .board-card, .stat-tile, .hx-row, .hero-card, .search-modal, .sheet, .sel-list,
+.rem-banner, .update-bar, .timer-bar, .appwin, .appwin-pill, .appwin-menu, .ql-item, .ptm, .wrap-card,
+.overdue, .day-card, .goal-card, .board-col {
+  -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
+  border-color: var(--g-border);
+  box-shadow: inset 0 1px 0.5px var(--g-rim), inset 0 -1px 1px var(--g-rim-low), var(--g-shadow);
+}
+.card, .tcard, .m-card, .board-card, .stat-tile { background: var(--glass); }
+:root[data-bg]:not([data-bg='none']) .card, :root[data-bg]:not([data-bg='none']) .tcard,
+:root[data-bg]:not([data-bg='none']) .m-card, :root[data-bg]:not([data-bg='none']) .board-card,
+:root[data-bg]:not([data-bg='none']) .stat-tile { background: var(--glass); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
+/* glass inside glass doesn't blur twice (costly, and muddy) */
+.card .card, .sheet .card, .hero-card .card, .search-modal .card { -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+/* sheets, menus and the search box: more tint so text over busy pages stays readable */
+.sheet, .sel-list, .search-modal, .appwin-menu { background: var(--g-sheet); }
+.sheet { border-radius: 30px 30px 0 0; -webkit-backdrop-filter: blur(34px) saturate(180%); backdrop-filter: blur(34px) saturate(180%); }
+@media (min-width: 640px) { .sheet { border-radius: 30px; } }
+.sheet-actions { background: transparent; border-top-color: var(--hairline); }
+.sheet-backdrop { background: rgba(10, 6, 12, 0.32); }
+
+/* ---- type: one family, iOS-style tight large titles ---- */
+h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
+.page-head h1, .greet h1 { font-size: 2.1rem; font-weight: 800; letter-spacing: -0.035em; line-height: 1.08; }
+.section-h { font-size: 1.12rem; text-transform: none; letter-spacing: -0.02em; color: var(--text-1); font-weight: 700; margin: 1.5rem 0.2rem 0.6rem; }
+.section-h::before { display: none; }
+.today-grid .section-h { font-family: var(--font-body); letter-spacing: -0.02em; }
+.today-grid .section-h::before { display: none; }
+.today-grid .section-h::after { display: none; }
+.section-h .sec-sum { font-size: 0.82rem; font-weight: 500; color: var(--text-2); }
+
+/* ---- controls ---- */
+.btn { border-radius: 999px; background: var(--glass); border-color: var(--g-border);
+  box-shadow: inset 0 1px 0.5px var(--g-rim), 0 4px 12px -6px rgba(0, 0, 0, 0.2); }
+.btn:hover { background: var(--glass-strong); border-color: var(--g-border); }
+.btn-primary { background: var(--g-ink); color: var(--g-on-ink); border: none; box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.45); }
+.btn-primary:hover { filter: none; opacity: 0.92; box-shadow: 0 10px 22px -8px rgba(0, 0, 0, 0.5); }
+.btn-danger { border-radius: 999px; }
+.chip { background: color-mix(in srgb, var(--accent-bright) 16%, transparent); }
+/* round tick boxes, iOS style (the hit area stays from app.css) */
+.check { border-radius: 50%; width: 24px; height: 24px; border-width: 1.8px; }
+.check.on { box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--ok) 70%, transparent); }
+/* text boxes and pickers: soft glass wells */
+.sheet input[type='text'], .task-title-field, .sel-btn, .f input, .f textarea, .search-modal input {
+  background: color-mix(in srgb, var(--glass-strong) 70%, transparent); border-color: var(--hairline); border-radius: 14px; }
+
+/* ---- phone: the floating glass tab bar ---- */
+@media (max-width: 639px) {
+  .nav-bottom {
+    left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); height: 64px; padding: 4px;
+    border-radius: 999px; border: 1px solid var(--g-border); background: var(--g-bar);
+    -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: inset 0 1px 0.5px var(--g-rim), inset 0 -1px 1px var(--g-rim-low), 0 12px 30px -10px rgba(0, 0, 0, 0.45);
+    transition: left 420ms cubic-bezier(0.32, 1.3, 0.5, 1), right 420ms cubic-bezier(0.32, 1.3, 0.5, 1);
+  }
+  .nav-bottom .nav-link { height: 100%; border-radius: 999px; justify-content: center; padding: 0 0.1rem; gap: 0.12rem; font-size: 0.6rem;
+    color: var(--text-2); transition: background 250ms ease, color 200ms ease, flex 420ms cubic-bezier(0.32, 1.3, 0.5, 1), opacity 200ms ease; min-width: 0; }
+  .nav-bottom .nav-link span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-bottom .nav-link.active { color: var(--accent-bright); background: var(--glass-strong); box-shadow: inset 0 1px 0.5px var(--g-rim), inset 0 0 0 0.5px var(--g-rim-low); }
+  .nav-bottom .nav-link.active::before { display: none; }
+  .nav-bottom .nav-link .ico { opacity: 1; }
+  .nav-bottom .nav-link:hover:not(.active) { background: none; color: var(--text-2); }
+  .hero-hi { font-size: 1.7rem; }
+  /* scrolling down: the bar shrinks to the page you're on (tap to open it again) */
+  .nav-bottom.compact { right: calc(100% - 74px); }
+  .nav-bottom.compact .nav-link:not(.active) { flex: 0 0 0; padding: 0; opacity: 0; overflow: hidden; pointer-events: none; }
+  .nav-bottom.compact .nav-link span:last-child { display: none; }
+  /* the page softens under the floating bar, as on iOS 26 (on the shell:
+     the bar's own blur would trap a fixed child inside it) */
+  .shell::after { content: ''; position: fixed; z-index: 19; left: 0; right: 0; bottom: 0; height: calc(120px + env(safe-area-inset-bottom)); pointer-events: none;
+    background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--surface) 55%, transparent) 75%);
+    -webkit-mask: linear-gradient(to bottom, transparent, #000 60%); mask: linear-gradient(to bottom, transparent, #000 60%); }
+  .fab-float { bottom: calc(86px + env(safe-area-inset-bottom)); }
+  .shell-main { padding-bottom: calc(10rem + env(safe-area-inset-bottom)); }
+  .shell-main:has(.ql-orbit) { padding-bottom: calc(14rem + env(safe-area-inset-bottom)); }
+  .ql-orbit { bottom: calc(86px + 70px + env(safe-area-inset-bottom)); }
+  .appwin-pill { bottom: calc(88px + env(safe-area-inset-bottom)); }
+}
+
+/* round floating buttons become glass, the + keeps the coral */
+.fab, .ql-fab, .gear-mobile, .search-mobile {
+  background: var(--g-bar); color: var(--accent-bright); border: 1px solid var(--g-border);
+  -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
+  box-shadow: inset 0 1px 0.5px var(--g-rim), inset 0 -1px 1px var(--g-rim-low), 0 12px 26px -10px rgba(0, 0, 0, 0.45);
+}
+.fab:hover { filter: none; }
+.gear-mobile, .search-mobile { color: var(--text-1); }
+.ql-fab { color: var(--accent-bright); }
+.ql-fab-grid span { background: currentColor; }
+.ql-orbit:not(.open) .ql-fab { animation: none; }
+.ql-orbit.open .ql-fab { background: var(--g-ink); color: var(--g-on-ink); }
+.ql-item { background: var(--g-sheet); border-color: var(--g-border); }
+.ql-scrim { background: rgba(10, 6, 12, 0.3); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+
+/* ---- computer: a floating glass sidebar ---- */
+@media (min-width: 640px) {
+  .nav-rail {
+    margin: 12px 0 12px 12px; height: calc(100dvh - 24px); top: 12px; border-radius: 26px; border: 1px solid var(--g-border);
+    background: var(--g-bar); -webkit-backdrop-filter: blur(26px) saturate(180%); backdrop-filter: blur(26px) saturate(180%);
+    box-shadow: inset 0 1px 0.5px var(--g-rim), inset 0 -1px 1px var(--g-rim-low), 0 18px 40px -18px rgba(0, 0, 0, 0.45);
+    min-width: 200px; padding: 1.3rem 0.75rem;
+  }
+  .nav-rail .brand { font-weight: 800; letter-spacing: -0.03em; }
+  .nav-link { border-left: none; border-radius: 14px; }
+  .nav-link.active { background: var(--glass-strong); box-shadow: inset 0 1px 0.5px var(--g-rim), inset 0 0 0 0.5px var(--g-rim-low); }
+  .nav-search-btn { border-radius: 50%; background: var(--glass); border-color: var(--g-border); }
+  /* the end of a page clears the floating + (and quick apps on Today) on tablets */
+  .shell-main { padding-bottom: 6.5rem; }
+  .shell-main:has(.ql-orbit) { padding-bottom: 10rem; }
+}
+
+/* ---- Today's hero: a glass panel with the AI glow on its edge ---- */
+.hero-card {
+  background: var(--glass); border: 1px solid var(--g-border); border-radius: 28px; animation: none;
+  isolation: isolate;
+}
+.hero-card::before { /* the colourful AI edge, slowly turning */
+  content: ''; position: absolute; inset: 0; width: auto; height: auto; border-radius: inherit; padding: 1.5px; z-index: 0;
+  background: conic-gradient(from var(--holo-a, 0deg), #FF7A57, #FFB03A, #FF6FA8, #9C8CFF, #6FCBFF, #FF7A57);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0.75; animation: holo-spin 9s linear infinite; pointer-events: none;
+}
+.hero-card::after { box-shadow: inset 0 1px 0.5px var(--g-rim); border-radius: inherit; }
+.hero-grid, .hero-scan, .hud-c { display: none !important; }
+.hero-wm { font-family: var(--font-body); letter-spacing: 0; text-transform: none; font-size: 0.82rem; font-weight: 600; color: var(--text-2); opacity: 1; }
+.hud-dot { display: none; }
+.hud-clock { color: var(--text-2); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.hero-hi { font-family: var(--font-body); font-size: 2rem; font-weight: 800; letter-spacing: -0.035em; color: var(--text-1);
+  background: none; -webkit-text-fill-color: currentColor; animation: none; }
+.hero-dt { color: var(--text-2); animation: none; }
+.hero-brief { background: color-mix(in srgb, var(--glass-strong) 60%, transparent); border: 1px solid var(--g-border); border-radius: 18px;
+  box-shadow: inset 0 1px 0.5px var(--g-rim); -webkit-backdrop-filter: none; backdrop-filter: none; animation: none; }
+.hero-brief .bl { font-family: var(--font-body); letter-spacing: 0.02em; text-transform: none; font-size: 0.78rem; font-weight: 700;
+  background: linear-gradient(90deg, #FF5E3A, #E0559B, #7D6BFF); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero-brief .bl::after { display: none; }
+.brief-refresh { color: var(--text-3); }
+.hero-brief .bt { color: var(--text-1); font-size: 0.95rem; }
+.tw-caret { background: var(--accent-bright); }
+.hero-ring { background: conic-gradient(var(--accent-bright), #FFB03A calc(var(--p, 0) * 1%), var(--glass-strong) 0); box-shadow: none; }
+.hero-ring i { background: var(--surface-2); color: var(--text-1); }
+.hero-orbit { display: none; }
+
+/* ---- Today: calmer cards (no HUD sweeps), habits on a glass shelf ---- */
+.today-grid .tcard::after { display: none; }
+.today-grid .tcard .acc { box-shadow: none; }
+@media (hover: hover) {
+  .today-grid .tcard:hover { border-color: var(--g-border); translate: 0 -1px; box-shadow: inset 0 1px 0.5px var(--g-rim), inset 0 -1px 1px var(--g-rim-low), 0 18px 34px -16px rgba(0, 0, 0, 0.45); }
+}
+.today-grid .m-card::before { display: none; }
+.spark-line { filter: none; }
+.today-grid .m-streak .big { animation: none; }
+.hx-row { background: var(--glass); border: 1px solid var(--g-border); border-radius: 28px; }
+.hx { background: color-mix(in srgb, var(--glass-strong) 55%, transparent); border-color: var(--g-border); border-radius: 20px; }
+.hx.done { background: color-mix(in srgb, var(--ok) 12%, var(--glass-strong)); }
+.hx-week i.today:not(.on) { animation: none; }
+
+/* ---- Settings: the Liquid wallpaper swatch ---- */
+.bg-row { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+.bg-swatch.bg-liquid { background:
+  radial-gradient(circle at 10% 10%, #FF8A65, transparent 60%), radial-gradient(circle at 90% 20%, #FF6FA8, transparent 60%),
+  radial-gradient(circle at 20% 90%, #FFC15E, transparent 60%), radial-gradient(circle at 90% 90%, #9C8CFF, transparent 60%), #F6E8E1; }
+
+@media (prefers-reduced-motion: reduce) { .hero-card::before { animation: none; } }

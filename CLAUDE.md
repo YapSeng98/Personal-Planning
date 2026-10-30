@@ -150,25 +150,39 @@ Run `npm run build` (or at least `tsc -b`) before deploying, not just
 
 ## Design system
 
-"Sunrise" identity — warm coral→amber gradient, defined as CSS custom
-properties in `frontend/src/styles/tokens.css` (dark-first, light theme via
-`prefers-color-scheme` + a `data-theme` override). Amber is decorative only —
-never used for data marks (coral + green are the validated, colorblind-safe
-data pair). Full palette + rationale in memory `design-language-sunrise`.
+**Liquid Glass** (since 2026-10-30, picked by the owner from previews) over
+the "Sunrise" identity. Two layers:
 
-- **Typography**: Inter for body/UI (density, familiarity), Bricolage
-  Grotesque (`--font-display`) for headings/hero text/big numbers only — both
-  self-hosted via `@fontsource-variable/*` so the PWA still works offline.
-  `h1, h2, h3` get the display font globally; there are only ~13 real heading
-  tags in the whole app, so that one rule covers every page title.
+- `frontend/src/styles/tokens.css` + `app.css` — the base tokens and every
+  component's layout/styles (coral→amber Sunrise palette; amber decorative
+  only — coral + green are the validated, colorblind-safe data pair).
+- `frontend/src/styles/glass.css` — loaded last; the Liquid Glass look on
+  top: theme tokens (`--glass`, `--surface`, text) re-tuned for glass, the
+  glass material (`--g-blur`, `--g-border`, `--g-rim`, `--g-shadow`,
+  `--g-sheet`, `--g-bar`) applied to every top-level surface (cards, task
+  cards, sheets, menus, banners, the pop-up window), a fixed wallpaper layer
+  (`body::before`, `--app-bg`; iOS ignores `background-attachment: fixed`),
+  the phone's floating glass tab bar (shrinks to the current page while
+  scrolling down — `.nav-bottom.compact`, Shell.tsx; a tap opens it again),
+  the desktop's floating glass sidebar, round tick boxes, capsule buttons,
+  solid-ink primary buttons (`--g-ink`), and Today's hero as glass with a
+  turning colour edge. It changes looks only — no markup depends on it.
+  New surfaces: give them `background: var(--glass)` and add their class to
+  the glass material list in glass.css. Don't blur glass inside glass
+  (costly, muddy) — inner elements use translucent fills only.
+- Sheets/menus/tab bar keep enough tint (`--g-sheet` ~0.9, `--g-bar` ~0.7)
+  to stay readable where the blur isn't drawn (Playwright WebKit doesn't
+  render backdrop-filter; real Safari does).
+- **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `liquid` is
+  the default (every device switched to it once via `planner_bg_v2`), the
+  others stay selectable in Settings → Background.
+- **Typography**: Inter everywhere (`--font-display` = body font), iOS-style
+  tight, heavy large titles. Self-hosted via `@fontsource-variable/inter` so
+  the PWA works offline (Bricolage is no longer loaded).
 - **Icons**: `frontend/src/components/Icon.tsx` — a small hand-authored
-  stroke-icon set (`currentColor`, themes for free) used for nav/chrome
-  (search, settings, back, delete, folder, etc). Genuinely expressive content
-  (mood faces, the ✦ AI sparkle) stays as emoji on purpose — don't convert
-  those.
-- **Backgrounds**: `frontend/src/lib/bg.ts` — user-selectable colour-glow
-  presets (`data-bg` attribute), triggers frosted-glass treatment on cards
-  when active. Don't hardcode a background assumption into new components.
+  stroke-icon set (`currentColor`, themes for free) for nav/chrome.
+  Genuinely expressive content (mood faces, the ✦ AI sparkle) stays emoji on
+  purpose — don't convert those.
 
 ## Safety notes specific to this project
 
