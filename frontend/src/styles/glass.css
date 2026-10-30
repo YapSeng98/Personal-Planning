@@ -34,11 +34,12 @@
   --g-spec: rgba(255, 255, 255, 0.10);
   --liquid: var(--liquid-night);
   --liquid-night:
-    radial-gradient(52vmax 42vmax at -2% -6%, rgba(255, 110, 74, 0.40), transparent 62%),
-    radial-gradient(54vmax 46vmax at 104% -4%, rgba(194, 69, 155, 0.42), transparent 62%),
-    radial-gradient(50vmax 44vmax at -4% 104%, rgba(46, 111, 216, 0.34), transparent 62%),
-    radial-gradient(60vmax 52vmax at 104% 104%, rgba(98, 76, 226, 0.50), transparent 62%),
-    radial-gradient(36vmax 28vmax at 55% 45%, rgba(255, 160, 67, 0.08), transparent 60%);
+    radial-gradient(52vmax 42vmax at -2% -6%, rgba(255, 110, 74, 0.52), transparent 62%),
+    radial-gradient(54vmax 46vmax at 104% -4%, rgba(194, 69, 155, 0.52), transparent 62%),
+    radial-gradient(40vmax 30vmax at 38% 30%, rgba(255, 122, 89, 0.16), transparent 64%),
+    radial-gradient(46vmax 34vmax at 72% 62%, rgba(140, 82, 230, 0.26), transparent 64%),
+    radial-gradient(50vmax 44vmax at -4% 104%, rgba(46, 111, 216, 0.42), transparent 62%),
+    radial-gradient(60vmax 52vmax at 104% 104%, rgba(98, 76, 226, 0.58), transparent 62%);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
@@ -271,7 +272,17 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
    left; habits and the overview on the right. Three rows with spanning
    areas let the columns flow on their own: tasks start right under the
    greeting, the overview right under the habits, whichever is taller. ---- */
-@media (min-width: 1000px) {
+/* 1000–1199px: one column — the tasks get the full width (two columns made
+   their titles wrap at ~1100px), habits and the overview follow */
+@media (min-width: 1000px) and (max-width: 1199px) {
+  .today-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hero" "habits" "tasks" "side"; gap: 0; }
+  .today-grid > .ga-habits, .today-grid > .ga-tasks, .today-grid > .ga-side { margin-top: 1.2rem; }
+  .today-grid > .ga-habits > .section-h { margin-top: 0; }
+  .today-grid > .ga-habits .hx-row { width: auto; max-width: none; margin: 0; grid-auto-flow: row; grid-auto-columns: auto;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); padding: 0.6rem; gap: 0.5rem; }
+  .shell-main { padding-right: 6.5rem; }
+}
+@media (min-width: 1200px) {
   .today-grid { grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); grid-template-rows: auto min-content 1fr;
     grid-template-areas: "hero habits" "tasks habits" "tasks side"; gap: 0 1.5rem; align-items: start; }
   /* the space between blocks sits on the blocks: an empty middle row adds none */
@@ -283,3 +294,26 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
   /* a clear lane for the floating + and quick-apps buttons */
   .shell-main { padding-right: 6.5rem; }
 }
+
+/* ---- laptop: Today's header lays itself out — date and greeting with the
+   % ring beside them, the briefing below; with a video, the header takes the
+   full width and the video sits on its right (16:9) instead of squeezing
+   the text into a strip ---- */
+@media (min-width: 1200px) {
+  .today-grid:has(.hero-card.has-video) { grid-template-areas: "hero hero" "tasks habits" "tasks side"; }
+  .today-grid:has(.hero-card.has-video) > .ga-habits { margin-top: 1.2rem; }
+  .today-grid > .ga-habits .hx-row { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+}
+@media (min-width: 1000px) {
+  .today-grid .hero-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "wm ring" "hi ring" "brief brief";
+    column-gap: 1.2rem; align-items: start; min-height: 0; }
+  .today-grid .hero-card.has-video { grid-template-columns: minmax(0, 1fr) auto minmax(280px, 40%); grid-template-areas: "wm ring video" "hi ring video" "brief brief video"; }
+  .today-grid .hero-card > .hero-wm { grid-area: wm; margin-right: 0 !important; }
+  .today-grid .hero-card > .hero-hi { grid-area: hi; margin-right: 0 !important; font-size: clamp(1.8rem, 2.4vw, 2.3rem); text-wrap: balance; }
+  .today-grid .hero-card > .hero-brief { grid-area: brief; margin: 0.9rem 0 0 !important; max-width: none; }
+  .today-grid .hero-card > .hero-ring { grid-area: ring; position: relative !important; inset: auto !important; margin-top: 0.2rem; }
+  .today-grid .hero-card > .hero-video { grid-area: video; position: relative !important; inset: auto !important; width: auto !important; height: auto !important;
+    margin: 0 !important; aspect-ratio: 16 / 9; align-self: start; border-radius: 18px; }
+}
+.hx-name { overflow-wrap: normal; word-break: normal; hyphens: auto; }
+
