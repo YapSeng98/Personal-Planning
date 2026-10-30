@@ -12,7 +12,7 @@ import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
 import { aiEnabled, askAI } from '../lib/ai'
 import { HeroVideoSlot, useVideo } from '../components/VideoPlayer'
-import HeroDial from '../components/HeroDial'
+import HeroClock from '../components/HeroClock'
 import { projectColorVar } from '../lib/projectColors'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
@@ -732,7 +732,12 @@ export default function Today() {
   )
   const OVERDUE_SHOWN = 5
   const overdueShown = showAllOverdue ? overdue : overdue.slice(0, OVERDUE_SHOWN)
-  const pct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0
+  // what's next: the next block that hasn't ended, else the top task, else the first open one
+  const nowHM = new Date().toTimeString().slice(0, 5)
+  const nextUp = openToday
+    .filter((x) => x.timeBlockStart && (x.timeBlockEnd ?? x.timeBlockStart).slice(11, 16) > nowHM)
+    .sort((a, b) => a.timeBlockStart!.localeCompare(b.timeBlockStart!))[0]
+    ?? openToday.find((x) => x.isMit) ?? openToday[0]
   const spark = areaPath(mom.series)
 
   return (
@@ -744,13 +749,21 @@ export default function Today() {
         <div className="hero-scan" aria-hidden />
         <i className="hud-c tl" aria-hidden /><i className="hud-c tr" aria-hidden />
         <i className="hud-c bl" aria-hidden /><i className="hud-c br" aria-hidden />
-        {/* the date and greeting, and the clock dial beside them */}
+        {/* the clock, the date and greeting beside it, and what's next */}
         <div className="hero-top">
+          <HeroClock done={doneCount} total={tasks.length} />
           <div className="hero-head">
             <div className="hero-wm">{dateLabel}</div>
             <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
           </div>
-          <HeroDial pct={pct} hasTasks={tasks.length > 0} />
+          {nextUp && (
+            <button type="button" className="hero-next" onClick={() => openFocus(nextUp)} title={t('focus.startFor', { title: nextUp.title })}>
+              <span className="hn-k">{t('today.nextUp')}</span>
+              {nextUp.timeBlockStart ? <span className="hn-time num">{nextUp.timeBlockStart.slice(11, 16)}</span> : nextUp.isMit ? <span className="hn-time">⭐</span> : null}
+              <span className="hn-title">{nextUp.title}</span>
+              <span className="hn-go" aria-hidden><Icon name="play" size={11} strokeWidth={2.6} /></span>
+            </button>
+          )}
         </div>
         <HeroVideoSlot />
         <div className="hero-brief">
