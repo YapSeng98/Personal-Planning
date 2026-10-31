@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  db, todayStr, addDays, uuid, OVERDUE_DAYS, isOpenOneOff, writeAndQueue, patchAndQueue, rollUpGoal,
-  nextCompletedAt, byOrder, CHANGED, type Task,
-} from '../db/db'
+import { db, todayStr, addDays, uuid, OVERDUE_DAYS, isOpenOneOff, writeAndQueue, patchAndQueue, rollUpGoal, nextCompletedAt, byOrder, type Task, onChanged } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { hm } from '../lib/timer'
@@ -37,8 +34,7 @@ export default function PlanTomorrow({ summary, onClose }: {
 
   useEffect(() => {
     load()
-    window.addEventListener(CHANGED, load)
-    return () => window.removeEventListener(CHANGED, load)
+    return onChanged(load)
   }, [load])
 
   useEffect(() => {

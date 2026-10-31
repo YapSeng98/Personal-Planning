@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { db, todayStr, writeAndQueue, uuidFrom, patchAndQueue, cleanEmoji, habitStats, CHANGED, type Habit, type HabitStats, type HabitDay } from '../db/db'
+import { db, todayStr, writeAndQueue, uuidFrom, patchAndQueue, cleanEmoji, habitStats, type Habit, type HabitStats, type HabitDay, onChanged } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { aiEnabled, askAI } from '../lib/ai'
 import HabitEdit from '../components/HabitEdit'
@@ -44,8 +44,7 @@ export default function HabitDetail() {
 
   useEffect(() => {
     load()
-    window.addEventListener(CHANGED, load)
-    return () => window.removeEventListener(CHANGED, load)
+    return onChanged(load)
   }, [load])
 
   function openPopover(d: HabitDay, e: React.MouseEvent<HTMLButtonElement>) {

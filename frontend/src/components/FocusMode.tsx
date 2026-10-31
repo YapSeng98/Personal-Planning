@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CHANGED } from '../db/db'
+import { onChanged } from '../db/db'
 import { useLang } from '../lib/i18n'
 import { clock, hm, runningTimer } from '../lib/timer'
 import {
@@ -117,8 +117,8 @@ export default function FocusMode() {
     let alive = true
     const load = () => focusedTodayMin().then((m) => { if (alive) setTodayMin(m) })
     load()
-    window.addEventListener(CHANGED, load)
-    return () => { alive = false; window.removeEventListener(CHANGED, load) }
+    const off = onChanged(load)
+    return () => { alive = false; off() }
   }, [shown])
 
   // the moment a round ends (or the task is ticked off): a short celebration

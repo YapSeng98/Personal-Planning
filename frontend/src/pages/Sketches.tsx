@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { db, uuid, patchAndQueue, CHANGED, type DrawingNote, type SketchFolder } from '../db/db'
+import { db, uuid, patchAndQueue, type DrawingNote, type SketchFolder, onChanged } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
 import { toEditorHtml } from '../lib/noteHtml'
@@ -58,8 +58,7 @@ export default function Sketches() {
 
   useEffect(() => {
     load()
-    window.addEventListener(CHANGED, load)
-    return () => window.removeEventListener(CHANGED, load)
+    return onChanged(load)
   }, [load])
 
   const currentFolder = folderId ? folders.find((f) => f.id === folderId) : undefined

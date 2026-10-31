@@ -219,13 +219,19 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
   border: 1px solid var(--g-border); border-radius: 28px; animation: none;
   isolation: isolate;
 }
-.hero-card::before { /* the colourful AI edge, slowly turning */
-  content: ''; position: absolute; inset: 0; width: auto; height: auto; border-radius: inherit; padding: 1.5px; z-index: 0;
-  background: conic-gradient(from var(--holo-a, 0deg), #FF7A57, #FFB03A, #FF6FA8, #9C8CFF, #6FCBFF, #FF7A57);
+/* the colourful AI edge, slowly turning (components/GlowEdge.tsx): the ring
+   is a mask, the gradient inside it turns by transform — on the graphics
+   chip, no repaint. Wide enough (width + height) to fill the ring at any angle. */
+.hero-card::before { display: none; }
+.glow-edge { position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; z-index: 0; pointer-events: none; overflow: hidden;
+  container-type: size; opacity: 0.75;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  opacity: 0.75; animation: holo-spin 9s linear infinite; pointer-events: none;
-}
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.hero-card > .glow-edge { position: absolute; }
+.glow-edge > span { position: absolute; left: 50%; top: 50%; width: calc(100cqw + 100cqh); width: hypot(100cqw, 100cqh); aspect-ratio: 1;
+  background: var(--edge-grad, conic-gradient(#FF7A57, #FFB03A, #FF6FA8, #9C8CFF, #6FCBFF, #FF7A57));
+  transform: translate(-50%, -50%); animation: edge-turn 9s linear infinite; will-change: transform; }
+@keyframes edge-turn { to { transform: translate(-50%, -50%) rotate(360deg); } }
 .hero-card::after { box-shadow: inset 0 1px 0.5px var(--g-rim); border-radius: inherit; }
 .hero-grid, .hero-scan, .hud-c { display: none !important; }
 .hero-wm { font-family: var(--font-body); letter-spacing: 0; text-transform: none; font-size: 0.82rem; font-weight: 600; color: var(--text-2); opacity: 1; }
@@ -266,7 +272,7 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
   radial-gradient(circle at 10% 10%, #FF8A65, transparent 60%), radial-gradient(circle at 90% 20%, #FF6FA8, transparent 60%),
   radial-gradient(circle at 20% 90%, #FFC15E, transparent 60%), radial-gradient(circle at 90% 90%, #9C8CFF, transparent 60%), #F6E8E1; }
 
-@media (prefers-reduced-motion: reduce) { .hero-card::before { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .glow-edge > span { animation: none; } }
 
 /* ---- laptop: Today as the preview — greeting + briefing, then tasks, on the
    left; habits and the overview on the right. Three rows with spanning
@@ -319,10 +325,5 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
 
 /* the command bar: a thin turning colour edge, like Today's hero */
 .ask-bar { border-color: transparent; }
-.ask-bar::before { content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px; z-index: -1; pointer-events: none;
-  background: conic-gradient(from var(--holo-a, 0deg), #FF7A57, #FFB03A, #FF6FA8, #9C8CFF, #6FCBFF, #FF7A57);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  opacity: 0.6; animation: holo-spin 9s linear infinite; }
-.ask-bar:focus-within::before { opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .ask-bar::before { animation: none; } }
+.ask-bar > .glow-edge { inset: -1px; z-index: -1; opacity: 0.6; }
+.ask-bar:focus-within > .glow-edge { opacity: 1; }

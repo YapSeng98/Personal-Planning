@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { db, editTaskList, CHANGED } from '../db/db'
+import { db, editTaskList, onChanged } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { addStep, toggleStep, renameStep, removeStep, live, stepCount, type CheckItem } from '../lib/items'
 import { useLang, type TFn } from '../lib/i18n'
@@ -53,8 +53,8 @@ export default function Checklist({ taskId, value, onChange }: {
     let alive = true
     const load = () => { db.tasks.get(taskId).then((x) => { if (alive) setStored(x?.checklist ?? []) }) }
     load()
-    window.addEventListener(CHANGED, load)
-    return () => { alive = false; window.removeEventListener(CHANGED, load) }
+    const off = onChanged(load)
+    return () => { alive = false; off() }
   }, [taskId])
 
   const list = taskId ? stored : (value ?? [])

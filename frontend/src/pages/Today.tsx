@@ -7,12 +7,13 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, todayStr, addDays, OVERDUE_DAYS, isOpenOneOff, writeAndQueue, uuidFrom, patchAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, nextCompletedAt, CHANGED, type Task, type TaskState, type Habit, type Project } from '../db/db'
+import { db, todayStr, addDays, OVERDUE_DAYS, isOpenOneOff, writeAndQueue, uuidFrom, patchAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, nextCompletedAt, type Task, type TaskState, type Habit, type Project, onChanged } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
 import { aiEnabled, askAI } from '../lib/ai'
 import { HeroVideoSlot, useVideo } from '../components/VideoPlayer'
 import HeroClock from '../components/HeroClock'
+import GlowEdge from '../components/GlowEdge'
 import { projectColorVar } from '../lib/projectColors'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
@@ -371,20 +372,29 @@ function PriorityList({ tasks, sensors, renderCard, onCommit, t }: {
 
 /** Types the briefing out a few characters at a time, like a terminal.
     Reduced-motion users get the full text at once. */
-function Typewriter({ text }: { text: string }) {
+function Typewriter({ text, typeKey }: { text: string; typeKey: string }) {
   const [n, setN] = useState(0)
+  // the briefing last typed out: a NEW one (the page opening, the AI's
+  // arriving) types itself; the same one with updated words (a task ticked)
+  // just changes — retyping it on every tick was most of a tick's work
+  const typed = useRef<string | null>(null)
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setN(text.length); return }
+    if (typed.current === typeKey || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      typed.current = typeKey
+      setN(Number.MAX_SAFE_INTEGER)
+      return
+    }
+    typed.current = typeKey
     setN(0)
     const step = Math.max(1, Math.ceil(text.length / 90))
     const id = window.setInterval(() => {
       setN((c) => {
-        if (c + step >= text.length) { window.clearInterval(id); return text.length }
+        if (c + step >= text.length) { window.clearInterval(id); return Number.MAX_SAFE_INTEGER }
         return c + step
       })
     }, 18)
     return () => window.clearInterval(id)
-  }, [text])
+  }, [text, typeKey])
   const typing = n < text.length
   return (
     <>
@@ -490,6 +500,7 @@ function QuickLaunch({ t }: { t: TFn }) {
 
 export default function Today() {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [overdue, setOverdue] = useState<Task[]>([])
   const [showAllOverdue, setShowAllOverdue] = useState(false)
   const [tomorrowCount, setTomorrowCount] = useState(0)
@@ -519,62 +530,61 @@ export default function Today() {
   )
 
   const load = useCallback(async () => {
-    const rows = (await db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()).sort(byDoneThenOrder)
-    setTasks(rows)
-    // most recently missed first
-    const late = await db.tasks.where('due').between(addDays(today, -OVERDUE_DAYS), today, true, false).and(isOpenOneOff).toArray()
-    setOverdue(late.sort((a, b) => b.due!.localeCompare(a.due!) || byOrder(a, b)))
-    setTomorrowCount(await db.tasks.where('due').equals(addDays(today, 1)).and((x) => !x.deleted).count())
+    // every read at once (they don't depend on each other), then one render
+    const weekDates = Array.from({ length: 7 }, (_, i) => todayStr(new Date(Date.now() - (6 - i) * 86400_000)))
+    // today's tasks show the moment they're read; everything else (habit
+    // streaks take longest) is read meanwhile and fills in right after
+    const rowsP = db.tasks.where('due').equals(today).and((x) => !x.deleted).toArray()
+    const restP = Promise.all([
+      // most recently missed first
+      db.tasks.where('due').between(addDays(today, -OVERDUE_DAYS), today, true, false).and(isOpenOneOff).toArray(),
+      db.tasks.where('due').equals(addDays(today, 1)).and((x) => !x.deleted).count(),
+      // Reminders: any open task whose reminderDaysBefore matches exactly how
+      // many days away its due date is — this is why it can surface tasks due
+      // a few days out, which wouldn't otherwise show up anywhere on Today.
+      // Reminders go at most 3 days ahead (TaskForm), so only that range of
+      // due dates is read, not every task ever made.
+      db.tasks.where('due').between(today, addDays(today, 3), true, true)
+        .and((x) => !x.deleted && x.state !== 'done' && x.state !== 'cancelled' && x.reminderDaysBefore != null).toArray(),
+      db.projects.filter((p) => !p.deleted).toArray(),
+      db.habits.where('active').equals(1).and((x) => !x.deleted).toArray(),
+      // momentum: last 7 days of completed tasks (one read for the week)
+      db.tasks.where('due').between(weekDates[0], today, true, true).and((x) => x.state === 'done' && !x.deleted).toArray(),
+    ])
+    const rows = await rowsP
+    setTasks(rows.sort(byDoneThenOrder))
+    setLoaded(true)
+    const [late, tomorrowN, withReminder, projRows, hs, weekDone] = await restP
+    const views: HabitView[] = await Promise.all(hs.map(async (h) => {
+      const [logs, streak] = await Promise.all([
+        db.habitLogs.where('[habitId+date]').between([h.id, weekDates[0]], [h.id, today], true, true).and((l) => !l.deleted).toArray(),
+        habitStreak(h.id),
+      ])
+      const byDate = new Map(logs.map((l) => [l.date, l.count]))
+      return { ...h, doneToday: byDate.get(today) ?? 0, streak, week: weekDates.map((d) => (byDate.get(d) ?? 0) >= h.targetPerDay) }
+    }))
 
-    // Reminders: any open task whose reminderDaysBefore matches exactly how
-    // many days away its due date is — this is why it can surface tasks due
-    // a few days out, which wouldn't otherwise show up anywhere on Today.
-    // Reminders go at most 3 days ahead (TaskForm), so only that range of
-    // due dates is read, not every task ever made.
     const todayMs = new Date(today + 'T00:00').getTime()
-    const withReminder = await db.tasks
-      .where('due').between(today, addDays(today, 3), true, true)
-      .and((x) => !x.deleted && x.state !== 'done' && x.state !== 'cancelled' && x.reminderDaysBefore != null)
-      .toArray()
     const active: Reminder[] = withReminder
       .map((task) => ({ task, daysUntilDue: Math.round((new Date(task.due! + 'T00:00').getTime() - todayMs) / 86400_000) }))
       .filter(({ task, daysUntilDue }) => daysUntilDue === task.reminderDaysBefore)
     active.sort((a, b) => a.daysUntilDue - b.daysUntilDue)
-    setReminders(active)
 
-    const projRows = await db.projects.filter((p) => !p.deleted).toArray()
-    setProjects(Object.fromEntries(projRows.map((p) => [p.id, p])))
-
-    const hs = await db.habits.where('active').equals(1).and((x) => !x.deleted).toArray()
-    const weekDates = Array.from({ length: 7 }, (_, i) => todayStr(new Date(Date.now() - (6 - i) * 86400_000)))
-    const views: HabitView[] = []
-    for (const h of hs) {
-      const logs = await db.habitLogs
-        .where('[habitId+date]').between([h.id, weekDates[0]], [h.id, today], true, true)
-        .and((l) => !l.deleted).toArray()
-      const byDate = new Map(logs.map((l) => [l.date, l.count]))
-      views.push({
-        ...h,
-        doneToday: byDate.get(today) ?? 0,
-        streak: await habitStreak(h.id),
-        week: weekDates.map((d) => (byDate.get(d) ?? 0) >= h.targetPerDay),
-      })
-    }
-    setHabits(views)
-
-    // momentum: last 7 days of completed tasks (one read for the week) + best active streak
     const doneByDate = new Map<string, number>()
-    for (const x of await db.tasks.where('due').between(weekDates[0], today, true, true).and((x) => x.state === 'done' && !x.deleted).toArray()) {
-      doneByDate.set(x.due!, (doneByDate.get(x.due!) ?? 0) + 1)
-    }
+    for (const x of weekDone) doneByDate.set(x.due!, (doneByDate.get(x.due!) ?? 0) + 1)
     const series = weekDates.map((d) => doneByDate.get(d) ?? 0)
-    // Reuse the per-habit streaks already computed into `views` above instead
-    // of recomputing habitStreak() a second time per habit.
+    // the best active streak, from the per-habit streaks above
     let best = 0
     let bestHabit: HabitView | null = null
     for (const v of views) {
       if (v.streak > best) { best = v.streak; bestHabit = v }
     }
+
+    setOverdue(late.sort((a, b) => b.due!.localeCompare(a.due!) || byOrder(a, b)))
+    setTomorrowCount(tomorrowN)
+    setReminders(active)
+    setProjects(Object.fromEntries(projRows.map((p) => [p.id, p])))
+    setHabits(views)
     setMom({
       series,
       weekDone: series.reduce((s, n) => s + n, 0),
@@ -585,8 +595,7 @@ export default function Today() {
 
   useEffect(() => {
     load()
-    window.addEventListener(CHANGED, load)
-    return () => window.removeEventListener(CHANGED, load)
+    return onChanged(load)
   }, [load])
 
   // the command bar's "plan tomorrow"
@@ -641,6 +650,9 @@ export default function Today() {
 
   async function toggleTask(t: Task) {
     const state: TaskState = t.state === 'done' ? 'open' : 'done'
+    // shown at once; the save and the reload it triggers follow
+    setTasks((list) => list.map((x) => (x.id === t.id ? { ...x, state } : x)).sort(byDoneThenOrder))
+    if (state === 'done') setOverdue((list) => list.filter((x) => x.id !== t.id))
     // finishing the task you're timing stops the clock (and saves the time)
     if (state === 'done' && timer?.taskId === t.id) await stopTimer()
     const saved = await patchAndQueue(db.tasks, 'task', t.id, { state, completedAt: nextCompletedAt(t.state, t.completedAt, state) })
@@ -684,6 +696,11 @@ export default function Today() {
   }
 
   async function tickHabit(h: HabitView) {
+    // shown at once (the same rule as below); the reload that the save triggers follows
+    setHabits((list) => list.map((x) => (x.id !== h.id ? x : (() => {
+      const doneToday = x.doneToday >= x.targetPerDay ? 0 : x.doneToday + 1
+      return { ...x, doneToday, week: x.week.map((on, d) => (d === 6 ? doneToday >= x.targetPerDay : on)) }
+    })())))
     const existing = await db.habitLogs.where('[habitId+date]').equals([h.id, today]).first()
     if (existing) {
       await patchAndQueue(db.habitLogs, 'habit_log', existing.id, { count: existing.count >= h.targetPerDay ? 0 : existing.count + 1 })
@@ -692,7 +709,7 @@ export default function Today() {
       // check-in on two devices updates one log instead of creating two.
       await writeAndQueue(db.habitLogs, 'habit_log', { id: await uuidFrom(`log:${h.id}:${today}`), habitId: h.id, date: today, count: 1, deleted: 0, updatedAt: Date.now() })
     }
-    await load()
+    // (the save announces the change, and Today reloads from it)
     syncNow()
   }
 
@@ -745,6 +762,7 @@ export default function Today() {
     <div className="ga-hero">
       {/* ---- sunrise hero ---- */}
       <div className={`hero-card ${videoId || nowPlaying ? 'has-video' : ''}`}>
+        <GlowEdge />
         <div className="hero-grid" aria-hidden />
         <div className="hero-scan" aria-hidden />
         <i className="hud-c tl" aria-hidden /><i className="hud-c tr" aria-hidden />
@@ -781,7 +799,7 @@ export default function Today() {
               </button>
             )}
           </div>
-          <div className="bt"><Typewriter text={aiBrief ?? briefingText(tasks, overdue.length, t)} /></div>
+          <div className="bt"><Typewriter text={aiBrief ?? (loaded ? briefingText(tasks, overdue.length, t) : '')} typeKey={aiBrief ? `ai:${aiBrief}` : loaded ? 'rule' : 'loading'} /></div>
         </div>
       </div>
 
@@ -858,6 +876,7 @@ export default function Today() {
         <div className="m-card m-chart">
           <div className="ct">{t('ins.weekMomentum')}</div>
           <div className="cv num">{mom.weekDone} <small>{t('an.tasks')}</small></div>
+          <div className="spark-wrap">
           <svg viewBox="0 0 160 40" preserveAspectRatio="none" role="img" aria-label={`${mom.weekDone} tasks done this week`}>
             <defs>
               <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
@@ -867,9 +886,10 @@ export default function Today() {
             </defs>
             <path d={spark.area} fill="url(#spark)" />
             <path className="spark-line" pathLength={1} d={spark.line} fill="none" stroke="var(--accent-bright)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-            <circle className="spark-ping" cx={spark.last[0]} cy={spark.last[1]} r="3.4" fill="none" stroke="var(--amber)" strokeWidth="1.5" />
             <circle cx={spark.last[0]} cy={spark.last[1]} r="3.4" fill="var(--amber)" stroke="var(--surface)" strokeWidth="2" />
           </svg>
+          <span className="spark-ping" aria-hidden style={{ left: `${(spark.last[0] / 160) * 100}%`, top: `${(spark.last[1] / 40) * 100}%` }} />
+          </div>
         </div>
         {mom.streakHabit ? (
           <button className="m-card m-streak m-streak-btn" onClick={() => navigate(`/habits/${mom.streakHabit!.id}`)}>

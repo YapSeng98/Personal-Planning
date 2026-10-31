@@ -133,7 +133,7 @@ export default function HeroClock({ done, total }: { done: number; total: number
       <MusicBars music={music} />
       <div className="hc-prog" aria-hidden>
         <span className="hc-label">{label}</span>
-        {total > 0 && <span className="hc-bar"><i style={{ width: `${pct}%` }} /></span>}
+        {total > 0 && <span className="hc-bar"><i style={{ ['--p' as string]: pct / 100 }} /></span>}
       </div>
     </div>
   )

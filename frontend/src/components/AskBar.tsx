@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useLang } from '../lib/i18n'
 import { runCommand, suggestions, type Reply, type Act } from '../lib/command'
 import Icon from './Icon'
+import GlowEdge from './GlowEdge'
 
 /** **bold** → <b>, new lines kept; plain text otherwise (never HTML). */
 function Rich({ text }: { text: string }) {
@@ -83,6 +84,7 @@ export default function AskBar() {
         onSubmit={(e) => { e.preventDefault(); ask(q); setQ('') }}
         autoComplete="off"
       >
+        <GlowEdge />
         <span className="ask-spark" aria-hidden>✦</span>
         <input
           ref={input}

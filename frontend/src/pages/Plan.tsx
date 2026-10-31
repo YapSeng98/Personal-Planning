@@ -5,7 +5,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, uuid, todayStr, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, endSeries, skipOccurrence, nextCompletedAt, CHANGED, type Task, type TaskState, type Goal, type Habit, type Review } from '../db/db'
+import { db, uuid, todayStr, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, activeRecurringSeries, isProjectedOccurrence, endSeries, skipOccurrence, nextCompletedAt, type Task, type TaskState, type Goal, type Habit, type Review, onChanged } from '../db/db'
 import { syncNow } from '../sync/engine'
 import TaskForm from '../components/TaskForm'
 import { useLang, type TFn } from '../lib/i18n'
@@ -255,9 +255,7 @@ export default function Plan() {
     load()
     loadMonth()
     loadSelectedDay()
-    const reload = () => { load(); loadMonth(); loadSelectedDay() }
-    window.addEventListener(CHANGED, reload)
-    return () => window.removeEventListener(CHANGED, reload)
+    return onChanged(() => Promise.all([load(), loadMonth(), loadSelectedDay()]))
   }, [load, loadMonth, loadSelectedDay])
 
   async function toggle(task: Task) {

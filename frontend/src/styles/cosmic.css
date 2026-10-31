@@ -79,7 +79,8 @@
     radial-gradient(50% 70% at 0% 0%, rgba(60, 140, 255, 0.22), transparent 70%),
     var(--g-fill);
 }
-:root[data-bg='cosmic'] .hero-card::before { background: conic-gradient(from var(--holo-a, 0deg), var(--neon-a), var(--neon-b), var(--neon-c), var(--neon-b), var(--neon-a)); opacity: 0.9; }
+:root[data-bg='cosmic'] .glow-edge { --edge-grad: conic-gradient(var(--neon-a), var(--neon-b), var(--neon-c), var(--neon-b), var(--neon-a)); }
+:root[data-bg='cosmic'] .hero-card > .glow-edge { opacity: 0.9; }
 :root[data-bg='cosmic'] .hero-wm { color: #9FB0E8; letter-spacing: 0.04em; }
 :root[data-bg='cosmic'] .hero-brief { background: rgba(10, 14, 44, 0.55); border-color: rgba(120, 160, 255, 0.22); box-shadow: inset 0 1px 0.5px rgba(170, 210, 255, 0.25); }
 :root[data-bg='cosmic'] .hero-brief .bl { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: 0.06em; }
@@ -115,7 +116,8 @@
 
 /* ---- the command bar: a neon edge and a glow ---- */
 :root[data-bg='cosmic'] .ask-bar { background: rgba(8, 10, 34, 0.62); box-shadow: 0 0 26px -8px rgba(110, 120, 255, 0.65), inset 0 1px 0.5px rgba(170, 210, 255, 0.25); }
-:root[data-bg='cosmic'] .ask-bar::before { background: conic-gradient(from var(--holo-a, 0deg), var(--neon-a), var(--neon-b), var(--neon-c), var(--neon-b), var(--neon-a)); opacity: 0.85; }
+:root[data-bg='cosmic'] .ask-bar > .glow-edge { opacity: 0.85; }
+:root[data-bg='cosmic'] .ask-bar:focus-within > .glow-edge { opacity: 1; }
 :root[data-bg='cosmic'] .ask-spark { color: var(--neon-a); text-shadow: 0 0 10px var(--neon-a); }
 :root[data-bg='cosmic'] .ask-go { background: linear-gradient(120deg, #4C8DFF, var(--neon-b) 60%, #C24BFF); color: #fff; box-shadow: 0 6px 18px -6px rgba(120, 90, 255, 0.9); }
 :root[data-bg='cosmic'] .ask-answer { background: rgba(10, 14, 44, 0.62); border-color: rgba(120, 160, 255, 0.24); }

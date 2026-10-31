@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { db, CHANGED, type Goal } from '../db/db'
+import { db, type Goal, onChanged } from '../db/db'
 import { useLang } from '../lib/i18n'
 
 /** Right-hand rail on laptop: every Year goal, each with its own progress
@@ -17,8 +17,7 @@ export default function Insights() {
 
   useEffect(() => {
     load()
-    window.addEventListener(CHANGED, load)
-    return () => window.removeEventListener(CHANGED, load)
+    return onChanged(load)
   }, [load])
 
   if (goals.length === 0) return <aside className="insights" aria-label="Insights" />

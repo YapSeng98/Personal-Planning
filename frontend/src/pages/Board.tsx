@@ -5,7 +5,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, uuid, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, nextCompletedAt, CHANGED, type Task, type Project, type TaskState } from '../db/db'
+import { db, uuid, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, nextCompletedAt, type Task, type Project, type TaskState, onChanged } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
 import TaskForm from '../components/TaskForm'
@@ -206,22 +206,18 @@ export default function Board() {
 
   useEffect(() => {
     loadProjects()
-    window.addEventListener(CHANGED, loadProjects)
-    return () => window.removeEventListener(CHANGED, loadProjects)
+    return onChanged(loadProjects)
   }, [loadProjects])
 
   useEffect(() => {
     loadStats()
-    window.addEventListener(CHANGED, loadStats)
-    return () => window.removeEventListener(CHANGED, loadStats)
+    return onChanged(loadStats)
   }, [loadStats])
 
   useEffect(() => {
     loadTasks(selected)
     if (selected) localStorage.setItem(STORE_KEY, selected)
-    const reload = () => loadTasks(selected)
-    window.addEventListener(CHANGED, reload)
-    return () => window.removeEventListener(CHANGED, reload)
+    return onChanged(() => loadTasks(selected))
   }, [selected, loadTasks])
 
   const isAll = selected === ALL_PROJECTS

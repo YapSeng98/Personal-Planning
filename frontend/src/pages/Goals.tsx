@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { db, uuid, writeAndQueue, patchAndQueue, rollUpGoal, CHANGED, type Goal, type GoalType } from '../db/db'
+import { db, uuid, writeAndQueue, patchAndQueue, rollUpGoal, type Goal, type GoalType, onChanged } from '../db/db'
 import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
@@ -35,8 +35,7 @@ export default function Goals() {
   }, [])
   useEffect(() => {
     load()
-    window.addEventListener(CHANGED, load)
-    return () => window.removeEventListener(CHANGED, load)
+    return onChanged(load)
   }, [load])
 
   // Deep-link from search: /goals?edit=<id> opens that goal's editor once

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { db, uuid, uuidFrom, todayStr, writeAndQueue, patchAndQueue, CHANGED, type Review, type NoteAttachment } from '../db/db'
+import { db, uuid, uuidFrom, todayStr, writeAndQueue, patchAndQueue, type Review, type NoteAttachment, onChanged } from '../db/db'
 import { applyAttachmentOps } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import { accountId } from '../sync/api'
@@ -195,8 +195,7 @@ export default function Reviews() {
 
   useEffect(() => {
     load()
-    window.addEventListener(CHANGED, load)
-    return () => window.removeEventListener(CHANGED, load)
+    return onChanged(load)
   }, [load])
 
   async function addFiles(files: File[]) {

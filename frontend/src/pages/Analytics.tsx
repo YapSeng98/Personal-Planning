@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CHANGED, cleanEmoji } from '../db/db'
+import { cleanEmoji, onChanged } from '../db/db'
 import { computeAnalytics, type Analytics as Data } from '../lib/analytics'
 import { useLang } from '../lib/i18n'
 import { hm } from '../lib/timer'
@@ -15,8 +15,7 @@ export default function Analytics() {
   }, [])
   useEffect(() => {
     load()
-    window.addEventListener(CHANGED, load)
-    return () => window.removeEventListener(CHANGED, load)
+    return onChanged(load)
   }, [load])
 
   if (!d) return <div className="greet"><h1>{t('an.title')}</h1><div className="empty">{t('an.loading')}</div></div>

@@ -385,6 +385,30 @@ export const CHANGED = 'planner:changed'
 export const TASKS_PULLED = 'planner:tasks-pulled'
 export const notifyChange = () => window.dispatchEvent(new CustomEvent(CHANGED))
 
+/** Run `fn` whenever local data changes (CHANGED) — one run at a time.
+    Changes that land while it runs make it run once more afterwards, so a
+    burst (a drag saving each task's order, a sync bringing in 200 records)
+    reloads a screen once or twice instead of once per record, and two loads
+    never race to set the screen. Returns the unsubscribe. */
+export function onChanged(fn: () => unknown): () => void {
+  let running = false, again = false, timer = 0, off = false
+  const schedule = () => { if (!timer && !off) timer = window.setTimeout(run, 0) }
+  async function run() {
+    timer = 0
+    if (off) return
+    if (running) { again = true; return }
+    running = true
+    try {
+      await fn()
+    } finally {
+      running = false
+      if (again) { again = false; schedule() }
+    }
+  }
+  window.addEventListener(CHANGED, schedule)
+  return () => { off = true; window.removeEventListener(CHANGED, schedule); window.clearTimeout(timer) }
+}
+
 type SyncRecord = { id: string; updatedAt: number; attachments?: NoteAttachment[] }
 
 /** Save a NEW record (or, rarely, a whole record) and queue it for sync.

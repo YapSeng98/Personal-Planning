@@ -1783,7 +1783,12 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 .spark-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.4s 200ms var(--ease) forwards;
   filter: drop-shadow(0 0 4px var(--accent-bright)); }
 @keyframes draw { to { stroke-dashoffset: 0; } }
-.spark-ping { transform-box: fill-box; transform-origin: center; animation: ping 2s ease-out infinite; }
+/* the ping at the line's end: an HTML ring over the chart (scale + opacity run
+   on the graphics chip; an animated SVG circle repainted the card every frame) */
+.spark-wrap { position: relative; margin-top: 0.35rem; }
+.spark-wrap svg { margin-top: 0 !important; }
+.spark-ping { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; border: 1.5px solid var(--amber);
+  pointer-events: none; animation: ping 2s ease-out infinite; will-change: transform, opacity; }
 @keyframes ping { from { transform: scale(1); opacity: 0.9; } to { transform: scale(3.2); opacity: 0; } }
 .today-grid .m-streak .big { animation: flicker 5s linear infinite; }
 @keyframes flicker { 0%, 92%, 100% { opacity: 1; } 93% { opacity: 0.4; } 95% { opacity: 1; } 96% { opacity: 0.6; } }
@@ -2347,7 +2352,10 @@ button.preview-row:hover .title { color: var(--accent-bright); }
 .hc-prog { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
 .hc-label { flex: none; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); white-space: nowrap; }
 .hc-bar { flex: 1; min-width: 1.5rem; height: 4px; border-radius: 999px; background: var(--glass-strong); overflow: hidden; }
-.hc-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--clk-a), var(--clk-b), var(--clk-c)); transition: width 0.6s ease; }
+/* grows by scaling (the graphics chip), not by width — a width transition
+   re-laid-out the whole header every frame after a tick */
+.hc-bar i { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--clk-a), var(--clk-b), var(--clk-c));
+  transform-origin: left center; transform: scaleX(var(--p, 0)); transition: transform 0.6s ease; }
 /* what's next — one tap starts focus mode on it */
 .hero-next { grid-area: next; justify-self: start; max-width: 100%; min-width: 0; margin-top: 0.75rem; display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.3rem 0.3rem 0.3rem 0.8rem; border-radius: 999px; border: 1px solid var(--hairline);
