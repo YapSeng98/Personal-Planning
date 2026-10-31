@@ -50,6 +50,10 @@ left open. The rule that keeps one device from undoing another's changes:
 - Records two devices may create independently (a day's review, a habit's
   day, a repeat's date) get content-derived ids (`uuidFrom`) — include the
   account id when the content alone isn't account-specific.
+- Screens reload on local changes through `onChanged(load)` (db.ts), not a
+  raw `CHANGED` listener: one load at a time, a burst (a sync batch, a drag
+  saving each task's order) reloads once or twice instead of once per
+  record. Today shows a tick at once and lets the reload reconcile.
 - Screens that stay open while syncs arrive (Reviews, SketchDetail) merge
   incoming changes into what's on screen and run loads/saves one at a time.
 - Lists that two devices edit item by item — a task's `checklist` (steps)
@@ -194,6 +198,14 @@ the "Sunrise" identity. Two layers:
   (Cosmic) — iOS-style tight, heavy large titles. Self-hosted via
   `@fontsource-variable/*` so the PWA works offline (Bricolage is no longer
   loaded).
+- **Performance rules** (2026-11-01, measured with the CPU slowed 4×): no
+  endless animation of a CSS custom property, `width`/`height`, or an SVG
+  element — each restyles/repaints every frame, even idle (the old turning
+  edge cost ~0.8 s of CPU per 4 s on Today). Animate `transform`/`opacity`
+  on an HTML element instead: the header's and command bar's turning edge
+  is `components/GlowEdge.tsx` (a conic gradient rotated inside a ring
+  mask). Text that changes often isn't re-animated (the briefing types out
+  only when it's a new one).
 - **Icons**: `frontend/src/components/Icon.tsx` — a small hand-authored
   stroke-icon set (`currentColor`, themes for free) for nav/chrome.
   Genuinely expressive content (mood faces, the ✦ AI sparkle) stays emoji on

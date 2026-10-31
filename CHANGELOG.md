@@ -6,6 +6,21 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-11-01
+
+- **Smoother, lighter app — everything looks and works the same.** Today
+  was quietly redrawing parts of the screen 60 times a second even when you
+  weren't touching it (the turning colour edge on the header and the
+  command bar, the ping on the week chart). They now turn on the graphics
+  chip instead: sitting on Today now uses about a tenth of the processor
+  it did (repaints in 4 s: 724 → 8). Screens no longer reload over and over
+  when many changes land at once (a sync, reordering tasks), ticking a task
+  or a habit shows at once (a habit tick answers about twice as fast), and
+  the briefing no longer retypes itself after every tick — it types out
+  when it's new and updates in place after. Every page was compared pixel
+  by pixel with the version before.
+  ([d3409f2](https://github.com/YapSeng98/Personal-Planning/commit/d3409f2))
+
 ## 2026-10-31
 
 - **Today's header, redesigned from your screenshot.** The clock and the
