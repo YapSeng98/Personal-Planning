@@ -117,6 +117,9 @@ body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-even
 :root[data-bg]:not([data-bg='none']) .stat-tile { -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
 /* glass inside glass doesn't blur twice (costly, and muddy) */
 .card .card, .sheet .card, .hero-card .card, .search-modal .card { -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+/* the Board's cards sit in a glass column: tinted glass, no second blur (54 → 14 blurred surfaces on a full board) */
+.board-col .card, .board-col .board-card,
+:root[data-bg] .board-col .card, :root[data-bg] .board-col .board-card { -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* sheets, menus and the search box: more tint so text over busy pages stays readable */
 .sheet, .sel-list, .search-modal, .appwin-menu { background: var(--g-sheet); }
 .sheet { border-radius: 30px 30px 0 0; -webkit-backdrop-filter: blur(34px) saturate(180%); backdrop-filter: blur(34px) saturate(180%); }
@@ -327,3 +330,12 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
 .ask-bar { border-color: transparent; }
 .ask-bar > .glow-edge { inset: -1px; z-index: -1; opacity: 0.6; }
 .ask-bar:focus-within > .glow-edge { opacity: 1; }
+
+/* at rest (lib/rest.ts): the decorative endless animations pause where they
+   are — each one running made the browser redraw and re-blur the whole screen
+   60 times a second. What shows something happening keeps moving: loading
+   bars, "thinking", the video's bars, and focus mode. */
+:root[data-rest] *, :root[data-rest] *::before, :root[data-rest] *::after { animation-play-state: paused !important; }
+:root[data-rest] .focus-mode, :root[data-rest] .focus-mode *, :root[data-rest] .focus-mode *::before, :root[data-rest] .focus-mode *::after,
+:root[data-rest] .att-img-wait, :root[data-rest] .appwin-loadbar::before, :root[data-rest] .ask-thinking, :root[data-rest] .hv-eq i,
+:root[data-rest] .tw-caret { animation-play-state: running !important; }
