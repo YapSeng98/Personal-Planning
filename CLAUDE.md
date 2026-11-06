@@ -206,6 +206,14 @@ the "Sunrise" identity. Two layers:
   is `components/GlowEdge.tsx` (a conic gradient rotated inside a ring
   mask). Text that changes often isn't re-animated (the briefing types out
   only when it's a new one).
+  Any endless animation on screen makes the browser redraw and re-blur the
+  whole screen every frame (GPU, measured: 241 frames / 4 s idle): decorative
+  ones pause at rest — `lib/rest.ts` sets `:root[data-rest]` after 20 s
+  untouched / 3 s in the background, glass.css pauses everything but focus
+  mode, loading bars, "thinking" and the video's bars. A new indicator that
+  must keep moving at rest goes on that exemption list. No glass blurred
+  inside blurred glass (the Board's cards inside its columns cost 60% of its
+  scrolling GPU work).
 - **Icons**: `frontend/src/components/Icon.tsx` — a small hand-authored
   stroke-icon set (`currentColor`, themes for free) for nav/chrome.
   Genuinely expressive content (mood faces, the ✦ AI sparkle) stays emoji on

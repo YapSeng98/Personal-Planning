@@ -6,6 +6,22 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-11-07
+
+- **Lighter when you're not touching it.** Measured on a real graphics chip
+  this time: the app's never-ending decorations (the turning colour edges,
+  the pulsing dots, the chart's ping) made the browser redraw and re-blur
+  the whole screen 60 times a second, even with the app just sitting open.
+  Now, after 20 seconds untouched (or a few seconds after you switch to
+  another window), they pause where they are, and any mouse move, tap, key
+  or scroll brings them back at once. With the app at rest the graphics work
+  drops from ~0.8 s to ~0.02 s every 4 seconds. The clock keeps ticking, the
+  music bars keep playing, and focus mode and loading bars keep moving.
+- **Board scrolls lighter.** Its cards were blurred a second time inside the
+  already-blurred columns: 54 blurred surfaces → 14 on a full board,
+  scrolling graphics work 506 → 192 ms, same look.
+  ([7fb38ca](https://github.com/YapSeng98/Personal-Planning/commit/7fb38ca))
+
 ## 2026-11-01
 
 - **Smoother, lighter app — everything looks and works the same.** Today
