@@ -103,8 +103,13 @@ pushing, since there's no review step catching problems after.
 
 Builds with `GH_PAGES=1` (correct base path), copies `frontend/dist/` to the
 repo root, commits `deploy site <date>`, pushes to `origin/main`. GitHub
-Pages serves the root of `main` directly — no Actions workflow, no gh-pages
-branch. Live within about a minute of push.
+Pages serves the root of `main` directly — no workflow of ours, no gh-pages
+branch. Live within about a minute of push. A push isn't a deploy, though:
+GitHub's own "pages build and deployment" run can fail on its side
+(2026-11-12: `startup_failure`, the site kept the old version), so the
+script then waits until the live page serves the new bundle and exits 1
+with GitHub's run result if it doesn't within 5 minutes — push any commit
+(or re-run it on GitHub → Actions) to try again.
 
 **Supabase-side changes** (schema/RLS/functions) are separate from a frontend
 deploy: paste `supabase/schema.sql` into the Supabase SQL Editor and run it.
