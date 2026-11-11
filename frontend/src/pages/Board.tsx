@@ -5,7 +5,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, uuid, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, nextCompletedAt, type Task, type Project, type TaskState, onChanged } from '../db/db'
+import { db, uuid, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, nextCompletedAt, type Task, type Project, type TaskState, onChanged, OPEN_PROJECT } from '../db/db'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
 import TaskForm from '../components/TaskForm'
@@ -208,6 +208,13 @@ export default function Board() {
     loadProjects()
     return onChanged(loadProjects)
   }, [loadProjects])
+
+  // search picked a project
+  useEffect(() => {
+    const on = (e: Event) => setSelected((e as CustomEvent<string>).detail)
+    window.addEventListener(OPEN_PROJECT, on)
+    return () => window.removeEventListener(OPEN_PROJECT, on)
+  }, [])
 
   useEffect(() => {
     loadStats()

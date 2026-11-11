@@ -3,11 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { db, uuid, patchAndQueue, type DrawingNote, type SketchFolder, onChanged } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
-import { toEditorHtml } from '../lib/noteHtml'
+import { toEditorHtml, noteText } from '../lib/noteHtml'
 import FolderForm from '../components/FolderForm'
 import FolderCover from '../components/FolderCover'
 import Icon from '../components/Icon'
-import { childFolders, folderPath, subtreeIds } from '../lib/folders'
+import { childFolders, folderPath, subtreeIds, compareNames } from '../lib/folders'
 import { deleteStoredFiles } from '../lib/files'
 
 // Each folder gets one of the app's decorative colours, picked from its id so
@@ -25,8 +25,7 @@ function FolderPaper({ d }: { d: DrawingNote }) {
     return <span className="sketch-folder-paper is-img">{d.dataUrl && <img src={d.dataUrl} alt="" loading="lazy" />}</span>
   }
   const raw = d.text || ''
-  const text = (d.format === 'html' ? raw.replace(/<[^>]*>/g, ' ') : raw)
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim()
+  const text = noteText(raw, d.format === 'html')
   const img = !text && d.format === 'html' ? /<img[^>]+src="([^"]+)"/.exec(raw)?.[1] : undefined
   if (img) return <span className="sketch-folder-paper is-img"><img src={img} alt="" loading="lazy" /></span>
   return (
@@ -39,20 +38,58 @@ function FolderPaper({ d }: { d: DrawingNote }) {
   )
 }
 
+/** How a folder's notes (and its sub-folders) are ordered — per device, like
+    Today's view. Pinned notes stay on top in every order. */
+type SortBy = 'recent' | 'name' | 'name-desc'
+const SORT_KEY = 'planner_sketch_sort'
+const SORTS: SortBy[] = ['recent', 'name', 'name-desc']
+function storedSort(): SortBy {
+  try {
+    const v = localStorage.getItem(SORT_KEY)
+    return v === 'name' || v === 'name-desc' ? v : 'recent'
+  } catch {
+    return 'recent'
+  }
+}
+
+/** Notes in the chosen order: pinned first; by name, the named ones A→Z (or
+    Z→A) — "Note 2" before "Note 10" — then the untitled ones, newest first
+    (they all read "Untitled"); otherwise newest first. */
+function orderNotes(list: DrawingNote[], by: SortBy): DrawingNote[] {
+  return [...list].sort((a, b) => {
+    const pin = Number(!!b.pinned) - Number(!!a.pinned)
+    if (pin) return pin
+    if (by !== 'recent') {
+      const at = a.title?.trim() ?? '', bt = b.title?.trim() ?? ''
+      if (!at !== !bt) return at ? -1 : 1
+      if (at && bt) {
+        const c = compareNames(at, bt)
+        if (c) return by === 'name' ? c : -c
+      }
+    }
+    return b.updatedAt - a.updatedAt
+  })
+}
+
 export default function Sketches() {
   const { folderId } = useParams<{ folderId?: string }>()
   const navigate = useNavigate()
   const [allNotes, setAllNotes] = useState<DrawingNote[]>([])
   const [folders, setFolders] = useState<SketchFolder[]>([])
   const [folderSheet, setFolderSheet] = useState<'closed' | 'new' | SketchFolder>('closed')
+  const [sortBy, setSortBy] = useState<SortBy>(storedSort)
   const { t } = useLang()
+  const pickSort = (by: SortBy) => {
+    setSortBy(by)
+    try { localStorage.setItem(SORT_KEY, by) } catch { /* storage blocked: this visit only */ }
+  }
 
   const load = useCallback(async () => {
     const notes = await db.drawings.filter((d) => !d.deleted).toArray()
     notes.sort((a, b) => b.updatedAt - a.updatedAt)
     setAllNotes(notes)
     const f = await db.folders.filter((x) => !x.deleted).toArray()
-    f.sort((a, b) => a.name.localeCompare(b.name))
+    f.sort((a, b) => compareNames(a.name, b.name))
     setFolders(f)
   }, [])
 
@@ -64,16 +101,14 @@ export default function Sketches() {
   const currentFolder = folderId ? folders.find((f) => f.id === folderId) : undefined
   const path = currentFolder ? folderPath(currentFolder.id, folders) : []
   const parentId = path.length > 1 ? path[path.length - 2].id : undefined
-  const subfolders = childFolders(folderId, folders)
+  // sub-folders A→Z (Z→A with the name sort the other way)
+  const subfolders = sortBy === 'name-desc' ? childFolders(folderId, folders).reverse() : childFolders(folderId, folders)
   // A note whose folder no longer exists shows at the top level rather than
   // vanishing.
   const folderIds = new Set(folders.map((f) => f.id))
-  // Pinned notes first; within each group still newest first (the filter
-  // keeps allNotes' order, and the sort is stable).
-  const items = (folderId
+  const items = orderNotes(folderId
     ? allNotes.filter((d) => d.folderId === folderId)
-    : allNotes.filter((d) => !d.folderId || !folderIds.has(d.folderId))
-  ).sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
+    : allNotes.filter((d) => !d.folderId || !folderIds.has(d.folderId)), sortBy)
   // Everything nested inside a folder, newest first (allNotes is sorted).
   const notesIn = (id: string) => {
     const ids = subtreeIds(id, folders)
@@ -167,6 +202,19 @@ export default function Sketches() {
         )}
         {newButtons}
       </div>
+
+      {subfolders.length + items.length > 1 && (
+        <div className="sketch-tools">
+          <span className="sketch-tools-label" id="sketch-sort-label">{t('sketch.sortBy')}</span>
+          <div className="view-seg" role="radiogroup" aria-labelledby="sketch-sort-label">
+            {SORTS.map((by) => (
+              <button key={by} type="button" role="radio" aria-checked={sortBy === by} className={sortBy === by ? 'on' : ''} onClick={() => pickSort(by)}>
+                {t(`sketch.sort.${by}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {subfolders.length > 0 && (
         <div className="sketch-folder-grid">

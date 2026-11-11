@@ -12,3 +12,15 @@ export function toEditorHtml(raw: string, isHtml: boolean): string {
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>')
 }
+
+/** A note's words alone — no markup, no pictures (a pasted picture is a long
+    run of encoded text inside the note that searches would otherwise match),
+    entities decoded, whitespace collapsed. */
+export function noteText(raw: string, isHtml: boolean): string {
+  const text = isHtml
+    ? raw.replace(/<img\b[^>]*>/gi, ' ').replace(/<(br|\/p|\/div|\/li|\/h\d)\b[^>]*>/gi, ' ').replace(/<[^>]*>/g, '')
+    : raw
+  return text
+    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ').trim()
+}

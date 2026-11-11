@@ -145,9 +145,9 @@ const en: Dict = {
   'sketch.folderDeleteConfirmWithItems': 'Delete folder "{name}"? Its {n} item(s) move up one level — nothing inside is deleted.',
   'sketch.folderInside': 'Inside', 'sketch.topLevel': 'Top level (Sketches)',
   // search
-  'search.trigger': 'Search', 'search.placeholder': 'Search tasks, goals, sketches…',
+  'search.trigger': 'Search', 'search.placeholder': 'Search tasks, goals, notes, habits…',
   'search.hint': 'Type to search everything.', 'search.empty': 'No results.',
-  'search.tasks': 'Tasks', 'search.goals': 'Goals', 'search.sketches': 'Sketches',
+  'search.tasks': 'Tasks', 'search.goals': 'Goals', 'search.sketches': 'Sketches', 'search.folders': 'Folders', 'search.habits': 'Habits', 'search.projects': 'Projects',
   // common
   'app.updateReady': 'A new version of Planner is ready.', 'app.refresh': 'Refresh',
   'set.version': 'Version', 'set.versionHint': 'Updates install automatically — new versions apply when you switch away from the app.',
@@ -332,6 +332,12 @@ const en: Dict = {
   'rem.test': 'Send a test notification', 'rem.testTitle': 'Planner', 'rem.testBody': 'Reminders are on — this is how they look.',
   'rem.testSent': 'Sent — it should appear now.', 'rem.testFailed': 'This device didn’t show it — check its notification settings.',
   'rem.startsNow': 'Starts now', 'rem.startsIn': 'Starts in {n} min', 'rem.startTimer': 'Focus',
+  // Sketches: sort; Settings: backup
+  'sketch.sortBy': 'Sort', 'sketch.sort.recent': 'Recent', 'sketch.sort.name': 'Name A–Z', 'sketch.sort.name-desc': 'Name Z–A',
+  'set.backup': 'Backup', 'set.backupBtn': 'Download a backup', 'set.backupRunning': 'Preparing…',
+  'set.backupHint': 'Saves a copy of everything on this device — tasks, goals, habits and their history, reviews, projects, notes and folders — as one file. A safety net next to the sync; keep it somewhere safe. Big files kept online aren’t copied in.',
+  'set.backupDone': 'Saved {file} ({size}): {tasks} tasks, {notes} notes, {habits} habits, {goals} goals.',
+  'set.backupErr': 'Couldn’t make the backup: {msg}',
   // Today's clock dial (components/HeroDial.tsx)
   'today.dialDone': '{done} of {n} done', 'today.dialToday': 'Today', 'today.nextUp': 'Next',
   // focus mode (components/FocusMode.tsx)
@@ -496,9 +502,9 @@ const zh: Dict = {
   'sketch.folderDeleteConfirmWithItems': '删除文件夹"{name}"？其中的 {n} 项会上移一层 — 里面的内容不会被删除。',
   'sketch.folderInside': '位于', 'sketch.topLevel': '顶层（草图）',
   // search
-  'search.trigger': '搜索', 'search.placeholder': '搜索任务、目标、手绘…',
+  'search.trigger': '搜索', 'search.placeholder': '搜索任务、目标、笔记、习惯…',
   'search.hint': '输入以搜索全部内容。', 'search.empty': '没有找到结果。',
-  'search.tasks': '任务', 'search.goals': '目标', 'search.sketches': '手绘',
+  'search.tasks': '任务', 'search.goals': '目标', 'search.sketches': '手绘', 'search.folders': '文件夹', 'search.habits': '习惯', 'search.projects': '项目',
   'app.updateReady': 'Planner 新版本已就绪。', 'app.refresh': '刷新',
   'set.version': '版本', 'set.versionHint': '更新会自动安装 — 切换离开应用时生效。',
   'set.updateWaiting': '新版本已下载，等待生效。', 'set.updateNow': '立即更新',
@@ -674,6 +680,12 @@ const zh: Dict = {
   'rem.test': '发送测试通知', 'rem.testTitle': '规划器', 'rem.testBody': '提醒已开启——提醒就是这个样子。',
   'rem.testSent': '已发送——应该马上就会出现。', 'rem.testFailed': '本设备没有显示——请检查它的通知设置。',
   'rem.startsNow': '现在开始', 'rem.startsIn': '{n} 分钟后开始', 'rem.startTimer': '专注',
+  // 手绘：排序；设置：备份
+  'sketch.sortBy': '排序', 'sketch.sort.recent': '最近', 'sketch.sort.name': '名称 A–Z', 'sketch.sort.name-desc': '名称 Z–A',
+  'set.backup': '备份', 'set.backupBtn': '下载备份', 'set.backupRunning': '正在准备…',
+  'set.backupHint': '把本设备上的全部内容——任务、目标、习惯及记录、复盘、项目、笔记和文件夹——保存为一个文件。作为同步之外的保险，请妥善保管。保存在线上的大文件不会复制进去。',
+  'set.backupDone': '已保存 {file}（{size}）：{tasks} 个任务、{notes} 篇笔记、{habits} 个习惯、{goals} 个目标。',
+  'set.backupErr': '无法生成备份：{msg}',
   // 今日时钟
   'today.dialDone': '完成 {done}/{n}', 'today.dialToday': '今天', 'today.nextUp': '下一个',
   // 专注模式

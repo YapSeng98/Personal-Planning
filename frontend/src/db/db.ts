@@ -383,6 +383,8 @@ export const isOpenOneOff = (x: Task) =>
 export const CHANGED = 'planner:changed'
 /** A sync brought task changes from the server (sync/engine.ts). */
 export const TASKS_PULLED = 'planner:tasks-pulled'
+/** Open a project on the Board (search's project results) — also when the Board is already open. */
+export const OPEN_PROJECT = 'planner:open-project'
 export const notifyChange = () => window.dispatchEvent(new CustomEvent(CHANGED))
 
 /** Run `fn` whenever local data changes (CHANGED) — one run at a time.

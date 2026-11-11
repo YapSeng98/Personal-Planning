@@ -1182,6 +1182,9 @@ button.goal-card:hover { transform: translateY(-2px); }
   background: linear-gradient(to bottom, transparent, #fff);
 }
 .sketch-new-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+/* sort: Recent / Name A–Z / Name Z–A (Sketches.tsx) */
+.sketch-tools { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0 0.2rem; }
+.sketch-tools-label { font-size: 0.72rem; font-weight: 700; color: var(--text-3); }
 /* Phones: Sketches header stacks — title (and folder path) full width, the
    Draw / Type / Folder buttons on their own row underneath. */
 @media (max-width: 640px) {

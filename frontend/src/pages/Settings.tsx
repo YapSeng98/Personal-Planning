@@ -5,6 +5,7 @@ import { syncNow, onSyncState, type SyncState } from '../sync/engine'
 import { stopLiveSync } from '../sync/live'
 import { buildLabel, updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
 import { onUploadChange } from '../lib/files'
+import { downloadBackup, sizeLabel } from '../lib/backup'
 import { useNowPlaying, canUseExtension, olderVersion, EXTENSION_VERSION, EXTENSION_ZIP } from '../lib/nowPlaying'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
@@ -137,6 +138,7 @@ export default function Settings() {
   const { extension } = useNowPlaying()
   const extCurrent = extension.installed && !olderVersion(extension.version ?? '1.0.0', EXTENSION_VERSION)
   const [cleanup, setCleanup] = useState<{ state: 'idle' | 'running' | 'done'; msg: string }>({ state: 'idle', msg: '' })
+  const [backup, setBackup] = useState<{ state: 'idle' | 'running' | 'done' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const [newPw, setNewPw] = useState('')
   const [pwState, setPwState] = useState<{ state: 'idle' | 'saving' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const { t, lang, setLang } = useLang()
@@ -194,6 +196,16 @@ export default function Settings() {
   function saveYtUrl(url: string) {
     setYtUrlState(url)
     setYoutubeUrl(url)
+  }
+
+  async function runBackup() {
+    setBackup({ state: 'running', msg: '' })
+    try {
+      const r = await downloadBackup({ version: buildLabel(), account: currentUser() })
+      setBackup({ state: 'done', msg: t('set.backupDone', { file: r.file, size: sizeLabel(r.bytes), tasks: r.counts.tasks, notes: r.counts.sketches, habits: r.counts.habits, goals: r.counts.goals }) })
+    } catch (e) {
+      setBackup({ state: 'err', msg: t('set.backupErr', { msg: e instanceof Error ? e.message : String(e) }) })
+    }
   }
 
   async function runCleanup() {
@@ -477,6 +489,16 @@ export default function Settings() {
           <div className="row-sub">{hasUpdate ? t('set.updateWaiting') : t('set.versionHint')}</div>
         </div>
         {hasUpdate && <button className="btn btn-primary" onClick={applyUpdate}>{t('set.updateNow')}</button>}
+      </div>
+
+      <div className="section-h">{t('set.backup')}</div>
+      <div className="card">
+        <div className="row-sub" style={{ marginBottom: '0.6rem' }}>{t('set.backupHint')}</div>
+        <button className="btn" onClick={runBackup} disabled={backup.state === 'running'}>
+          {backup.state === 'running' ? t('set.backupRunning') : t('set.backupBtn')}
+        </button>
+        {backup.state === 'done' && <div className="ai-status ok">✓ {backup.msg}</div>}
+        {backup.state === 'err' && <div className="ai-status err">✕ {backup.msg}</div>}
       </div>
 
       <div className="section-h">{t('set.maintenance')}</div>
