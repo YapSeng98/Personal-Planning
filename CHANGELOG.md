@@ -6,6 +6,24 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-11-12
+
+- **Sort a folder by name.** Sketches has a new Sort switch — Recent /
+  Name A–Z / Name Z–A — for the notes and folders you're looking at (each
+  device remembers your choice). Names sort the way you'd expect: "Note 2"
+  before "Note 10", capitals and accents don't matter, Chinese by pinyin.
+  Pinned notes stay on top; untitled notes come after the named ones.
+  Folders everywhere now use that order too (before, "Folder 10" came
+  before "Folder 2").
+- **Search, fixed and wider.** Deleted notes no longer show up in search,
+  and notes only match on their words — short searches used to match the
+  hidden data of pictures inside notes. Search now also finds **folders**,
+  **habits** and **projects** (a project opens on the Board).
+- **Download a backup** (Settings → Backup): one file with everything on
+  the device — tasks, goals, habits and their history, reviews, projects,
+  notes and folders — as a safety net next to the sync.
+  ([846c165](https://github.com/YapSeng98/Personal-Planning/commit/846c165))
+
 ## 2026-11-07
 
 - **Lighter when you're not touching it.** Measured on a real graphics chip
