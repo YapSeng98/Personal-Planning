@@ -6,6 +6,22 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-11-16
+
+- **Fix: apps in Planner's pop-up window jumped and half-drew.** Every app
+  you opened from Planner (Love Points, Business, Money…) kept jumping on
+  the Mac, though it was fine in its own tab. Planner kept drawing its
+  glass, clock and stars under the full-screen window, where they can't be
+  seen, and wrapped the app in a blur layer that showed nothing. Now it
+  stops drawing what's under a full-screen window, and the window has no
+  blur behind it. With Love Points open, the graphics work halved (3.1 s →
+  1.6 s of every 4 s; less than Love Points in its own tab). It looks
+  exactly the same.
+  ([5f95caa](https://github.com/YapSeng98/Personal-Planning/commit/5f95caa))
+- **Reminders while the app is closed: set up.** The reminder sender is
+  deployed in Supabase, the push key is saved and the once-a-minute timer
+  runs (push_setup.sql). Turn reminders on per device in Settings.
+
 ## 2026-11-15
 
 - **Recently deleted.** Deleted something by mistake? Settings → Recently
