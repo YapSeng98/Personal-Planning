@@ -47,6 +47,15 @@ left open. The rule that keeps one device from undoing another's changes:
 - The pull cursor is a Postgres snapshot, not a timestamp, so a save still
   committing during a pull is picked up next time. A device skips its own
   echo by `"<id>#<rev>"`.
+- Deletes are tombstones (`deleted`): the server keeps the row. Devices keep
+  a tombstone for 30 days (`BIN_MS`; the pull keeps recent ones, plus any
+  with an unsent change, merged) for Recently deleted (`lib/bin.ts`,
+  `pages/Deleted.tsx`, Restore = `restoreItem`, a patch to `deleted: 0`);
+  `purgeBin` clears older ones once a day after a sync — with a note's or
+  review's stored files, which deleting the record no longer removes (call
+  `deleteStoredFiles` only when one attachment is removed). A repeat's days
+  keep their tombstones for good (derived ids). Restore from a backup
+  (`lib/backup.ts`) syncs first, then only adds what's missing or deleted.
 - Records two devices may create independently (a day's review, a habit's
   day, a repeat's date) get content-derived ids (`uuidFrom`) — include the
   account id when the content alone isn't account-specific.

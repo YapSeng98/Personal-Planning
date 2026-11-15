@@ -8,6 +8,21 @@ those.
 
 ## 2026-11-15
 
+- **Recently deleted.** Deleted something by mistake? Settings → Recently
+  deleted lists every task, goal, habit, project, note, folder and review
+  you deleted in the last 30 days — on any of your devices — with a
+  **Restore** button that puts it back where it was. A deleted note keeps
+  its pictures and files while it's there, so it comes back whole. After 30
+  days things leave the list for good (and a note's files are cleared from
+  your online storage then). Notes deleted before this update come back
+  without the files that were attached (those were removed at the time).
+- **Restore from a backup.** Settings → Backup → Restore from a backup…:
+  pick a backup file and it shows what it would bring back (anything in the
+  backup that's missing or deleted here), then brings it back with one tap.
+  Nothing you have now is changed. It syncs first, so it never mistakes
+  "not downloaded yet" for "missing".
+  ([ebf3c6d](https://github.com/YapSeng98/Personal-Planning/commit/ebf3c6d))
+
 From a check of the whole app (accessibility scan of every screen, behaviour
 tests, dependency audit):
 
