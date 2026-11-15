@@ -289,7 +289,7 @@ export default function Reviews() {
     savedKeyRef.current = formKey(blank)
     setForm({ ...blank })
     setExistingId(null)
-    deleteStoredFiles(r.attachments)
+    // its files stay while it's in Recently deleted (lib/bin.ts)
     await patchAndQueue(db.reviews, 'review', r.id, { deleted: 1 })
     setAnchorDate(null)
     syncNow()

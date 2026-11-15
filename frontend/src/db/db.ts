@@ -376,6 +376,9 @@ export function addDays(ymd: string, n: number): string {
     of never-ticked tasks mustn't bury today. Repeating tasks are left out:
     their next occurrence is already on its own day. */
 export const OVERDUE_DAYS = 14
+/** How long Recently deleted keeps things (lib/bin.ts; the pull keeps
+    tombstones that recent, sync/engine.ts). */
+export const BIN_MS = 30 * 86_400_000
 export const isOpenOneOff = (x: Task) =>
   !x.deleted && (x.state === 'open' || x.state === 'in_progress') && !x.recurrence && !x.seriesId
 
@@ -888,7 +891,9 @@ export async function rollUpGoal(goalId: string) {
     if (parts.length > 0) {
       const pct = Math.round(parts.reduce((s, n) => s + n, 0) / parts.length)
       const status: Goal['status'] = pct > 0 && g.status === 'not_started' ? 'in_progress' : g.status
-      if (pct !== g.progress || status !== g.status) {
+      // a deleted goal keeps its numbers (and its time of deletion, which
+      // Recently deleted counts from); restoring it recomputes them
+      if (!g.deleted && (pct !== g.progress || status !== g.status)) {
         await db.goals.put({ ...g, progress: pct, status, updatedAt: Date.now() })
       }
     }

@@ -1430,6 +1430,24 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
   margin: 0 0 1rem; padding: 0.6rem 0.7rem 0.6rem 1rem; border-radius: 14px; font-size: 0.86rem; font-weight: 600;
   background: var(--accent-wash); border: 1px solid color-mix(in srgb, var(--accent-bright) 35%, var(--hairline)); color: var(--text-1); }
 .update-bar .btn { padding: 0.35rem 0.9rem; font-size: 0.82rem; }
+/* Settings → Backup: download + restore side by side, stacked when narrow */
+.backup-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+/* Restore from a backup — what comes back */
+.restore-sheet h2 { margin: 0 0 0.2rem; font-size: 1.15rem; }
+.restore-sheet p { margin: 0.5rem 0 0; }
+.restore-counts { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.4rem; margin-top: 0.35rem; }
+.restore-count { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.45rem 0.7rem; border-radius: 10px;
+  background: color-mix(in srgb, var(--text-3) 10%, transparent); font-size: 0.85rem; }
+/* Recently deleted (pages/Deleted.tsx) */
+.bin-list { padding: 0.3rem 0.9rem; }
+.bin-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 0; }
+.bin-row + .bin-row { border-top: 1px solid var(--hairline); }
+.bin-ico { flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 1.05rem;
+  background: color-mix(in srgb, var(--text-3) 12%, transparent); color: var(--text-2); }
+.bin-body { flex: 1; min-width: 0; }
+.bin-title { font-size: 0.95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bin-row .btn { flex-shrink: 0; }
+.bin-restored { margin: 0 0 0.6rem; }
 /* a page that failed to draw (PageGuard) — the menu around it still works */
 .crash-card { margin: 1rem 0; display: grid; gap: 0.6rem; }
 .crash-card h2 { margin: 0; font-size: 1.1rem; }

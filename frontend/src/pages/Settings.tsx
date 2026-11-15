@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react'
-import { db, cleanupDuplicateRecurringTasks } from '../db/db'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { db, cleanupDuplicateRecurringTasks, onChanged } from '../db/db'
 import { isAuthed, currentUser, clearTokens, serverLogout, changePassword, setLocalDataOwner } from '../sync/api'
-import { syncNow, onSyncState, type SyncState } from '../sync/engine'
+import { syncNow, syncSettled, syncState, onSyncState, type SyncState } from '../sync/engine'
 import { stopLiveSync } from '../sync/live'
 import { buildLabel, updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
 import { onUploadChange } from '../lib/files'
-import { downloadBackup, sizeLabel } from '../lib/backup'
+import { downloadBackup, sizeLabel, readBackup, NotBackup, type RestorePlan } from '../lib/backup'
+import { binItems } from '../lib/bin'
+import RestoreSheet from '../components/RestoreSheet'
 import { useNowPlaying, canUseExtension, olderVersion, EXTENSION_VERSION, EXTENSION_ZIP } from '../lib/nowPlaying'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { getBg, setBg, BGS, type Bg } from '../lib/bg'
@@ -139,6 +142,15 @@ export default function Settings() {
   const extCurrent = extension.installed && !olderVersion(extension.version ?? '1.0.0', EXTENSION_VERSION)
   const [cleanup, setCleanup] = useState<{ state: 'idle' | 'running' | 'done'; msg: string }>({ state: 'idle', msg: '' })
   const [backup, setBackup] = useState<{ state: 'idle' | 'running' | 'done' | 'err'; msg: string }>({ state: 'idle', msg: '' })
+  const [restore, setRestore] = useState<{ state: 'idle' | 'checking' | 'err'; msg: string }>({ state: 'idle', msg: '' })
+  const [plan, setPlan] = useState<RestorePlan | null>(null)
+  const restoreInput = useRef<HTMLInputElement>(null)
+  const [binCount, setBinCount] = useState(0)
+  useEffect(() => {
+    const count = () => binItems().then((x) => setBinCount(x.length))
+    count()
+    return onChanged(count)
+  }, [])
   const [newPw, setNewPw] = useState('')
   const [pwState, setPwState] = useState<{ state: 'idle' | 'saving' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const { t, lang, setLang } = useLang()
@@ -205,6 +217,26 @@ export default function Settings() {
       setBackup({ state: 'done', msg: t('set.backupDone', { file: r.file, size: sizeLabel(r.bytes), tasks: r.counts.tasks, notes: r.counts.sketches, habits: r.counts.habits, goals: r.counts.goals }) })
     } catch (e) {
       setBackup({ state: 'err', msg: t('set.backupErr', { msg: e instanceof Error ? e.message : String(e) }) })
+    }
+  }
+
+  async function pickRestore(file: File | undefined) {
+    if (!file) return
+    setRestore({ state: 'checking', msg: '' })
+    try {
+      // "missing here" has to mean missing from the account, not just not
+      // downloaded yet — so catch up with the sync first
+      await syncNow()
+      await syncSettled()
+      const s = syncState()
+      if (s !== 'idle' && s !== 'local-only') {
+        setRestore({ state: 'err', msg: t(s === 'offline' ? 'set.restoreOffline' : 'set.restoreSyncFirst') })
+        return
+      }
+      setPlan(await readBackup(file))
+      setRestore({ state: 'idle', msg: '' })
+    } catch (e) {
+      setRestore({ state: 'err', msg: e instanceof NotBackup ? t('set.restoreNotBackup') : t('set.backupErr', { msg: e instanceof Error ? e.message : String(e) }) })
     }
   }
 
@@ -491,15 +523,33 @@ export default function Settings() {
         {hasUpdate && <button className="btn btn-primary" onClick={applyUpdate}>{t('set.updateNow')}</button>}
       </div>
 
+      <div className="section-h">{t('set.bin')}</div>
+      <div className="card settings-row">
+        <div>
+          <b>{binCount ? t('set.binCount', { n: binCount }) : t('set.binNone')}</b>
+          <div className="row-sub">{t('set.binHint')}</div>
+        </div>
+        <Link className="btn" to="/deleted">{t('set.binOpen')}</Link>
+      </div>
+
       <div className="section-h">{t('set.backup')}</div>
       <div className="card">
         <div className="row-sub" style={{ marginBottom: '0.6rem' }}>{t('set.backupHint')}</div>
-        <button className="btn" onClick={runBackup} disabled={backup.state === 'running'}>
-          {backup.state === 'running' ? t('set.backupRunning') : t('set.backupBtn')}
-        </button>
+        <div className="backup-btns">
+          <button className="btn" onClick={runBackup} disabled={backup.state === 'running'}>
+            {backup.state === 'running' ? t('set.backupRunning') : t('set.backupBtn')}
+          </button>
+          <button className="btn" onClick={() => restoreInput.current?.click()} disabled={restore.state === 'checking'}>
+            {restore.state === 'checking' ? t('set.restoreChecking') : t('set.restoreBtn')}
+          </button>
+          <input ref={restoreInput} type="file" accept="application/json,.json" hidden aria-label={t('set.restoreBtn')}
+            onChange={(e) => { pickRestore(e.target.files?.[0]); e.target.value = '' }} />
+        </div>
         {backup.state === 'done' && <div className="ai-status ok">✓ {backup.msg}</div>}
         {backup.state === 'err' && <div className="ai-status err">✕ {backup.msg}</div>}
+        {restore.state === 'err' && <div className="ai-status err">✕ {restore.msg}</div>}
       </div>
+      {plan && <RestoreSheet plan={plan} me={currentUser()} onClose={() => setPlan(null)} />}
 
       <div className="section-h">{t('set.maintenance')}</div>
       <div className="card">

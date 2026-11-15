@@ -630,7 +630,7 @@ export default function SketchDetail() {
     if (!window.confirm(t('sketch.deleteConfirm', { title: title || t('sketch.untitled') }))) return
     const existing = await db.drawings.get(id)
     if (existing) {
-      deleteStoredFiles(existing.attachments)
+      // its files stay while it's in Recently deleted (lib/bin.ts)
       await patchAndQueue(db.drawings, 'drawing', id, { deleted: 1 })
       syncNow()
     }

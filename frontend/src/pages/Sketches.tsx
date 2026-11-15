@@ -8,7 +8,6 @@ import FolderForm from '../components/FolderForm'
 import FolderCover from '../components/FolderCover'
 import Icon from '../components/Icon'
 import { childFolders, folderPath, subtreeIds, compareNames } from '../lib/folders'
-import { deleteStoredFiles } from '../lib/files'
 
 // Each folder gets one of the app's decorative colours, picked from its id so
 // it's the same on every device.
@@ -125,7 +124,7 @@ export default function Sketches() {
     e.preventDefault()
     e.stopPropagation()
     if (!window.confirm(t('sketch.deleteConfirm', { title: d.title || t('sketch.untitled') }))) return
-    deleteStoredFiles(d.attachments)
+    // its files stay while it's in Recently deleted (lib/bin.ts)
     await patchAndQueue(db.drawings, 'drawing', d.id, { deleted: 1 })
     syncNow()
   }

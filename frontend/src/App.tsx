@@ -12,6 +12,7 @@ import Sketches from './pages/Sketches'
 import SketchDetail from './pages/SketchDetail'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
+import Deleted from './pages/Deleted'
 import { isAuthed, accountDevice } from './sync/api'
 import { startSyncLoop, syncNow, syncSettled } from './sync/engine'
 import { seedIfEmpty } from './db/seed'
@@ -21,6 +22,7 @@ import { LangProvider } from './lib/i18n'
 import { startReminderLoop } from './lib/reminders'
 import { startFocusLoop } from './lib/focus'
 import { startRestMode } from './lib/rest'
+import { startBinCleanup } from './lib/bin'
 
 function Guard({ children }: { children: React.ReactNode }) {
   if (isAuthed()) return <>{children}</>
@@ -47,6 +49,7 @@ export default function App() {
     startReminderLoop()
     startFocusLoop()
     startRestMode()
+    startBinCleanup()
     // Shrink oversized old images so they stop blocking the sync; push the
     // smaller copies right away if anything changed.
     compactImages().then((n) => { if (n) syncNow() }).catch(() => {})
@@ -80,6 +83,7 @@ export default function App() {
           <Route path="/sketches/:id" element={<SketchDetail />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/deleted" element={<Deleted />} />
         </Route>
       </Routes>
     </HashRouter>

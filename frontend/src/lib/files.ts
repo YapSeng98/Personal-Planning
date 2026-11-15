@@ -8,7 +8,7 @@
 // until then), so no device is shown a file it can't open.
 import { db, uuid, type LocalFile, type NoteAttachment } from '../db/db'
 import { supabase } from '../sync/supabase'
-import { isAuthed } from '../sync/api'
+import { isAuthed, accountDevice } from '../sync/api'
 
 const BUCKET = 'attachments'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
@@ -232,13 +232,21 @@ export async function downloadAttachment(a: NoteAttachment) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
-/** Drop the local copy and (best effort) the uploaded object. */
-export async function deleteStoredFiles(list: NoteAttachment[] | undefined) {
+/** Drop the local copy and the uploaded object. False when the online copy
+    couldn't be removed (offline, signed out) — the bin tries again later. */
+export async function deleteStoredFiles(list: NoteAttachment[] | undefined): Promise<boolean> {
   const stored = (list ?? []).filter((a) => a.stored)
-  if (!stored.length) return
+  if (!stored.length) return true
   await db.files.bulkDelete(stored.map((a) => a.id))
   const s = await session()
-  if (s) await supabase.storage.from(BUCKET).remove(stored.map((a) => `${s.uid}/${a.id}`)).catch(() => {})
+  // the offline demo keeps files on the device only
+  if (!s) return !accountDevice()
+  try {
+    const { error } = await supabase.storage.from(BUCKET).remove(stored.map((a) => `${s.uid}/${a.id}`))
+    return !error
+  } catch {
+    return false
+  }
 }
 
 export function formatBytes(n?: number): string {

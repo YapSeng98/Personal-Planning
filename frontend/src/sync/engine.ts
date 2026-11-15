@@ -3,7 +3,7 @@
 // applies delta pulls when a connection and a sign-in exist. Offline, or
 // signed out, the app keeps working locally and catches up afterwards.
 
-import { db, notifyChange, TASKS_PULLED, cleanEmoji, type DrawingNote, type Review, type OutboxEntry, type NoteAttachment } from '../db/db'
+import { db, notifyChange, TASKS_PULLED, cleanEmoji, BIN_MS, type DrawingNote, type Review, type OutboxEntry, type NoteAttachment } from '../db/db'
 import { SYNC_FIELDS, LATER_FIELDS, ITEM_FIELDS, applyAttachmentOps, norm, type SyncTable } from './fields'
 import { mergeItems, type ListItem } from '../lib/items'
 import { isAuthed, accountDevice, syncSession, syncPush, syncPull, NetworkError, localDataOwner, setLocalDataOwner, type PushItem } from './api'
@@ -197,8 +197,10 @@ function serverHas(table: SyncTable, field: string): boolean {
     everything: pulls made while the sign-in was being refreshed went out
     without it, the server answered "nothing changed", and the device then
     skipped those changes (see syncSession). Merged like any pull, so
-    nothing on the device is lost. */
-const RESYNC = '2026-10-07'
+    nothing on the device is lost. Again after the 2026-11-15 release: what
+    was deleted in the last 30 days, which earlier versions dropped from the
+    device, comes back as tombstones for Recently deleted. */
+const RESYNC = '2026-11-15'
 
 let settledWaiters: (() => void)[] = []
 const settled = () => {
@@ -209,6 +211,9 @@ const settled = () => {
 }
 /** Resolves once no sync is running (at once if none is) — however it
     ended: done, offline, signed out. */
+/** The sync's state right now (onSyncState follows it). */
+export const syncState = (): SyncState => current
+
 export function syncSettled(): Promise<void> {
   if (!running) return Promise.resolve()
   return new Promise((res) => settledWaiters.push(res))
@@ -481,11 +486,18 @@ export async function syncNow(): Promise<void> {
           }
         }
         if (r.deleted) {
-          if (r.table === 'task' && (data.seriesId || (local as { seriesId?: string } | undefined)?.seriesId)) {
-            // Keep a tombstone for recurring occurrences: their ids are derived
-            // from series + date (uuidFrom), so with the row gone this device
-            // would regenerate — and resurrect — the occurrence just deleted.
-            await table.put({ ...(local ?? {}), ...data, id: r.client_uuid, sysId: r.sys_id, deleted: 1 } as never)
+          const group = pending.get(`${r.table}:${r.client_uuid}`)
+          // Kept as a tombstone: a recurring occurrence (its id is derived
+          // from series + date, so with the row gone this device would make
+          // — and resurrect — the day just deleted), anything deleted in the
+          // last 30 days (Recently deleted, lib/bin.ts — which clears it
+          // after), and a record with an unsent change here (a restore made
+          // meanwhile: merged, so it isn't lost).
+          const series = r.table === 'task' && (data.seriesId || (local as { seriesId?: string } | undefined)?.seriesId)
+          if (series || group || Number(data.updatedAt ?? 0) >= Date.now() - BIN_MS) {
+            const tomb = { ...data, deleted: 1 }
+            const merged = group && local ? mergePending(r.table as SyncTable, local as Record<string, unknown>, tomb, group) : { ...(local ?? {}), ...tomb }
+            await table.put({ ...merged, id: r.client_uuid, sysId: r.sys_id } as never)
           } else {
             await table.delete(r.client_uuid)
           }
