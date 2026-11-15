@@ -71,16 +71,30 @@ export default defineConfig({
       // version: on going to the background or coming back, never mid-edit.
       registerType: 'autoUpdate',
       injectRegister: false,
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Personal Planning System',
         short_name: 'Planner',
         description: 'Vision → Year → Quarter → Month → Week → Day planning',
-        theme_color: '#130C13',
-        background_color: '#130C13',
+        // Cosmic's night sky (the default look) — the splash screen and the
+        // window bar before the app draws; lib/theme.ts follows the look after
+        theme_color: '#050716',
+        background_color: '#050716',
         display: 'standalone',
+        // PNGs for the home screen: Android's launchers want a maskable one
+        // (else the icon sits in a white circle), iPhones use
+        // apple-touch-icon.png (index.html). Made from icon.svg.
         icons: [
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        // long-press the app icon (Android) / right-click it (Windows, Mac)
+        shortcuts: [
+          { name: 'New task', short_name: 'New task', url: './#/?add=1', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Plan', url: './#/plan', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Sketches', url: './#/sketches', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
         ],
       },
       workbox: {

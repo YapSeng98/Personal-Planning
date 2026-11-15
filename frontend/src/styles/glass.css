@@ -15,7 +15,7 @@
   --glass: rgba(255, 255, 255, 0.075);
   --glass-strong: rgba(255, 255, 255, 0.13);
   --hairline: rgba(255, 255, 255, 0.10);
-  --text-1: #F7F3F1; --text-2: #B6ACB6; --text-3: #877C89;
+  --text-1: #F7F3F1; --text-2: #B6ACB6; --text-3: #9A8F9C;
   --font-display: var(--font-body);
   --radius-card: 24px;
   /* the glass material */
@@ -46,7 +46,7 @@
     --surface: #F6E8E1; --surface-2: #FFF8F4;
     --glass: rgba(255, 255, 255, 0.46); --glass-strong: rgba(255, 255, 255, 0.66);
     --hairline: rgba(90, 45, 30, 0.10);
-    --text-1: #1E1714; --text-2: #594E48; --text-3: #7E726A;
+    --text-1: #1E1714; --text-2: #594E48; --text-3: #6E635C;
     --g-border: rgba(255, 255, 255, 0.72);
     --g-rim: rgba(255, 255, 255, 0.92); --g-rim-low: rgba(255, 255, 255, 0.3);
     --g-shadow: 0 12px 32px -14px rgba(110, 45, 25, 0.30);
@@ -65,7 +65,7 @@
   --surface: #130C13; --surface-2: #1C141C;
   --glass: rgba(255, 255, 255, 0.075); --glass-strong: rgba(255, 255, 255, 0.13);
   --hairline: rgba(255, 255, 255, 0.10);
-  --text-1: #F7F3F1; --text-2: #B6ACB6; --text-3: #877C89;
+  --text-1: #F7F3F1; --text-2: #B6ACB6; --text-3: #9A8F9C;
   --g-border: rgba(255, 255, 255, 0.11); --g-rim: rgba(255, 255, 255, 0.20); --g-rim-low: rgba(255, 255, 255, 0.05);
   --g-shadow: 0 16px 36px -16px rgba(0, 0, 0, 0.7);
   --g-sheet: rgba(30, 21, 30, 0.90); --g-bar: rgba(30, 21, 30, 0.68);
@@ -77,7 +77,7 @@
   --surface: #F6E8E1; --surface-2: #FFF8F4;
   --glass: rgba(255, 255, 255, 0.46); --glass-strong: rgba(255, 255, 255, 0.66);
   --hairline: rgba(90, 45, 30, 0.10);
-  --text-1: #1E1714; --text-2: #594E48; --text-3: #7E726A;
+  --text-1: #1E1714; --text-2: #594E48; --text-3: #6E635C;
   --g-border: rgba(255, 255, 255, 0.72); --g-rim: rgba(255, 255, 255, 0.92); --g-rim-low: rgba(255, 255, 255, 0.3);
   --g-shadow: 0 12px 32px -14px rgba(110, 45, 25, 0.30);
   --g-sheet: rgba(255, 249, 246, 0.92); --g-bar: rgba(255, 252, 250, 0.72);

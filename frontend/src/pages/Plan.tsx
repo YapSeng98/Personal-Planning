@@ -9,6 +9,8 @@ import { db, uuid, todayStr, writeAndQueue, patchAndQueue, rollUpGoal, byOrder, 
 import { syncNow } from '../sync/engine'
 import TaskForm from '../components/TaskForm'
 import { useLang, type TFn } from '../lib/i18n'
+import { useToday } from '../lib/today'
+import { useEscape } from '../lib/escape'
 
 interface DayView {
   date: string
@@ -122,6 +124,7 @@ export default function Plan() {
   const [editing, setEditing] = useState<Task | null>(null)
   // a repeating task's preview tapped: skip that day, or stop the repeat
   const [preview, setPreview] = useState<{ series: Task; date: string } | null>(null)
+  useEscape(() => setPreview(null), !!preview)
   const [weekOffset, setWeekOffset] = useState(0)
   const [view, setView] = useState<'week' | 'month'>('week')
   const [monthOffset, setMonthOffset] = useState(0)
@@ -137,7 +140,7 @@ export default function Plan() {
   const addingDatesRef = useRef<Set<string>>(new Set())
   const addingSelectedRef = useRef(false)
   const { t, lang } = useLang()
-  const today = todayStr()
+  const today = useToday()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -146,7 +149,7 @@ export default function Plan() {
   )
 
   const load = useCallback(async () => {
-    const now = new Date()
+    const now = new Date(today + 'T00:00')
     const monday = new Date(now)
     monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7)
     const series = await activeRecurringSeries()
@@ -166,10 +169,10 @@ export default function Plan() {
     }
     setDays(views)
     setMonthGoals(await db.goals.filter((g) => g.type === 'month' && !g.deleted).toArray())
-  }, [weekOffset, lang])
+  }, [weekOffset, lang, today])
 
   const loadMonth = useCallback(async () => {
-    const base = new Date()
+    const base = new Date(today + 'T00:00')
     base.setDate(1)
     base.setMonth(base.getMonth() + monthOffset)
     const year = base.getFullYear()
@@ -233,7 +236,7 @@ export default function Plan() {
       })
     }
     setMonthCells(cells)
-  }, [monthOffset])
+  }, [monthOffset, today])
 
   const loadSelectedDay = useCallback(async () => {
     const tasks = (await db.tasks.where('due').equals(selectedDate).and((x) => !x.deleted).toArray()).sort(byOrder)

@@ -106,6 +106,7 @@ const en: Dict = {
   'taskstate.done': 'Done', 'taskstate.cancelled': 'Cancelled',
   // habit
   'habit.namePh': 'Habit name… e.g. “Drink water”', 'habit.icon': 'Icon',
+  'habit.week7': '{n} of the last 7 days',
   'habit.perDay': 'Times per day (water = 8, most habits = 1)',
   'habit.save': 'Save habit', 'habit.add': 'Add habit',
   'habit.deleteConfirm': 'Delete habit "{name}"? Its logged history stays saved.',
@@ -150,6 +151,7 @@ const en: Dict = {
   'search.tasks': 'Tasks', 'search.goals': 'Goals', 'search.sketches': 'Sketches', 'search.folders': 'Folders', 'search.habits': 'Habits', 'search.projects': 'Projects',
   // common
   'app.updateReady': 'A new version of Planner is ready.', 'app.refresh': 'Refresh',
+  'app.crash': 'This page couldn’t be shown', 'app.crashHint': 'Something on it went wrong. Your data is safe — try again, open another page, or reload the app.', 'app.retry': 'Try again', 'app.reload': 'Reload app',
   'set.version': 'Version', 'set.versionHint': 'Updates install automatically — new versions apply when you switch away from the app.',
   'set.updateWaiting': 'A newer version is downloaded and waiting.', 'set.updateNow': 'Update now',
   'common.close': 'Close', 'fv.download': 'Download', 'fv.loading': 'Opening…',
@@ -464,6 +466,7 @@ const zh: Dict = {
   'taskstate.open': '待办', 'taskstate.in_progress': '进行中',
   'taskstate.done': '已完成', 'taskstate.cancelled': '已取消',
   'habit.namePh': '习惯名称… 例如“喝水”', 'habit.icon': '图标',
+  'habit.week7': '最近 7 天完成 {n} 天',
   'habit.perDay': '每天次数（喝水 = 8，多数习惯 = 1）',
   'habit.save': '保存习惯', 'habit.add': '添加习惯',
   'habit.deleteConfirm': '删除习惯“{name}”？已记录的历史会保留。',
@@ -506,6 +509,7 @@ const zh: Dict = {
   'search.hint': '输入以搜索全部内容。', 'search.empty': '没有找到结果。',
   'search.tasks': '任务', 'search.goals': '目标', 'search.sketches': '手绘', 'search.folders': '文件夹', 'search.habits': '习惯', 'search.projects': '项目',
   'app.updateReady': 'Planner 新版本已就绪。', 'app.refresh': '刷新',
+  'app.crash': '此页面无法显示', 'app.crashHint': '页面出了点问题。你的数据是安全的——可以重试、打开其他页面，或重新加载应用。', 'app.retry': '重试', 'app.reload': '重新加载',
   'set.version': '版本', 'set.versionHint': '更新会自动安装 — 切换离开应用时生效。',
   'set.updateWaiting': '新版本已下载，等待生效。', 'set.updateNow': '立即更新',
   'common.close': '关闭', 'fv.download': '下载', 'fv.loading': '正在打开…',

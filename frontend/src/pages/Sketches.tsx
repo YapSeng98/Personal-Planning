@@ -264,7 +264,7 @@ export default function Sketches() {
             <div key={d.id} className={`card sketch-card ${d.pinned ? 'is-pinned' : ''}`}>
               <button type="button" className="sketch-thumb" onClick={() => navigate(`/sketches/${d.id}`)} aria-label={d.title || t('sketch.untitled')}>
                 {d.kind === 'text' ? (
-                  <div className="sketch-thumb-text" dangerouslySetInnerHTML={{ __html: toEditorHtml(d.text || '', d.format === 'html') }} />
+                  <div className="sketch-thumb-text" dangerouslySetInnerHTML={{ __html: toEditorHtml(d.text || '', d.format === 'html').replace(/<img(?![^>]*\balt=)/gi, '<img alt=""') }} />
                 ) : (
                   <img src={d.dataUrl} alt="" />
                 )}

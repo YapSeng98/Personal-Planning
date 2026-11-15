@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { NoteAttachment } from '../db/db'
 import { downloadAttachment, getFileBlob, formatBytes, NotUploadedError } from '../lib/files'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 import Icon from './Icon'
 
 type Kind = 'pdf' | 'image' | 'video' | 'audio' | 'text' | 'other'
@@ -29,6 +30,7 @@ const MAX_TEXT_CHARS = 500_000
     Excel…) can't be shown in a browser, so it offers the download. */
 export default function FileViewer({ a, onClose }: { a: NoteAttachment; onClose: () => void }) {
   const { t } = useLang()
+  useEscape(onClose)
   const kind = kindOf(a)
   const [url, setUrl] = useState('')
   const [text, setText] = useState('')
@@ -86,14 +88,9 @@ export default function FileViewer({ a, onClose }: { a: NoteAttachment; onClose:
   }, [a, kind])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
+    return () => { document.body.style.overflow = '' }
+  }, [])
 
   async function download() {
     try {

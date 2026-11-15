@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useEscape } from '../lib/escape'
 
 // Dark-themed dropdown replacing native <select>, whose OS-rendered option
 // list ignores the app theme (shows a bright white box). Expands inline so it
@@ -28,14 +29,10 @@ export default function Select({
     const onDoc = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
     document.addEventListener('mousedown', onDoc)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDoc)
-      document.removeEventListener('keydown', onKey)
-    }
+    return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
+  useEscape(() => setOpen(false), open)
 
   return (
     <div className={`sel ${open ? 'open' : ''}`} ref={ref}>

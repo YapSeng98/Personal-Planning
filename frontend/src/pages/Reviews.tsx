@@ -5,6 +5,7 @@ import { syncNow } from '../sync/engine'
 import { accountId } from '../sync/api'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 import AutoTextarea from '../components/AutoTextarea'
 import { shrinkImage } from '../lib/attach'
 import { storeFile, deleteStoredFiles, MAX_STORED_BYTES } from '../lib/files'
@@ -266,12 +267,7 @@ export default function Reviews() {
     return () => document.removeEventListener('paste', onPaste)
   }, [t])
 
-  useEffect(() => {
-    if (!viewing) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setViewing(null) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [viewing])
+  useEscape(() => setViewing(null), !!viewing)
 
   /** Open a period's review (from the calendar): today's daily review is
       just "today"; anything else is that date. Then back up to the form. */

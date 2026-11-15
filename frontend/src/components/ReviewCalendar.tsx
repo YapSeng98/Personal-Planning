@@ -123,7 +123,7 @@ export default function ReviewCalendar({ reviews, selected, onOpen }: {
         )}
       </div>
 
-      <div className="rcal-grid" role="grid" aria-label={monthLabel}>
+      <div className="rcal-grid" role="group" aria-label={monthLabel}>
         <span className="rcal-wh" />
         {weekdays.map((w, i) => <span key={i} className="rcal-wh">{w}</span>)}
         {weeks.map((w) => {

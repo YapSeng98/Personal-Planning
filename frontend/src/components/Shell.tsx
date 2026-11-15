@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation, useNavigationType } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { onSyncState, type SyncState } from '../sync/engine'
 import { useLang } from '../lib/i18n'
@@ -12,6 +12,7 @@ import { updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
 import { useRunningTimer, useElapsed, stopTimer, clock, type RunningTimer } from '../lib/timer'
 import { useFocus, openFocus, nextRound, endFocus, roundElapsed, remaining, type Focus } from '../lib/focus'
 import FocusMode from './FocusMode'
+import PageGuard from './PageGuard'
 import { reminderPrefs, reminderBody, type Reminder } from '../lib/reminders'
 
 const links: { to: string; key: string; ico: IconName }[] = [
@@ -185,7 +186,14 @@ export default function Shell() {
   // Phones: scrolling down, the floating tab bar shrinks to the page you're
   // on (as on iOS 26); scrolling up or tapping it brings it back.
   const [compact, setCompact] = useState(false)
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+  const navigate = useNavigate()
+  // the app icon's "New task" shortcut (manifest) arrives as ?add=1
+  useEffect(() => {
+    if (!new URLSearchParams(search).has('add')) return
+    setAdding(true)
+    navigate(pathname, { replace: true })
+  }, [search, pathname, navigate])
   useEffect(() => {
     let last = window.scrollY
     // only scrolling you do shrinks it — not the app putting a page back
@@ -254,7 +262,7 @@ export default function Shell() {
             <button type="button" className="btn btn-primary" onClick={applyUpdate}>{t('app.refresh')}</button>
           </div>
         )}
-        <Outlet />
+        <PageGuard page={pathname}><Outlet /></PageGuard>
       </main>
       <nav
         className={`nav-bottom ${compact ? 'compact' : ''}`}

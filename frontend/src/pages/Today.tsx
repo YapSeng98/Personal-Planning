@@ -22,6 +22,8 @@ import Icon from '../components/Icon'
 import { useLang, type TFn } from '../lib/i18n'
 import { stopTimer, useRunningTimer, useElapsed, clock, hm } from '../lib/timer'
 import { openFocus } from '../lib/focus'
+import { useToday } from '../lib/today'
+import { useEscape } from '../lib/escape'
 import { spentHours, minutesByDay, stepCount } from '../lib/items'
 import { moveTasksTo, fromDailyBrief } from '../lib/tasks'
 import PlanTomorrow from '../components/PlanTomorrow'
@@ -434,14 +436,10 @@ function QuickLaunch({ t }: { t: TFn }) {
   useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) close() }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
     document.addEventListener('mousedown', onDoc)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDoc)
-      document.removeEventListener('keydown', onKey)
-    }
+    return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
+  useEscape(close, open)
 
   useEffect(() => () => cancelClose(), [])
 
@@ -521,7 +519,7 @@ export default function Today() {
   const briefAuto = useRef(false)
   const { t, lang } = useLang()
   const navigate = useNavigate()
-  const today = todayStr()
+  const today = useToday()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -850,7 +848,7 @@ export default function Today() {
               <button className="hx-name" onClick={() => navigate(`/habits/${h.id}`)} title={t('habit.viewDetail')}>
                 {h.name}
               </button>
-              <div className="hx-week" aria-label={`${h.week.filter(Boolean).length} of the last 7 days`}>
+              <div className="hx-week" role="img" aria-label={t('habit.week7', { n: h.week.filter(Boolean).length })}>
                 {h.week.map((on, d) => (
                   <i key={d} className={`${on ? 'on' : ''} ${d === 6 ? 'today' : ''}`} />
                 ))}

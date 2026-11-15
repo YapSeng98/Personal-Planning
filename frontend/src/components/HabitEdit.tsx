@@ -3,6 +3,7 @@ import { db, uuid, writeAndQueue, patchAndQueue, cleanEmoji, type Habit } from '
 import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 
 const EMOJIS = ['💧', '🏃', '📖', '🧘', '💪', '😴', '🥗', '✍️', '🌿', '💊']
 
@@ -14,6 +15,7 @@ export default function HabitEdit({ habit, onClose }: { habit: Habit | null; onC
   const [target, setTarget] = useState(habit ? String(habit.targetPerDay) : '1')
   const [submitting, setSubmitting] = useState(false)
   const { t } = useLang()
+  useEscape(onClose)
 
   async function save() {
     if (!name.trim() || submitting) return

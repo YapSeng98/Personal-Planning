@@ -15,7 +15,7 @@
   --surface: #060818; --surface-2: #0D1030;
   --glass: rgba(120, 140, 255, 0.07); --glass-strong: rgba(130, 150, 255, 0.14);
   --hairline: rgba(140, 160, 255, 0.14);
-  --text-1: #EEF1FF; --text-2: #A8B0D8; --text-3: #737CA6;
+  --text-1: #EEF1FF; --text-2: #A8B0D8; --text-3: #8A92BC;
   --accent: #8B7CFF; --accent-bright: #A99BFF; --ok: #34D399; --danger: #FF6B8B; --amber: #FFC46B;
   --grad: linear-gradient(120deg, var(--neon-a), var(--neon-b) 55%, var(--neon-c));
   --on-grad: #FFFFFF;

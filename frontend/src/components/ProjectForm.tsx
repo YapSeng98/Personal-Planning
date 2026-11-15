@@ -4,6 +4,7 @@ import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import { PROJECT_COLORS, projectColorVar } from '../lib/projectColors'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 
 // Create/edit sheet for a Project — same sheet-backdrop/sheet markup as
 // TaskForm/Goals, so it fits the app's existing sheet styling for free.
@@ -22,6 +23,7 @@ export default function ProjectForm({
   const [color, setColor] = useState<ProjectColor>(project?.color ?? 'coral')
   const [submitting, setSubmitting] = useState(false)
   const { t } = useLang()
+  useEscape(onClose)
 
   async function save() {
     if (!title.trim() || submitting) return

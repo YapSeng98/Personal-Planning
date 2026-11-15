@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { onChanged } from '../db/db'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 import { clock, hm, runningTimer } from '../lib/timer'
 import {
   useFocus, useFocusOpen, minimiseFocus, pauseFocus, resumeFocus, nextRound, setPlan, endFocus, finishTask,
@@ -147,11 +148,11 @@ export default function FocusMode() {
   }, [cele])
 
   // Escape: minimise; Space: pause / carry on
+  useEscape(minimiseFocus, shown)
   useEffect(() => {
     if (!shown) return
     playRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); minimiseFocus() }
       const el = e.target as HTMLElement | null
       if (e.key === ' ' && !(el && /^(BUTTON|INPUT|TEXTAREA|SELECT|A)$/.test(el.tagName))) { e.preventDefault(); playRef.current?.click() }
     }
@@ -222,7 +223,7 @@ export default function FocusMode() {
             <div className="fm-clock num" role="timer" aria-live="off">{clock(Math.max(0, sec))}</div>
             <div className="fm-phase">{phaseLabel}</div>
             {pomodoro && (
-              <div className="fm-dots" aria-label={t('focus.eyebrow', { round: f.round, n: ROUNDS })}>
+              <div className="fm-dots" role="img" aria-label={t('focus.eyebrow', { round: f.round, n: ROUNDS })}>
                 {Array.from({ length: ROUNDS }, (_, i) => <i key={i} className={i < f.round ? 'on' : ''} />)}
               </div>
             )}

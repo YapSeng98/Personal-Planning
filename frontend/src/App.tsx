@@ -50,6 +50,11 @@ export default function App() {
     // Shrink oversized old images so they stop blocking the sync; push the
     // smaller copies right away if anything changed.
     compactImages().then((n) => { if (n) syncNow() }).catch(() => {})
+    // Ask the browser to keep this device's data when space runs low instead
+    // of clearing it — it can hold changes not sent yet. Chrome and Safari
+    // decide by themselves (an installed or often-used app gets it); none
+    // of them shows a prompt for it except Firefox, once.
+    navigator.storage?.persisted?.().then((kept) => kept || navigator.storage.persist()).catch(() => {})
   }, [])
 
   return (

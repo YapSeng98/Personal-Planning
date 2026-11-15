@@ -6,6 +6,7 @@ import { aiEnabled, askAI } from '../lib/ai'
 import HabitEdit from '../components/HabitEdit'
 import Icon from '../components/Icon'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 
 const DAY_ROW_LABELS = [1, 3, 5] // show Mon/Wed/Fri only, GitHub-style — reduces clutter
 
@@ -79,21 +80,17 @@ export default function HabitDetail() {
     function onDown(e: MouseEvent) {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) setPopover(null)
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setPopover(null)
-    }
     function onScroll() {
       setPopover(null)
     }
     document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
     window.addEventListener('scroll', onScroll, true)
     return () => {
       document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
       window.removeEventListener('scroll', onScroll, true)
     }
   }, [popover])
+  useEscape(() => setPopover(null), !!popover)
 
   const generateInsight = useCallback(async (force = false) => {
     if (!id || !habit || !stats || !aiEnabled()) return

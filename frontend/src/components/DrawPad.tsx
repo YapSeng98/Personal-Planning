@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 import Icon from './Icon'
 
 const COLORS = ['#1B1B1F', '#D6472E', '#C07508', '#059669', '#2563EB']
@@ -12,6 +13,7 @@ const WIDTHS = { pen: 4, eraser: 26 }
     seen, finger/palm touches are ignored. */
 export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: string, cssWidth: number) => void; onClose: () => void }) {
   const { t } = useLang()
+  useEscape(onClose)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [color, setColor] = useState(COLORS[0])
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen')
@@ -37,14 +39,9 @@ export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: str
   }, [])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
+    return () => { document.body.style.overflow = '' }
+  }, [])
 
   const pos = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const c = canvasRef.current!

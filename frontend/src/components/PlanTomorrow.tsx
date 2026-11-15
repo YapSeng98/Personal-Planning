@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { db, todayStr, addDays, uuid, OVERDUE_DAYS, isOpenOneOff, writeAndQueue, patchAndQueue, rollUpGoal, nextCompletedAt, byOrder, type Task, onChanged } from '../db/db'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 import { hm } from '../lib/timer'
 import { parseExtras, moveTasksTo } from '../lib/tasks'
 import Icon from './Icon'
@@ -37,11 +38,7 @@ export default function PlanTomorrow({ summary, onClose }: {
     return onChanged(load)
   }, [load])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useEscape(onClose)
 
   async function markDone(task: Task) {
     const saved = await patchAndQueue(db.tasks, 'task', task.id, { state: 'done', completedAt: nextCompletedAt(task.state, task.completedAt, 'done') })

@@ -101,7 +101,7 @@
 .task-row .title { flex: 1; font-size: 0.95rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .task-row .title.done { color: var(--text-3); text-decoration: line-through; }
 .task-row .when { font-size: 0.72rem; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.task-row .when.faint { opacity: 0.55; font-style: italic; }
+.task-row .when.faint { opacity: 0.85; font-style: italic; }
 .preview-row { opacity: 0.5; cursor: default; }
 .preview-row .drag-grip { visibility: hidden; }
 .preview-row .check {
@@ -583,7 +583,7 @@ textarea.field { background: var(--glass); border: 1px solid var(--hairline); bo
 }
 .rcal-day:hover:not(:disabled) { transform: translateY(-1px); background: color-mix(in srgb, var(--text-3) 17%, transparent); }
 .rcal-day.has, .rcal-day.has:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) calc(8% + var(--e) * 6%), transparent); color: var(--text-1); }
-.rcal-day.out { opacity: 0.38; }
+.rcal-day.out { opacity: 0.6; }
 .rcal-day:disabled { opacity: 0.22; cursor: default; }
 .rcal-day.today { border-color: var(--accent-bright); }
 .rcal-day.on { box-shadow: 0 0 0 2px var(--accent) inset; }
@@ -1030,7 +1030,7 @@ button.goal-card:hover { background: var(--glass-strong); }
 .tcard .tstar { color: var(--amber); font-size: 0.72rem; }
 .tcard .trecur { font-size: 0.72rem; }
 .tcard .ttime { font-size: 0.72rem; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.tcard .ttime.faint { opacity: 0.6; font-style: italic; }
+.tcard .ttime.faint { opacity: 0.85; font-style: italic; }
 
 /* ======================================================================
    Cross-screen polish — carries the elevated look to Plan / Goals /
@@ -1430,6 +1430,12 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
   margin: 0 0 1rem; padding: 0.6rem 0.7rem 0.6rem 1rem; border-radius: 14px; font-size: 0.86rem; font-weight: 600;
   background: var(--accent-wash); border: 1px solid color-mix(in srgb, var(--accent-bright) 35%, var(--hairline)); color: var(--text-1); }
 .update-bar .btn { padding: 0.35rem 0.9rem; font-size: 0.82rem; }
+/* a page that failed to draw (PageGuard) — the menu around it still works */
+.crash-card { margin: 1rem 0; display: grid; gap: 0.6rem; }
+.crash-card h2 { margin: 0; font-size: 1.1rem; }
+.crash-card p { margin: 0; }
+.crash-msg { font-size: 0.75rem; color: var(--text-3); overflow-wrap: anywhere; }
+.crash-card .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 /* signed out on this device: not syncing until signed in again */
 .update-bar.warn-bar { background: color-mix(in srgb, var(--danger) 14%, transparent); border-color: color-mix(in srgb, var(--danger) 45%, var(--hairline)); }
 .login-note { margin: 0 0 0.9rem; padding: 0.7rem 0.85rem; border-radius: 12px; font-size: 0.84rem; line-height: 1.45; text-align: left;

@@ -5,6 +5,7 @@ import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 
 const ORDER: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
 const STATUSES = ['not_started', 'in_progress', 'at_risk', 'completed', 'abandoned'] as const
@@ -29,6 +30,7 @@ export default function Goals() {
   const [submitting, setSubmitting] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const { t } = useLang()
+  useEscape(() => setOpen(false), open)
 
   const load = useCallback(async () => {
     setGoals(await db.goals.filter((g) => !g.deleted).toArray())

@@ -6,6 +6,7 @@ import Select from './Select'
 import AutoTextarea from './AutoTextarea'
 import Checklist from './Checklist'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 import { hm } from '../lib/timer'
 import { live, spentHours, clearFocus, type CheckItem } from '../lib/items'
 import { parseExtras, fromDailyBrief, DAILY_BRIEF_URL } from '../lib/tasks'
@@ -79,6 +80,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [aiParsing, setAiParsing] = useState(false)
   const [aiParseErr, setAiParseErr] = useState('')
   const { t, lang } = useLang()
+  useEscape(onClose)
 
   // A reminder N days before due never fires if that day has already
   // passed — cap how far back it can be set to what's actually left between
@@ -288,7 +290,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
             <div className="f">
               <label className="fl">{t('task.due')}</label>
               <div className={`date-wrap ${due ? '' : 'no-val'}`} data-ph={t('task.tapToSet')}>
-                <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+                <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label={t('task.due')} />
               </div>
               <div className="quick-dates" role="group" aria-label={t('task.due')}>
                 {([['task.today', todayStr()], ['task.tomorrow', todayStr(new Date(Date.now() + 86400_000))], ['task.nextWeek', nextMonday(todayStr())]] as const).map(([key, d]) => (

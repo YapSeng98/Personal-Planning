@@ -4,6 +4,7 @@ import { db, cleanEmoji, OPEN_PROJECT, type Task, type Goal, type SketchFolder, 
 import { noteText } from '../lib/noteHtml'
 import { compareNames } from '../lib/folders'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 import Icon from './Icon'
 
 const RESULT_CAP = 6
@@ -46,13 +47,7 @@ export default function SearchModal({ onClose, onOpenTask }: Props) {
     inputRef.current?.focus()
   }, [])
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useEscape(onClose)
 
   const q = query.trim().toLowerCase()
   const matchTasks = q

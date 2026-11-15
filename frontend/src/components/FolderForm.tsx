@@ -3,6 +3,7 @@ import { db, uuid, writeAndQueue, patchAndQueue, type SketchFolder } from '../db
 import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import { useLang } from '../lib/i18n'
+import { useEscape } from '../lib/escape'
 import { folderOptions } from '../lib/folders'
 import Select from './Select'
 
@@ -31,6 +32,7 @@ export default function FolderForm({
   }, [])
   const [submitting, setSubmitting] = useState(false)
   const { t } = useLang()
+  useEscape(onClose)
 
   async function save() {
     if (!name.trim() || submitting) return
