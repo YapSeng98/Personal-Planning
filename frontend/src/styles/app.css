@@ -2171,6 +2171,9 @@ button.preview-row:hover .title { color: var(--accent-bright); }
   box-shadow: 0 28px 70px -20px rgba(0, 0, 0, 0.6), var(--shadow-float);
 }
 .appwin.full { inset: 12px; }
+/* full screen: the page under the window isn't drawn (AppWindow); what opens
+   on top of it — a new task, search, focus mode — still shows */
+:root[data-appwin-full] .shell > :not(.appwin):not(.sheet-backdrop):not(.search-backdrop):not(.focus-mode) { visibility: hidden; }
 .appwin.min { display: none; }
 .appwin-bar {
   display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;

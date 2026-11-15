@@ -139,6 +139,16 @@ export default function AppWindow() {
     tabsRef.current?.querySelector('.appwin-tab.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [active, apps.length])
 
+  // Full screen, the page under the window can't be seen, so it isn't drawn
+  // (app.css, :root[data-appwin-full]): its glass, clock and stars kept the
+  // graphics chip ~80% busy with an app open (Love Points: 3.2 s of GPU work
+  // per 4 s → 1.6 s), and on a Mac every app inside jumped and half-drew.
+  const covering = apps.length > 0 && !minimised && size === 'full'
+  useEffect(() => {
+    document.documentElement.toggleAttribute('data-appwin-full', covering)
+    return () => document.documentElement.removeAttribute('data-appwin-full')
+  }, [covering])
+
   if (!apps.length) return null
   const current = apps.find((a) => a.url === active) ?? apps[0]
   const floating = !phone && size === 'small'
