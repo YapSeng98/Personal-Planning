@@ -6,6 +6,39 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-11-15
+
+From a check of the whole app (accessibility scan of every screen, behaviour
+tests, dependency audit):
+
+- **Today turns over at midnight.** With the app left open overnight (a
+  laptop window, or a phone that kept it in the background), Today and Plan
+  kept showing yesterday until you reloaded. Now they switch to the new day
+  at midnight, and when you come back to the app on a new day.
+- **Esc closes things** (on a computer): any open sheet — a task, habit,
+  goal, project, folder, a repeat's preview — one layer at a time: an open
+  dropdown first, then the sheet under it. Typing Chinese is safe: the Esc
+  that closes the pinyin box doesn't close anything else.
+- **One broken page no longer blanks the app.** If a page ever fails to
+  draw (odd data, a bug), it shows "This page couldn't be shown" with Try
+  again / Reload — the menu keeps working and your data is untouched.
+  Before, the whole app went blank.
+- **Keeps your offline data.** The app now asks the browser to keep its data
+  instead of clearing it when the device runs low on space — it can hold
+  changes that haven't synced yet.
+- **Easier to read.** The dim grey text (times, "anytime", small labels,
+  other months' days in the review calendar) is a little brighter in Cosmic
+  and both Liquid looks — some of it was hard to read (as low as 2.2:1
+  contrast, now 4.5:1 or more). Screen-reader labels for the due date, the
+  habit week dots and the focus rounds.
+- **Proper home-screen icons**: PNG icons for iPhone and a full-size one for
+  Android (no white circle around it), and the splash screen in Cosmic's
+  night colour. Long-press the app icon (Android) or right-click it
+  (Windows / Mac) for **New task**, **Plan** and **Sketches**.
+- Security updates for the app's libraries (no known issues left in what
+  runs on your devices).
+  ([61b22fa](https://github.com/YapSeng98/Personal-Planning/commit/61b22fa))
+
 ## 2026-11-12
 
 - **Sort a folder by name.** Sketches has a new Sort switch — Recent /
