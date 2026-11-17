@@ -6,6 +6,21 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-11-18
+
+- **New theme: Galaxy, meteors, and a sky that keeps moving.** Galaxy
+  (Settings → Background), from your Andromeda photo: a spiral galaxy seen
+  at a slant, slowly turning, with a warm glowing core, blue arms, dark
+  dust lanes and two small companion galaxies, on a deep sky full of stars.
+  Starlight blue, lavender and gold replace the neon. **Meteors** now streak
+  across Nebula, Galaxy and Moon now and then (about one every 9 seconds).
+  The sky also **keeps moving when you leave the app alone** or switch to
+  another window. It used to stop. Now it moves at a gentler 15 steps a
+  second, so it uses about half the graphics power of when you're using
+  the app. When the app is hidden or the phone is locked, nothing is
+  drawn. If your device asks for less motion, nothing moves.
+  ([9e09df7](https://github.com/YapSeng98/Personal-Planning/commit/9e09df7))
+
 ## 2026-11-17
 
 - **The sky moves, and a new Moon theme.** In Nebula the moons now really
