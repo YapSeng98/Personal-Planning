@@ -8,6 +8,18 @@ those.
 
 ## 2026-11-17
 
+- **The sky moves, and a new Moon theme.** In Nebula the moons now really
+  orbit the planet, passing behind it and in front of it; its weather
+  slowly turns, stars twinkle, the beam of light breathes, and an
+  **astronaut** floats by in zero gravity while **asteroids** drift across
+  at different depths. Move the mouse and the sky sways with it, and the
+  card under the pointer leans toward it in 3D with a shine. The clock's
+  digits have depth, and the AI orbs swirl. New theme **Moon** (Settings →
+  Background): pure black with a big white moon slowly turning, white
+  stars, silver and white light — the same astronaut and asteroids. Light
+  on the graphics chip: it all pauses when you leave the app alone, and
+  stays still if your device asks for less motion.
+  ([e1debb4](https://github.com/YapSeng98/Personal-Planning/commit/e1debb4))
 - **New look: Nebula** — the "cinematic cosmos" you picked from the 3D
   previews, now on every device. Everything Cosmic had, plus a richer
   nebula (pink, blue and cyan clouds) with a soft beam of light and fine

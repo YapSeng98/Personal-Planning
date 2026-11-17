@@ -211,7 +211,21 @@ the "Sunrise" identity. Two layers:
   other looks), the chrome clock (gradient text: digits only), an AI orb on
   the briefing / Ask button, `.tcard.mit`'s lit edge (needs a deep padding-box
   base under the glass, or the edge gradient tints the whole card), glowing
-  ticks. Same GPU cost as Cosmic (measured). Keep it still: no endless motion.
+  ticks. Same GPU cost as Cosmic (measured).
+- `frontend/src/styles/lunar.css` — the **Moon** look (`lunar`, since
+  2026-11-17, the owner's "black colour and white moon"): Cosmic plus
+  `:root[data-lunar]` the same way — pure black, white stars, silver/white
+  in place of neon (data marks white + green), the white moon in the sky.
+- `frontend/src/styles/sky.css` + Shell's `.sky` + `lib/sky.ts` — the moving
+  sky shared by Nebula and Moon: twinkling star layers, Nebula's beam and
+  planet (weather turning, three moons in real 3D orbit — `preserve-3d`, the
+  ring and moons pass behind the planet and in front; never put opacity,
+  filter or overflow on those containers or the 3D flattens), Moon's turning
+  moon, an astronaut and asteroids drifting with depth (scale), swirling AI
+  orbs, and (sky.ts, mouse only) parallax plus a 3D lean + shine on the card
+  under the pointer — never on cards that drag (task/board cards, Plan's
+  days: dnd-kit measures them). Only transform/opacity animate, no filters on
+  moving things; everything pauses at rest and with reduced motion.
 - `frontend/src/styles/focus.css` — focus mode's full-screen deep-space
   timer: its own always-dark look in every theme (not scoped to Cosmic).
 - **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `nebula` is
