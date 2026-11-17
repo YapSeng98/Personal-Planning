@@ -232,8 +232,46 @@ export default function Shell() {
   return (
     <VideoProvider>
     <div className="shell">
-      {/* Nebula's planet (nebula.css): a still layer behind the glass, hidden in the other looks */}
-      <div className="nebula" aria-hidden><div className="nb-halo" /><div className="nb-ring back" /><div className="nb-planet" /><div className="nb-ring front"><b className="nb-moon m1" /><b className="nb-moon m2" /><b className="nb-moon m3" /></div></div>
+      {/* the sky behind the glass in Nebula (a ringed planet, moons in orbit)
+          and Moon (a white moon) — sky.css; hidden in the other looks */}
+      <div className="sky" aria-hidden>
+        <div className="sky-stars s1" /><div className="sky-stars s2" /><div className="sky-beam" />
+        <i className="sky-rock k1" /><i className="sky-rock k2" /><i className="sky-rock k3" /><i className="sky-rock k4" /><i className="sky-rock k5" />
+        <div className="sky-astro"><div className="sky-astro-spin">
+          <svg viewBox="0 0 120 150" width="100%" height="100%">
+            <defs>
+              <linearGradient id="as-suit" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset="0.6" stopColor="#dfe3ec" /><stop offset="1" stopColor="#9aa1b3" /></linearGradient>
+              <radialGradient id="as-visor" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stopColor="#5b6cff" /><stop offset="0.45" stopColor="#1a1f4d" /><stop offset="1" stopColor="#05060f" /></radialGradient>
+            </defs>
+            <rect x="30" y="54" width="60" height="58" rx="16" fill="#b9bfcc" />
+            <rect x="18" y="66" width="18" height="40" rx="9" fill="url(#as-suit)" transform="rotate(28 27 70)" />
+            <rect x="84" y="62" width="18" height="40" rx="9" fill="url(#as-suit)" transform="rotate(-38 93 66)" />
+            <rect x="38" y="104" width="18" height="38" rx="9" fill="url(#as-suit)" transform="rotate(10 47 108)" />
+            <rect x="64" y="104" width="18" height="38" rx="9" fill="url(#as-suit)" transform="rotate(-14 73 108)" />
+            <rect x="34" y="58" width="52" height="56" rx="18" fill="url(#as-suit)" />
+            <rect x="46" y="74" width="28" height="16" rx="4" fill="#cfd5e2" />
+            <circle cx="53" cy="82" r="2.6" fill="#3fd6ff" /><circle cx="61" cy="82" r="2.6" fill="#ff5fd2" /><circle cx="69" cy="82" r="2.6" fill="#7ef0b4" />
+            <circle cx="60" cy="40" r="30" fill="url(#as-suit)" />
+            <ellipse cx="60" cy="42" rx="22" ry="18" fill="url(#as-visor)" />
+            <ellipse cx="51" cy="35" rx="8" ry="4.5" fill="#ffffff" opacity="0.55" transform="rotate(-24 51 35)" />
+            <circle cx="70" cy="49" r="2" fill="#ffffff" opacity="0.4" />
+          </svg>
+        </div></div>
+        <div className="sky-scene"><div className="sky-rise">
+          <div className="nb-halo" />
+          <div className="nb-sys">
+            <div className="nb-planet" />
+            <div className="nb-orbit">
+              <div className="nb-ring" />
+              <div className="nb-spin o1"><b className="nb-moon o1" /></div>
+              <div className="nb-spin o2"><b className="nb-moon o2" /></div>
+              <div className="nb-spin o3"><b className="nb-moon o3" /></div>
+            </div>
+          </div>
+          <div className="lu-halo" />
+          <div className="lu-moon"><i className="lu-craters" /></div>
+        </div></div>
+      </div>
       <nav className="nav-rail" aria-label="Main">
         <div className="nav-rail-top">
           <div className="brand grad-text">{t('brand')}</div>

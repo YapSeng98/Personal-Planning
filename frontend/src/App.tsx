@@ -23,6 +23,7 @@ import { startReminderLoop } from './lib/reminders'
 import { startFocusLoop } from './lib/focus'
 import { startRestMode } from './lib/rest'
 import { startBinCleanup } from './lib/bin'
+import { startSkyMotion } from './lib/sky'
 
 function Guard({ children }: { children: React.ReactNode }) {
   if (isAuthed()) return <>{children}</>
@@ -50,6 +51,7 @@ export default function App() {
     startFocusLoop()
     startRestMode()
     startBinCleanup()
+    startSkyMotion()
     // Shrink oversized old images so they stop blocking the sync; push the
     // smaller copies right away if anything changed.
     compactImages().then((n) => { if (n) syncNow() }).catch(() => {})

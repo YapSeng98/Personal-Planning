@@ -1,0 +1,179 @@
+/* ======================================================================
+   The sky behind the glass (Shell's .sky) in the Nebula and Moon looks:
+   twinkling stars, Nebula's ringed planet with moons in real 3D orbit
+   (passing behind it and in front), Moon's white moon slowly turning.
+   lib/sky.ts moves the scene a little with the mouse.
+
+   Motion rules (CLAUDE.md → Performance): only transform and opacity on HTML
+   elements, no filters or blend modes on anything that moves; every endless
+   animation here pauses at rest (glass.css, :root[data-rest]); none with
+   prefers-reduced-motion.
+   ====================================================================== */
+
+.sky { display: none; }
+:root[data-nebula] .sky, :root[data-lunar] .sky { display: block; }
+.sky-stars, .sky-beam, .sky-scene { position: fixed; z-index: -1; pointer-events: none; }
+
+/* stars that twinkle — two layers fading in turn over the still ones */
+.sky-stars { inset: -30px; will-change: opacity; }
+.sky-stars.s1 { background: radial-gradient(1.6px 1.6px at 47px 83px, #fff, transparent 70%) 0 0 / 263px 263px,
+  radial-gradient(1.2px 1.2px at 190px 30px, rgba(220, 230, 255, 0.95), transparent 70%) 0 0 / 263px 263px;
+  animation: sky-twinkle 6.5s ease-in-out infinite alternate; }
+.sky-stars.s2 { background: radial-gradient(2px 2px at 120px 210px, #fff, transparent 70%) 0 0 / 409px 409px,
+  radial-gradient(1.3px 1.3px at 330px 90px, rgba(255, 235, 250, 0.95), transparent 70%) 0 0 / 409px 409px;
+  animation: sky-twinkle 8s ease-in-out -4s infinite alternate; }
+@keyframes sky-twinkle { from { opacity: 0.2; } to { opacity: 1; } }
+
+/* Nebula's beam of light, breathing (soft edges in the gradient — no blur filter) */
+.sky-beam { display: none; }
+:root[data-nebula] .sky-beam { display: block; left: 52vw; top: -25vh; width: 26vw; height: 150vh; transform: rotate(22deg);
+  background: linear-gradient(90deg, transparent, rgba(190, 220, 255, 0.07) 35%, rgba(230, 240, 255, 0.11) 50%, rgba(190, 220, 255, 0.07) 65%, transparent);
+  animation: sky-breathe 9s ease-in-out infinite alternate; will-change: opacity; }
+@keyframes sky-breathe { from { opacity: 0.45; } to { opacity: 1; } }
+
+/* the scene: top right; it rises into view once, then lib/sky.ts sways it */
+.sky-scene { --P: 30vmax; right: -5vmax; top: 7vh; width: var(--P); height: var(--P); perspective: 80vmax; will-change: transform; transition: transform 600ms cubic-bezier(.2, .7, .2, 1); }
+.sky-rise { position: absolute; inset: 0; transform-style: preserve-3d; animation: sky-rise 1.8s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes sky-rise { from { opacity: 0; transform: translateY(8vh) scale(0.92); } to { opacity: 1; transform: none; } }
+@media (max-width: 639px) {
+  /* phones: smaller, tucked into the top corner behind the header */
+  .sky-scene { --P: 26vmax; right: -14vmax; top: 2vh; }
+}
+
+/* ---- Nebula: the planet, its ring, three moons in orbit ---- */
+.nb-halo, .nb-sys { display: none; }
+:root[data-nebula] .nb-halo, :root[data-nebula] .nb-sys { display: block; }
+.nb-halo { position: absolute; inset: -14%; border-radius: 50%; background: radial-gradient(closest-side, rgba(120, 170, 255, 0.4), rgba(255, 90, 190, 0.14) 70%, transparent); }
+.nb-sys { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateZ(-14deg); }
+.nb-planet {
+  position: absolute; inset: 0; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 30% 28%, #ffe3f6 0%, #c58cff 14%, #5b5ff0 34%, #1b2a8a 56%, #070a2e 78%, #02030b 100%);
+  box-shadow: 0 0 6vmax rgba(150, 120, 255, 0.5);
+}
+/* its weather turning slowly: a strip twice its width, gliding by (the spots repeat at +50%) */
+.nb-planet::before { content: ''; position: absolute; top: -5%; bottom: -5%; left: 0; width: 200%;
+  background:
+    radial-gradient(ellipse 7% 5% at 18% 38%, rgba(255, 230, 255, 0.35), transparent 70%),
+    radial-gradient(ellipse 7% 5% at 68% 38%, rgba(255, 230, 255, 0.35), transparent 70%),
+    radial-gradient(ellipse 9% 4% at 34% 64%, rgba(20, 0, 60, 0.45), transparent 70%),
+    radial-gradient(ellipse 9% 4% at 84% 64%, rgba(20, 0, 60, 0.45), transparent 70%),
+    radial-gradient(ellipse 5% 3% at 44% 24%, rgba(255, 255, 255, 0.22), transparent 70%),
+    radial-gradient(ellipse 5% 3% at 94% 24%, rgba(255, 255, 255, 0.22), transparent 70%),
+    repeating-linear-gradient(180deg, transparent 0 7%, rgba(255, 220, 255, 0.10) 7% 9%, transparent 9% 14%, rgba(20, 0, 60, 0.22) 14% 17%);
+  animation: nb-weather 140s linear infinite; will-change: transform; }
+@keyframes nb-weather { to { transform: translateX(-50%); } }
+/* night side and lit rim, over the moving weather */
+.nb-planet::after { content: ''; position: absolute; inset: 0; border-radius: 50%;
+  box-shadow: inset -6vmax -4.5vmax 9vmax rgba(0, 0, 0, 0.9), inset 1.6vmax 1.2vmax 3.4vmax rgba(255, 200, 255, 0.35), inset 0.5vmax 0.3vmax 0.6vmax rgba(120, 255, 230, 0.35); }
+/* the orbit plane, tilted away; its ring passes behind the planet and in front */
+.nb-orbit { position: absolute; left: -40%; top: -40%; width: 180%; height: 180%; transform-style: preserve-3d; transform: rotateX(76deg); }
+.nb-ring { position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(closest-side, transparent 74%, rgba(255, 210, 240, 0.5) 77%, rgba(150, 200, 255, 0.68) 84%, rgba(255, 255, 255, 0.22) 91%, transparent 96%); }
+.nb-spin { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; animation: nb-spin var(--t) linear var(--d) infinite; }
+.nb-moon { position: absolute; left: calc(var(--s) / -2); top: calc(var(--s) / -2); width: var(--s); height: var(--s); border-radius: 50%;
+  animation: nb-face var(--t) linear var(--d) infinite; }
+/* each moon turns to face you as it goes round */
+@keyframes nb-spin { to { transform: rotateZ(360deg); } }
+@keyframes nb-face { from { transform: translateX(var(--r)) rotateZ(0deg) rotateX(-76deg); } to { transform: translateX(var(--r)) rotateZ(-360deg) rotateX(-76deg); } }
+.o1 { --t: 34s; --d: -4s; --r: calc(var(--P) * 0.7); --s: calc(var(--P) * 0.075); }
+.o2 { --t: 52s; --d: -30s; --r: calc(var(--P) * 0.8); --s: calc(var(--P) * 0.09); }
+.o3 { --t: 76s; --d: -55s; --r: calc(var(--P) * 0.94); --s: calc(var(--P) * 0.06); }
+.nb-moon.o1 { background: radial-gradient(circle at 35% 30%, #fff, #8fe9ff 45%, #1b6a8a); box-shadow: 0 0 1.6vmax rgba(143, 233, 255, 0.85); }
+.nb-moon.o2 { background: radial-gradient(circle at 35% 30%, #fff, #7ef0b4 45%, #1a7a4c); box-shadow: 0 0 1.8vmax rgba(126, 240, 180, 0.85); }
+.nb-moon.o3 { background: radial-gradient(circle at 35% 30%, #fff, #d8b4ff 45%, #5a3a9a); box-shadow: 0 0 1.2vmax rgba(216, 180, 255, 0.8); }
+
+/* ---- Moon: a white moon, slowly turning, glowing ---- */
+.lu-halo, .lu-moon { display: none; }
+:root[data-lunar] .lu-halo, :root[data-lunar] .lu-moon { display: block; }
+.lu-halo { position: absolute; inset: -30%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.07) 55%, transparent); }
+.lu-moon { position: absolute; inset: 6%; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 40% 36%, #ffffff 0%, #f1f1f4 28%, #d9d9de 52%, #b4b4bb 76%, #8c8c95 100%);
+  box-shadow: 0 0 5vmax rgba(255, 255, 255, 0.35), 0 0 14vmax rgba(255, 255, 255, 0.10);
+  animation: lu-float 14s ease-in-out infinite alternate; }
+@keyframes lu-float { from { transform: translateY(-0.6vmax); } to { transform: translateY(0.6vmax); } }
+/* its seas and craters on a strip twice its width, turning by (repeated at +50%) */
+.lu-craters { position: absolute; top: 0; bottom: 0; left: 0; width: 200%;
+  background:
+    radial-gradient(ellipse 11% 13% at 16% 40%, rgba(140, 140, 150, 0.42), transparent 70%),
+    radial-gradient(ellipse 11% 13% at 66% 40%, rgba(140, 140, 150, 0.42), transparent 70%),
+    radial-gradient(ellipse 8% 9% at 28% 62%, rgba(150, 150, 160, 0.38), transparent 70%),
+    radial-gradient(ellipse 8% 9% at 78% 62%, rgba(150, 150, 160, 0.38), transparent 70%),
+    radial-gradient(ellipse 6% 7% at 36% 30%, rgba(160, 160, 170, 0.32), transparent 70%),
+    radial-gradient(ellipse 6% 7% at 86% 30%, rgba(160, 160, 170, 0.32), transparent 70%),
+    radial-gradient(circle at 9% 70%, rgba(120, 120, 130, 0.5) 0 1.6%, rgba(255, 255, 255, 0.5) 2%, transparent 2.6%),
+    radial-gradient(circle at 59% 70%, rgba(120, 120, 130, 0.5) 0 1.6%, rgba(255, 255, 255, 0.5) 2%, transparent 2.6%),
+    radial-gradient(circle at 22% 22%, rgba(120, 120, 130, 0.45) 0 1.1%, rgba(255, 255, 255, 0.45) 1.5%, transparent 2%),
+    radial-gradient(circle at 72% 22%, rgba(120, 120, 130, 0.45) 0 1.1%, rgba(255, 255, 255, 0.45) 1.5%, transparent 2%),
+    radial-gradient(circle at 41% 80%, rgba(120, 120, 130, 0.4) 0 0.9%, rgba(255, 255, 255, 0.4) 1.2%, transparent 1.6%),
+    radial-gradient(circle at 91% 80%, rgba(120, 120, 130, 0.4) 0 0.9%, rgba(255, 255, 255, 0.4) 1.2%, transparent 1.6%),
+    radial-gradient(circle at 46% 50%, rgba(130, 130, 140, 0.35) 0 0.7%, transparent 1.2%),
+    radial-gradient(circle at 96% 50%, rgba(130, 130, 140, 0.35) 0 0.7%, transparent 1.2%);
+  animation: lu-turn 220s linear infinite; will-change: transform; }
+@keyframes lu-turn { to { transform: translateX(-50%); } }
+/* the round edge darkening, over the turning surface */
+.lu-moon::after { content: ''; position: absolute; inset: 0; border-radius: 50%;
+  box-shadow: inset -2.2vmax -1.6vmax 4.4vmax rgba(0, 0, 0, 0.42), inset 0.7vmax 0.6vmax 1.8vmax rgba(255, 255, 255, 0.55); }
+
+/* the AI orbs swirl (nebula.css / lunar.css draw them) */
+@keyframes sky-orb { to { transform: rotate(360deg); } }
+/* cards lean toward the mouse in 3D, a shine following it (lib/sky.ts sets
+   the transform and --mx / --my on the one card under the pointer) */
+:root[data-nebula] .sky-tilt, :root[data-lunar] .sky-tilt { position: relative; transition: transform 260ms cubic-bezier(.2, .7, .2, 1), box-shadow 260ms; }
+:root[data-nebula] .sky-tilt.tilting { box-shadow: 0 28px 50px -22px rgba(0, 0, 0, 0.9), 0 0 40px -16px rgba(170, 150, 255, 0.5); }
+:root[data-lunar] .sky-tilt.tilting { box-shadow: 0 28px 50px -22px rgba(0, 0, 0, 0.95), 0 0 40px -16px rgba(255, 255, 255, 0.28); }
+/* (not a finished habit tile: its ::after is the little done dot) */
+:root[data-nebula] .sky-tilt.tilting:not(.done)::after, :root[data-lunar] .sky-tilt.tilting:not(.done)::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.13), transparent 45%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sky *, .sky-stars, .sky-beam, .sky-scene { animation: none !important; transition: none !important; }
+  :root[data-nebula] .ask-go::before, :root[data-lunar] .ask-go::before, :root[data-nebula] .hero-brief .bl::before, :root[data-lunar] .hero-brief .bl::before { animation: none !important; }
+}
+
+/* ---- drifting space rocks: different sizes, speeds and depths ---- */
+.sky-rock { position: fixed; z-index: -1; pointer-events: none; display: block; left: 0; top: 0;
+  width: var(--w); height: calc(var(--w) * 0.82);
+  border-radius: 43% 57% 38% 62% / 52% 41% 59% 48%;
+  background:
+    radial-gradient(circle at 62% 58%, rgba(0, 0, 0, 0.35) 0 9%, transparent 12%),
+    radial-gradient(circle at 34% 66%, rgba(0, 0, 0, 0.3) 0 6%, transparent 9%),
+    radial-gradient(circle at 30% 28%, #a99e94 0%, #6e665f 48%, #2b2724 100%);
+  box-shadow: inset calc(var(--w) * -0.14) calc(var(--w) * -0.12) calc(var(--w) * 0.24) rgba(0, 0, 0, 0.65), inset calc(var(--w) * 0.06) calc(var(--w) * 0.05) calc(var(--w) * 0.1) rgba(255, 255, 255, 0.18);
+  animation: var(--path) var(--t) linear var(--d) infinite; will-change: transform; }
+.sky-rock.k1 { --w: 46px; --t: 95s; --d: -20s; --path: rock-a; }
+.sky-rock.k2 { --w: 22px; --t: 70s; --d: -50s; --path: rock-b; border-radius: 58% 42% 61% 39% / 44% 57% 43% 56%; }
+.sky-rock.k3 { --w: 30px; --t: 120s; --d: -80s; --path: rock-c; border-radius: 38% 62% 47% 53% / 61% 39% 61% 39%; }
+.sky-rock.k4 { --w: 14px; --t: 60s; --d: -10s; --path: rock-b; opacity: 0.8; }
+.sky-rock.k5 { --w: 64px; --t: 160s; --d: -100s; --path: rock-d; opacity: 0.9; }
+/* each comes toward you and goes away again as it crosses (scale = depth) */
+@keyframes rock-a { 0% { transform: translate(-12vw, 70vh) rotate(0deg) scale(0.6); } 50% { transform: translate(50vw, 44vh) rotate(210deg) scale(1.35); } 100% { transform: translate(112vw, 18vh) rotate(420deg) scale(0.7); } }
+@keyframes rock-b { 0% { transform: translate(105vw, 82vh) rotate(0deg) scale(1.2); } 50% { transform: translate(48vw, 56vh) rotate(-300deg) scale(0.65); } 100% { transform: translate(-10vw, 30vh) rotate(-600deg) scale(1.1); } }
+@keyframes rock-c { 0% { transform: translate(30vw, -10vh) rotate(0deg) scale(0.5); } 50% { transform: translate(60vw, 50vh) rotate(150deg) scale(1.15); } 100% { transform: translate(90vw, 110vh) rotate(300deg) scale(1.6); } }
+@keyframes rock-d { 0% { transform: translate(-15vw, 12vh) rotate(0deg) scale(0.8); } 50% { transform: translate(50vw, 36vh) rotate(-130deg) scale(0.55); } 100% { transform: translate(115vw, 58vh) rotate(-260deg) scale(0.9); } }
+:root[data-lunar] .sky-rock { background:
+    radial-gradient(circle at 62% 58%, rgba(0, 0, 0, 0.35) 0 9%, transparent 12%),
+    radial-gradient(circle at 34% 66%, rgba(0, 0, 0, 0.3) 0 6%, transparent 9%),
+    radial-gradient(circle at 30% 28%, #b8b8be 0%, #6f6f76 48%, #26262a 100%); }
+
+/* ---- an astronaut floating in zero gravity: a slow drift, a slow tumble ---- */
+.sky-astro { position: fixed; z-index: -1; pointer-events: none; left: 0; top: 0; width: 92px; height: 115px;
+  animation: astro-drift 70s ease-in-out infinite alternate; will-change: transform; }
+.sky-astro-spin { width: 100%; height: 100%; animation: astro-tumble 38s linear infinite; will-change: transform; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(160, 190, 255, 0.22), transparent 75%); }
+/* drifting nearer and farther (scale = depth) */
+/* (on a laptop's Today, through the open space between the habits and the overview) */
+@keyframes astro-drift {
+  0% { transform: translate(66vw, 43vh) scale(0.75); }
+  35% { transform: translate(79vw, 40vh) scale(1.15); }
+  70% { transform: translate(72vw, 46vh) scale(0.9); }
+  100% { transform: translate(84vw, 44vh) scale(1.25); } }
+@keyframes astro-tumble { from { transform: rotate(-18deg); } to { transform: rotate(342deg); } }
+@media (max-width: 639px) {
+  .sky-astro { width: 58px; height: 72px; }
+  @keyframes astro-drift { 0% { transform: translate(62vw, 58vh) scale(0.75); } 50% { transform: translate(74vw, 40vh) scale(1.2); } 100% { transform: translate(58vw, 30vh) scale(0.9); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky-rock, .sky-astro, .sky-astro-spin { animation: none !important; }
+  .sky-rock { transform: translate(80vw, 70vh); }
+  .sky-astro { transform: translate(76vw, 52vh); }
+}

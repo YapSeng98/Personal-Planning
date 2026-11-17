@@ -1,0 +1,109 @@
+/* ======================================================================
+   Moon (2026-11-17, the owner's ask: "black colour and white moon") — pure
+   black, a white moon (sky.css), white stars, silver and white light where
+   Cosmic has neon. It runs as data-bg='cosmic' plus data-lunar (lib/bg.ts),
+   so it keeps Cosmic's shapes and type and only changes colour here.
+   Data marks: white (--accent) + green (--ok) — far apart in lightness.
+   ====================================================================== */
+
+:root[data-lunar] {
+  --neon-a: #FFFFFF; --neon-b: #C9CCD6; --neon-c: #8E93A3;
+  --surface: #000000; --surface-2: #0B0B0E;
+  --glass: rgba(255, 255, 255, 0.05); --glass-strong: rgba(255, 255, 255, 0.10);
+  --hairline: rgba(255, 255, 255, 0.12);
+  --text-1: #F4F4F6; --text-2: #B9BBC4; --text-3: #8E919B;
+  --accent: #E8E9EE; --accent-bright: #FFFFFF; --ok: #4ADE80; --danger: #FF6B6B; --amber: #FFD27A;
+  --grad: linear-gradient(120deg, #FFFFFF, #C9CCD6 55%, #8E93A3);
+  --on-grad: #0A0A0C;
+  --accent-wash: rgba(255, 255, 255, 0.12);
+  --g-t1: rgba(16, 16, 20, 0.55); --g-t2: rgba(38, 38, 44, 0.45);
+  --g-border: rgba(255, 255, 255, 0.14);
+  --g-rim: rgba(255, 255, 255, 0.34); --g-rim-side: rgba(255, 255, 255, 0.12); --g-rim-low: rgba(255, 255, 255, 0.06);
+  --g-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.95), 0 0 30px -16px rgba(255, 255, 255, 0.16);
+  --g-spec: rgba(255, 255, 255, 0.10);
+  --g-sheet: rgba(14, 14, 18, 0.94); --g-bar: rgba(10, 10, 12, 0.76);
+  --g-ink: #FFFFFF; --g-on-ink: #0A0A0C;
+  /* black sky: still stars, moonlight in the corner, fine grain */
+  --app-bg:
+    radial-gradient(1.2px 1.2px at 37px 61px, rgba(255, 255, 255, 0.85), transparent 70%) 0 0 / 211px 211px,
+    radial-gradient(1px 1px at 141px 23px, rgba(255, 255, 255, 0.6), transparent 70%) 0 0 / 347px 347px,
+    radial-gradient(1.6px 1.6px at 260px 190px, rgba(255, 255, 255, 0.9), transparent 70%) 0 0 / 523px 523px,
+    radial-gradient(1px 1px at 90px 300px, rgba(255, 255, 255, 0.5), transparent 70%) 0 0 / 431px 431px,
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>") 0 0 / 180px 180px,
+    radial-gradient(40vmax 34vmax at 86% 18%, rgba(255, 255, 255, 0.09), transparent 70%),
+    radial-gradient(60vmax 40vmax at 50% 110%, rgba(255, 255, 255, 0.04), transparent 70%),
+    linear-gradient(180deg, #000000 0%, #040405 60%, #07070a 100%);
+}
+:root[data-lunar] body { background-color: #000000; }
+.bg-swatch.bg-lunar { background: radial-gradient(circle at 72% 34%, #ffffff 0 7%, #dcdce0 12%, #9a9aa2 17%, transparent 19%), radial-gradient(circle at 72% 34%, rgba(255, 255, 255, 0.28), transparent 42%), radial-gradient(1px 1px at 20% 70%, #fff, transparent), radial-gradient(1px 1px at 40% 30%, #fff, transparent), #000; }
+
+/* titles and section marks: white light instead of blue */
+:root[data-lunar] .page-head h1, :root[data-lunar] .greet h1, :root[data-lunar] .hero-hi { text-shadow: 0 0 22px rgba(255, 255, 255, 0.28), 0 0 2px rgba(255, 255, 255, 0.5); }
+:root[data-lunar] .section-h { color: #E6E7EC; }
+:root[data-lunar] .section-h::before { box-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 2px #fff; }
+:root[data-lunar] .card, :root[data-lunar] .tcard, :root[data-lunar] .m-card, :root[data-lunar] .board-card,
+:root[data-lunar] .stat-tile, :root[data-lunar] .hx-row, :root[data-lunar] .hero-card {
+  --g-fill: linear-gradient(150deg, var(--g-t2), var(--g-t1) 40%, var(--g-t1) 72%, rgba(60, 60, 68, 0.38));
+}
+
+/* Today's header: moonlight in the corner */
+:root[data-lunar] .hero-card { background: radial-gradient(60% 90% at 100% 0%, rgba(255, 255, 255, 0.10), transparent 70%), var(--g-fill); }
+:root[data-lunar] .hero-wm { color: #B9BBC4; }
+:root[data-lunar] .hero-brief { background: rgba(10, 10, 12, 0.6); border-color: rgba(255, 255, 255, 0.14); box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.18); }
+:root[data-lunar] .hero-ring { box-shadow: 0 0 22px rgba(255, 255, 255, 0.28), inset 0 0 6px rgba(0, 0, 0, 0.5); }
+:root[data-lunar] .hero-ring i, :root[data-lunar] .hx-ring::before { background: #0B0B0E; }
+:root[data-lunar] .hero-ring i { box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.14); }
+:root[data-lunar] .hx { background: rgba(28, 28, 32, 0.55); }
+:root[data-lunar] .hx.done { background: linear-gradient(180deg, rgba(74, 222, 128, 0.14), rgba(28, 28, 32, 0.55)); }
+
+/* the clock: silver digits with depth */
+:root[data-lunar] .hero-clock { --clk-dot: rgba(255, 255, 255, 0.45); }
+:root[data-lunar] .hc-time {
+  font-weight: 300; letter-spacing: -0.04em;
+  background: linear-gradient(180deg, #ffffff 0%, #f0f0f3 40%, #a9acb7 66%, #ffffff 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: 0 1px 0 #d6d7dd, 0 2px 0 #b5b7bf, 0 3px 0 #9598a2, 0 4px 0 #767985, 0 5px 0 #595c66, 0 12px 22px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 255, 255, 0.25);
+}
+:root[data-lunar] .hc-time small { -webkit-text-fill-color: #B9BBC4; color: #B9BBC4; }
+:root[data-lunar] .hc-label { color: #B9BBC4; }
+:root[data-lunar] .hc-bar { background: rgba(255, 255, 255, 0.12); }
+:root[data-lunar] .hc-bar i { box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+:root[data-lunar] .hero-next { background: rgba(10, 10, 12, 0.6); border-color: rgba(255, 255, 255, 0.16); box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.16); }
+:root[data-lunar] .hero-next:hover { border-color: rgba(255, 255, 255, 0.5); }
+:root[data-lunar] .hn-k { text-shadow: 0 0 8px rgba(255, 255, 255, 0.5); }
+:root[data-lunar] .hn-title { color: #D7D8DE; }
+:root[data-lunar] .hn-go { background: radial-gradient(circle at 35% 30%, #ffffff, #c9ccd6 50%, #7d808c); color: #0A0A0C; box-shadow: 0 0 14px rgba(255, 255, 255, 0.35); }
+
+/* the AI: a silver orb, swirling (sky.css) */
+:root[data-lunar] .hero-brief .bl::before {
+  content: ''; display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.4em; vertical-align: -0.12em; border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #fff 0 10%, transparent 30%), conic-gradient(#ffffff, #8e93a3, #e9eaf0, #5d606c, #ffffff);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.6); animation: sky-orb 6s linear infinite;
+}
+:root[data-lunar] .ask-go::before { background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.85) 0 8%, transparent 26%), conic-gradient(from 90deg, #ffffff, #8e93a3, #e9eaf0, #5d606c, #ffffff); }
+:root[data-lunar] .ask-go { color: #0A0A0C; box-shadow: 0 0 18px rgba(255, 255, 255, 0.35); }
+:root[data-lunar] .ask-bar { background: rgba(8, 8, 10, 0.66); box-shadow: 0 0 26px -8px rgba(255, 255, 255, 0.22), inset 0 1px 0.5px rgba(255, 255, 255, 0.2); }
+:root[data-lunar] .ask-spark { text-shadow: 0 0 10px rgba(255, 255, 255, 0.7); }
+:root[data-lunar] .ask-answer { background: rgba(10, 10, 12, 0.66); border-color: rgba(255, 255, 255, 0.16); }
+:root[data-lunar] .ask-chips button { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.16); }
+
+/* controls: white primary, lit ticks, white progress */
+:root[data-lunar] .btn-primary { background: linear-gradient(180deg, #ffffff, #d4d6dd); color: #0A0A0C; box-shadow: 0 8px 22px -8px rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.12); }
+:root[data-lunar] .check { border-color: rgba(255, 255, 255, 0.5); }
+:root[data-lunar] .check.on { background: radial-gradient(circle at 35% 30%, #d9ffe7, #4ade80 60%, #15803d); box-shadow: 0 0 12px rgba(74, 222, 128, 0.6); }
+:root[data-lunar] .bar i, :root[data-lunar] .pbar i, :root[data-lunar] .goal-bar i { box-shadow: 0 0 10px rgba(255, 255, 255, 0.4); }
+:root[data-lunar] .chip { background: rgba(255, 255, 255, 0.10); color: #E6E7EC; }
+:root[data-lunar] .tcard.mit {
+  border-color: transparent;
+  background: linear-gradient(rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.06)) padding-box,
+    linear-gradient(rgba(12, 12, 14, 0.9), rgba(12, 12, 14, 0.9)) padding-box,
+    linear-gradient(90deg, #ffffff, #8e93a3) border-box;
+  box-shadow: 0 0 26px -6px rgba(255, 255, 255, 0.3), var(--g-shadow);
+}
+
+/* navigation: the page you're on glows white */
+:root[data-lunar] .nav-link.active { background: linear-gradient(120deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.35), inset 0 0 0 0.5px rgba(255, 255, 255, 0.2), 0 0 22px -6px rgba(255, 255, 255, 0.35); }
+:root[data-lunar] .nav-link.active .ico { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)); }
+:root[data-lunar] .fab { background: radial-gradient(circle at 35% 30%, #ffffff, #c9ccd6 50%, #6f7280); color: #0A0A0C; border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 26px rgba(255, 255, 255, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.8); }
