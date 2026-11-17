@@ -216,8 +216,16 @@ the "Sunrise" identity. Two layers:
   2026-11-17, the owner's "black colour and white moon"): Cosmic plus
   `:root[data-lunar]` the same way — pure black, white stars, silver/white
   in place of neon (data marks white + green), the white moon in the sky.
+- `frontend/src/styles/galaxy.css` — the **Galaxy** look (`galaxy`, since
+  2026-11-17, from the owner's Andromeda photo): Cosmic plus
+  `:root[data-galaxy]` the same way — deep navy-black dense with stars,
+  starlight blue / lavender / the core's gold in place of neon (data marks
+  lavender-blue + green); the spiral galaxy itself is in sky.css.
 - `frontend/src/styles/sky.css` + Shell's `.sky` + `lib/sky.ts` — the moving
-  sky shared by Nebula and Moon: twinkling star layers, Nebula's beam and
+  sky shared by Nebula, Galaxy and Moon (`:root[data-sky]`): twinkling star
+  layers, meteors now and then (smooth, but rare — each streak redraws at
+  full rate), Galaxy's turning spiral (a squashed, tilted disc of conic-gradient
+  arm rings + dust lanes), Nebula's beam and
   planet (weather turning, three moons in real 3D orbit — `preserve-3d`, the
   ring and moons pass behind the planet and in front; never put opacity,
   filter or overflow on those containers or the 3D flattens), Moon's turning
@@ -225,7 +233,12 @@ the "Sunrise" identity. Two layers:
   orbs, and (sky.ts, mouse only) parallax plus a 3D lean + shine on the card
   under the pointer — never on cards that drag (task/board cards, Plan's
   days: dnd-kit measures them). Only transform/opacity animate, no filters on
-  moving things; everything pauses at rest and with reduced motion.
+  moving things; nothing moves with reduced motion. At rest the sky keeps
+  moving (the owner's ask) but steps 15 times a second on one shared beat:
+  `steps(var(--rn))`, each part's `--rn` = one keyframe interval's length
+  × 15 (steps() counts per interval: a rock's path has two halves), all
+  lengths and delays whole seconds or fifths — a new moving part must follow
+  that, or the steps fall between beats and the redraws add up.
 - `frontend/src/styles/focus.css` — focus mode's full-screen deep-space
   timer: its own always-dark look in every theme (not scoped to Cosmic).
 - **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `nebula` is
@@ -250,7 +263,8 @@ the "Sunrise" identity. Two layers:
   ones pause at rest — `lib/rest.ts` sets `:root[data-rest]` after 20 s
   untouched / 3 s in the background, glass.css pauses everything but focus
   mode, loading bars, "thinking" and the video's bars. A new indicator that
-  must keep moving at rest goes on that exemption list. No glass blurred
+  must keep moving at rest goes on that exemption list (the moving sky has
+  its own, slower, in sky.css). No glass blurred
   inside blurred glass (the Board's cards inside its columns cost 60% of its
   scrolling GPU work).
 - **Icons**: `frontend/src/components/Icon.tsx` — a small hand-authored

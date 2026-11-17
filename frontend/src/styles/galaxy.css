@@ -1,0 +1,100 @@
+/* ======================================================================
+   Galaxy (2026-11-17, the owner's Andromeda photo) — a spiral galaxy seen at
+   a slant, slowly turning, its warm core glowing, blue arms, dust lanes and
+   two small companions (the sky behind the glass: sky.css), on a deep
+   navy-black sky dense with stars. It runs as data-bg='cosmic' plus
+   data-galaxy (lib/bg.ts), so it keeps Cosmic's shapes and type and changes
+   colour here: starlight blue, lavender and the core's gold in place of neon.
+   Data marks: lavender-blue (--accent) + green (--ok).
+   ====================================================================== */
+
+:root[data-galaxy] {
+  --neon-a: #9CC2FF; --neon-b: #B9A8FF; --neon-c: #FFD08A;
+  --surface: #03040B; --surface-2: #0A0D22;
+  --glass: rgba(150, 170, 255, 0.06); --glass-strong: rgba(160, 180, 255, 0.12);
+  --hairline: rgba(160, 180, 255, 0.13);
+  --text-1: #EEF1FF; --text-2: #AEB5D6; --text-3: #8C93B8;
+  --accent: #9AA8FF; --accent-bright: #B8C2FF; --ok: #4ADE80; --danger: #FF7A8A; --amber: #FFD08A;
+  --accent-wash: rgba(150, 165, 255, 0.18);
+  --g-t1: rgba(12, 15, 38, 0.54); --g-t2: rgba(36, 40, 86, 0.46);
+  --g-border: rgba(170, 185, 255, 0.17);
+  --g-rim: rgba(200, 215, 255, 0.40); --g-rim-side: rgba(160, 175, 255, 0.14); --g-rim-low: rgba(255, 210, 150, 0.08);
+  --g-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.9), 0 0 32px -16px rgba(140, 160, 255, 0.36);
+  --g-spec: rgba(170, 200, 255, 0.12);
+  --g-sheet: rgba(9, 11, 30, 0.93); --g-bar: rgba(7, 9, 24, 0.74);
+  --g-on-ink: #070A1E;
+  /* deep sky: many stars of different colours and sizes, faint Milky Way
+     light, fine grain (all still — the galaxy itself is in sky.css) */
+  --app-bg:
+    radial-gradient(1.3px 1.3px at 37px 61px, rgba(255, 255, 255, 0.9), transparent 70%) 0 0 / 211px 211px,
+    radial-gradient(1px 1px at 141px 23px, rgba(190, 210, 255, 0.75), transparent 70%) 0 0 / 347px 347px,
+    radial-gradient(1.8px 1.8px at 260px 190px, rgba(255, 240, 215, 0.95), transparent 70%) 0 0 / 523px 523px,
+    radial-gradient(1px 1px at 90px 300px, rgba(255, 220, 190, 0.6), transparent 70%) 0 0 / 431px 431px,
+    radial-gradient(0.9px 0.9px at 12px 140px, rgba(200, 215, 255, 0.6), transparent 70%) 0 0 / 157px 157px,
+    radial-gradient(0.8px 0.8px at 70px 20px, rgba(255, 255, 255, 0.5), transparent 70%) 0 0 / 97px 97px,
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>") 0 0 / 180px 180px,
+    linear-gradient(152deg, transparent 30%, rgba(150, 170, 255, 0.05) 46%, rgba(255, 220, 190, 0.04) 52%, transparent 66%),
+    radial-gradient(60vmax 36vmax at 62% 40%, rgba(90, 110, 220, 0.18), transparent 70%),
+    radial-gradient(40vmax 30vmax at 8% 96%, rgba(60, 80, 200, 0.16), transparent 70%),
+    linear-gradient(180deg, #02030a 0%, #050716 55%, #070a1e 100%);
+}
+:root[data-galaxy] body { background-color: #03040B; }
+.bg-swatch.bg-galaxy { background: radial-gradient(circle at 60% 46%, #fff 0 3%, #ffe2b0 7%, transparent 14%), radial-gradient(ellipse 46% 14% at 60% 46%, rgba(255, 220, 180, 0.65), rgba(150, 165, 255, 0.45) 55%, transparent 75%), radial-gradient(1px 1px at 20% 24%, #fff, transparent), radial-gradient(1px 1px at 84% 80%, #fff, transparent), radial-gradient(1px 1px at 30% 82%, #cfe0ff, transparent), #03040b; }
+
+/* titles: soft starlight */
+:root[data-galaxy] .page-head h1, :root[data-galaxy] .greet h1, :root[data-galaxy] .hero-hi { text-shadow: 0 0 22px rgba(150, 175, 255, 0.45), 0 0 2px rgba(220, 230, 255, 0.6); }
+:root[data-galaxy] .section-h { color: #C3CCF2; }
+:root[data-galaxy] .card, :root[data-galaxy] .tcard, :root[data-galaxy] .m-card, :root[data-galaxy] .board-card,
+:root[data-galaxy] .stat-tile, :root[data-galaxy] .hx-row, :root[data-galaxy] .hero-card {
+  --g-fill: linear-gradient(150deg, var(--g-t2), var(--g-t1) 40%, var(--g-t1) 72%, rgba(60, 70, 140, 0.36));
+}
+
+/* Today's header: the core's gold in one corner, the arms' blue in the other */
+:root[data-galaxy] .hero-card { background:
+    radial-gradient(60% 90% at 100% 110%, rgba(255, 200, 140, 0.16), transparent 70%),
+    radial-gradient(50% 70% at 0% 0%, rgba(110, 140, 255, 0.2), transparent 70%),
+    var(--g-fill); }
+:root[data-galaxy] .hero-brief { background: rgba(6, 8, 24, 0.6); border-color: rgba(170, 185, 255, 0.15); }
+:root[data-galaxy] .hero-next { background: rgba(6, 8, 24, 0.6); border-color: rgba(170, 185, 255, 0.16); }
+:root[data-galaxy] .hero-next:hover { border-color: rgba(255, 210, 150, 0.55); }
+:root[data-galaxy] .hn-k { text-shadow: 0 0 8px rgba(156, 194, 255, 0.6); }
+:root[data-galaxy] .hn-go { background: radial-gradient(circle at 35% 30%, #fff6e4, #ffd08a 50%, #b07a3a); color: #1a1206; box-shadow: 0 0 14px rgba(255, 208, 138, 0.45); }
+
+/* the clock: silver turning gold, with depth (digits only — no emoji to blank) */
+:root[data-galaxy] .hc-time {
+  font-weight: 300; letter-spacing: -0.04em;
+  background: linear-gradient(180deg, #ffffff 0%, #e4e9ff 40%, #ffd9a0 70%, #ffffff 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: 0 1px 0 #d4dbf6, 0 2px 0 #b3bbe0, 0 3px 0 #9199c6, 0 4px 0 #737ba8, 0 5px 0 #565d88, 0 12px 22px rgba(0, 0, 0, 0.75), 0 0 30px rgba(255, 210, 150, 0.3);
+}
+:root[data-galaxy] .hc-time small { -webkit-text-fill-color: #AEB5D6; color: #AEB5D6; }
+
+/* the AI: an orb in the galaxy's colours, swirling (sky.css) */
+:root[data-galaxy] .hero-brief .bl::before {
+  content: ''; display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.4em; vertical-align: -0.12em; border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #fff 0 10%, transparent 30%), conic-gradient(#9cc2ff, #b9a8ff, #ffd08a, #9cc2ff);
+  box-shadow: 0 0 10px rgba(156, 194, 255, 0.75); animation: sky-orb 6s linear infinite;
+}
+:root[data-galaxy] .ask-go::before { background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.75) 0 8%, transparent 26%), conic-gradient(from 90deg, #9cc2ff, #b9a8ff, #ffd08a, #9cc2ff); }
+:root[data-galaxy] .ask-go { color: #070A1E; box-shadow: 0 0 18px rgba(156, 194, 255, 0.55); }
+:root[data-galaxy] .ask-spark { text-shadow: 0 0 10px rgba(156, 194, 255, 0.8); }
+
+/* controls: a starlight primary, glowing ticks */
+:root[data-galaxy] .btn-primary { background: linear-gradient(120deg, #7f9cff, #a99cff 60%, #c7a4ff); color: #070A1E; box-shadow: 0 8px 22px -8px rgba(140, 160, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.12); }
+:root[data-galaxy] .check.on { background: radial-gradient(circle at 35% 30%, #d9ffe7, #4ade80 60%, #15803d); box-shadow: 0 0 12px rgba(74, 222, 128, 0.6); }
+
+/* the day's top task: a lit blue → gold edge */
+:root[data-galaxy] .tcard.mit {
+  border-color: transparent;
+  /* a deep base under the glass, so the edge's gradient lights only the edge */
+  background: linear-gradient(90deg, rgba(156, 194, 255, 0.08), rgba(255, 208, 138, 0.08)) padding-box,
+    linear-gradient(rgba(10, 12, 32, 0.9), rgba(10, 12, 32, 0.9)) padding-box,
+    linear-gradient(90deg, #9cc2ff, #b9a8ff 50%, #ffd08a) border-box;
+  box-shadow: 0 0 26px -6px rgba(255, 208, 138, 0.35), var(--g-shadow);
+}
+
+/* navigation: the page you're on glows starlight blue */
+:root[data-galaxy] .nav-link.active { background: linear-gradient(120deg, rgba(156, 194, 255, 0.18), rgba(185, 168, 255, 0.10));
+  box-shadow: inset 0 1px 0.5px rgba(220, 230, 255, 0.35), inset 0 0 0 0.5px rgba(170, 190, 255, 0.22), 0 0 22px -6px rgba(156, 194, 255, 0.45); }
+:root[data-galaxy] .fab { background: radial-gradient(circle at 35% 30%, #ffffff, #c4d2ff 45%, #7c8fe0); color: #070A1E; border-color: rgba(220, 230, 255, 0.6);
+  box-shadow: 0 0 26px rgba(156, 194, 255, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.8); }

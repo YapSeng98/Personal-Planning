@@ -1,10 +1,10 @@
-// The Nebula / Moon sky follows the mouse (sky.css): the planet or moon and
-// the twinkling stars sway a little against it — farther things less — and
-// the card under the pointer leans toward it in 3D with a shine following
-// it. Mouse only (a finger has no hover), at most once a frame, transforms
-// (and the shine's position on that one card) only; nothing with reduced
-// motion. Never a card that drags (task / board cards, Plan's days): their
-// drag library measures them while they move.
+// The moving sky (Nebula, Galaxy, Moon) follows the mouse (sky.css): the
+// planet, galaxy or moon and the twinkling stars sway a little against it —
+// farther things less — and the card under the pointer leans toward it in 3D
+// with a shine following it. Mouse only (a finger has no hover), at most once
+// a frame, transforms (and the shine's position on that one card) only;
+// nothing with reduced motion. Never a card that drags (task / board cards,
+// Plan's days): their drag library measures them while they move.
 let started = false
 const TILT = '.hero-card, .hx, .stat-tile, .goal-card, .proj-card, .hx-row'
 
@@ -20,8 +20,9 @@ export function startSkyMotion(): void {
 
   const apply = () => {
     frame = 0
-    const scene = document.querySelector<HTMLElement>('.sky-scene')
-    if (scene) scene.style.transform = `translate3d(${(-x * 26).toFixed(1)}px, ${(-y * 18).toFixed(1)}px, 0)`
+    document.querySelectorAll<HTMLElement>('.sky-scene, .gx-scene').forEach((s) => {
+      s.style.transform = `translate3d(${(-x * 26).toFixed(1)}px, ${(-y * 18).toFixed(1)}px, 0)`
+    })
     document.querySelectorAll<HTMLElement>('.sky-stars').forEach((s, i) => {
       const k = i ? 12 : 6
       s.style.transform = `translate3d(${(-x * k).toFixed(1)}px, ${(-y * k).toFixed(1)}px, 0)`
@@ -41,7 +42,7 @@ export function startSkyMotion(): void {
   }
   let lastX = 0, lastY = 0
   window.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse' || !(root.hasAttribute('data-nebula') || root.hasAttribute('data-lunar'))) return
+    if (e.pointerType !== 'mouse' || !root.hasAttribute('data-sky')) return
     lastX = e.clientX; lastY = e.clientY
     x = e.clientX / window.innerWidth - 0.5
     y = e.clientY / window.innerHeight - 0.5

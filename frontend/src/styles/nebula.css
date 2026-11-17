@@ -48,8 +48,8 @@
   animation: sky-orb 6s linear infinite;
 }
 /* the Ask button: the orb swirls behind its arrow (which stays put) */
-:root[data-nebula] .ask-go, :root[data-lunar] .ask-go { position: relative; isolation: isolate; overflow: hidden; background: transparent; }
-:root[data-nebula] .ask-go::before, :root[data-lunar] .ask-go::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: 50%;
+:root[data-sky] .ask-go { position: relative; isolation: isolate; overflow: hidden; background: transparent; }
+:root[data-sky] .ask-go::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: 50%;
   background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.7) 0 8%, transparent 26%), conic-gradient(from 90deg, #5ee7ff, #a77bff, #ff6ad5, #5ee7ff);
   animation: sky-orb 6s linear infinite; }
 :root[data-nebula] .ask-go { box-shadow: 0 0 18px rgba(167, 123, 255, 0.75); }

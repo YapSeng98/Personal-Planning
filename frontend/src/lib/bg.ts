@@ -2,13 +2,15 @@
 // soft colour glows over the theme surface (tokens.css / glass.css --app-bg).
 // 'nebula' (the default) is Cosmic made cinematic — a planet with a ring,
 // nebula clouds, a chrome clock (nebula.css): everything Cosmic has, so it
-// runs as data-bg='cosmic' plus data-nebula; 'lunar' (Moon) — black, a white
-// moon (lunar.css) — the same way with data-lunar. 'cosmic' is the deep-space look
-// (cosmic.css — always dark); 'liquid' the Liquid Glass wallpaper (glass.css).
+// runs as data-bg='cosmic' plus data-nebula; 'galaxy' — a spiral galaxy like
+// Andromeda (galaxy.css) — and 'lunar' (Moon) — black, a white moon
+// (lunar.css) — the same way. All three have the moving sky (sky.css,
+// data-sky). 'cosmic' is the deep-space look (cosmic.css — always dark);
+// 'liquid' the Liquid Glass wallpaper (glass.css).
 import { applyTheme } from './theme'
 
-export type Bg = 'nebula' | 'lunar' | 'cosmic' | 'liquid' | 'none' | 'sunrise' | 'aurora' | 'dusk' | 'ember' | 'bloom'
-export const BGS: Bg[] = ['nebula', 'lunar', 'cosmic', 'liquid', 'none', 'sunrise', 'aurora', 'dusk', 'ember', 'bloom']
+export type Bg = 'nebula' | 'galaxy' | 'lunar' | 'cosmic' | 'liquid' | 'none' | 'sunrise' | 'aurora' | 'dusk' | 'ember' | 'bloom'
+export const BGS: Bg[] = ['nebula', 'galaxy', 'lunar', 'cosmic', 'liquid', 'none', 'sunrise', 'aurora', 'dusk', 'ember', 'bloom']
 
 const KEY = 'planner_bg'
 // Each new look the owner picked starts every device on it once, whatever it
@@ -36,9 +38,13 @@ export function getBg(): Bg {
 
 export function applyBg(b: Bg = getBg()) {
   const root = document.documentElement
-  // Nebula and Moon are Cosmic underneath: its shapes and type, their own sky
-  root.setAttribute('data-bg', b === 'nebula' || b === 'lunar' ? 'cosmic' : b)
+  // Nebula, Galaxy and Moon are Cosmic underneath (its shapes and type) with
+  // their own moving sky and colours
+  const sky = b === 'nebula' || b === 'galaxy' || b === 'lunar'
+  root.setAttribute('data-bg', sky ? 'cosmic' : b)
+  root.toggleAttribute('data-sky', sky)
   root.toggleAttribute('data-nebula', b === 'nebula')
+  root.toggleAttribute('data-galaxy', b === 'galaxy')
   root.toggleAttribute('data-lunar', b === 'lunar')
   applyTheme() // the window bar follows (Cosmic is always dark)
 }

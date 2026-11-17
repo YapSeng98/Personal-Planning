@@ -232,10 +232,12 @@ export default function Shell() {
   return (
     <VideoProvider>
     <div className="shell">
-      {/* the sky behind the glass in Nebula (a ringed planet, moons in orbit)
-          and Moon (a white moon) — sky.css; hidden in the other looks */}
+      {/* the sky behind the glass in Nebula (a ringed planet, moons in orbit),
+          Galaxy (a turning spiral galaxy) and Moon (a white moon), meteors now
+          and then — sky.css; hidden in the other looks */}
       <div className="sky" aria-hidden>
         <div className="sky-stars s1" /><div className="sky-stars s2" /><div className="sky-beam" />
+        <i className="sky-meteor m1" /><i className="sky-meteor m2" /><i className="sky-meteor m3" />
         <i className="sky-rock k1" /><i className="sky-rock k2" /><i className="sky-rock k3" /><i className="sky-rock k4" /><i className="sky-rock k5" />
         <div className="sky-astro"><div className="sky-astro-spin">
           <svg viewBox="0 0 120 150" width="100%" height="100%">
@@ -270,6 +272,17 @@ export default function Shell() {
           </div>
           <div className="lu-halo" />
           <div className="lu-moon"><i className="lu-craters" /></div>
+        </div></div>
+        <div className="gx-scene"><div className="gx-rise">
+          <div className="gx-tilt">
+            <div className="gx-glow" />
+            <div className="gx-disc">
+              <i className="gx-arm a1" /><i className="gx-arm a2" /><i className="gx-arm a3" /><i className="gx-arm a4" /><i className="gx-arm a5" /><i className="gx-arm a6" />
+              <i className="gx-dust d1" /><i className="gx-dust d2" /><i className="gx-dust d3" /><i className="gx-speck" />
+            </div>
+          </div>
+          <div className="gx-bulge" />
+          <i className="gx-sat s1" /><i className="gx-sat s2" />
         </div></div>
       </div>
       <nav className="nav-rail" aria-label="Main">

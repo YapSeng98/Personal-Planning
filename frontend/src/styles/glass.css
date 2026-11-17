@@ -340,7 +340,8 @@ h1, h2, h3 { font-family: var(--font-body); letter-spacing: -0.03em; }
 /* at rest (lib/rest.ts): the decorative endless animations pause where they
    are — each one running made the browser redraw and re-blur the whole screen
    60 times a second. What shows something happening keeps moving: loading
-   bars, "thinking", the video's bars, and focus mode. */
+   bars, "thinking", the video's bars, and focus mode — and the moving sky,
+   on a slower beat (sky.css). */
 :root[data-rest] *, :root[data-rest] *::before, :root[data-rest] *::after { animation-play-state: paused !important; }
 :root[data-rest] .focus-mode, :root[data-rest] .focus-mode *, :root[data-rest] .focus-mode *::before, :root[data-rest] .focus-mode *::after,
 :root[data-rest] .att-img-wait, :root[data-rest] .appwin-loadbar::before, :root[data-rest] .ask-thinking, :root[data-rest] .hv-eq i,
