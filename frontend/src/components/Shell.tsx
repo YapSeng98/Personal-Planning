@@ -232,6 +232,8 @@ export default function Shell() {
   return (
     <VideoProvider>
     <div className="shell">
+      {/* Nebula's planet (nebula.css): a still layer behind the glass, hidden in the other looks */}
+      <div className="nebula" aria-hidden><div className="nb-halo" /><div className="nb-ring back" /><div className="nb-planet" /><div className="nb-ring front"><b className="nb-moon m1" /><b className="nb-moon m2" /><b className="nb-moon m3" /></div></div>
       <nav className="nav-rail" aria-label="Main">
         <div className="nav-rail-top">
           <div className="brand grad-text">{t('brand')}</div>

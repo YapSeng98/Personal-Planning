@@ -146,7 +146,7 @@ function TodayCard({ task, proj, timingSince, dropHint, prioMove, onToggle, onEd
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={`tcard ${timingSince !== undefined ? 'timing' : ''} ${dropHint ? `drop-${dropHint}` : ''}`}
+      className={`tcard ${task.isMit && task.state !== 'done' ? 'mit' : ''} ${timingSince !== undefined ? 'timing' : ''} ${dropHint ? `drop-${dropHint}` : ''}`}
     >
       <span className="acc" style={{ background: done ? 'var(--ok)' : accentFor(task.priority) }} />
       <button className="drag-grip" aria-label="Drag to reorder" {...listeners} {...attributes}>⠿</button>

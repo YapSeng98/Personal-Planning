@@ -1,16 +1,20 @@
 // Curated app backgrounds (the wallpaper behind the glass). Each is a set of
 // soft colour glows over the theme surface (tokens.css / glass.css --app-bg).
-// 'cosmic' is the futuristic deep-space look (cosmic.css — always dark), the
-// default; 'liquid' the Liquid Glass wallpaper (glass.css).
+// 'nebula' (the default) is Cosmic made cinematic — a planet with a ring,
+// nebula clouds, a chrome clock (nebula.css): everything Cosmic has, so it
+// runs as data-bg='cosmic' plus data-nebula. 'cosmic' is the deep-space look
+// (cosmic.css — always dark); 'liquid' the Liquid Glass wallpaper (glass.css).
 import { applyTheme } from './theme'
 
-export type Bg = 'cosmic' | 'liquid' | 'none' | 'sunrise' | 'aurora' | 'dusk' | 'ember' | 'bloom'
-export const BGS: Bg[] = ['cosmic', 'liquid', 'none', 'sunrise', 'aurora', 'dusk', 'ember', 'bloom']
+export type Bg = 'nebula' | 'cosmic' | 'liquid' | 'none' | 'sunrise' | 'aurora' | 'dusk' | 'ember' | 'bloom'
+export const BGS: Bg[] = ['nebula', 'cosmic', 'liquid', 'none', 'sunrise', 'aurora', 'dusk', 'ember', 'bloom']
 
 const KEY = 'planner_bg'
-// Cosmic shipped 2026-10-30 (after Liquid Glass the same day): every device
-// starts on it once, whatever it had before; a choice made after that sticks.
+// Each new look the owner picked starts every device on it once, whatever it
+// had before; a choice made after that sticks. Cosmic 2026-10-30, Nebula
+// 2026-11-17 (picked from the 3D previews).
 const V3 = 'planner_bg_v3'
+const V4 = 'planner_bg_v4'
 
 export function getBg(): Bg {
   try {
@@ -18,15 +22,21 @@ export function getBg(): Bg {
       localStorage.setItem(V3, '1')
       localStorage.setItem(KEY, 'cosmic')
     }
+    if (!localStorage.getItem(V4)) {
+      localStorage.setItem(V4, '1')
+      localStorage.setItem(KEY, 'nebula')
+    }
     const v = localStorage.getItem(KEY)
-    return (BGS as string[]).includes(v ?? '') ? (v as Bg) : 'cosmic'
+    return (BGS as string[]).includes(v ?? '') ? (v as Bg) : 'nebula'
   } catch {
-    return 'cosmic'
+    return 'nebula'
   }
 }
 
 export function applyBg(b: Bg = getBg()) {
-  document.documentElement.setAttribute('data-bg', b)
+  const root = document.documentElement
+  root.setAttribute('data-bg', b === 'nebula' ? 'cosmic' : b)
+  root.toggleAttribute('data-nebula', b === 'nebula')
   applyTheme() // the window bar follows (Cosmic is always dark)
 }
 
