@@ -201,11 +201,22 @@ the "Sunrise" identity. Two layers:
   with glowing titles (no gradient-filled text: it blanks emoji in titles),
   data marks violet (`--accent`) + green. Everything scoped under
   `:root[data-bg='cosmic']`, so Liquid and the other backgrounds are untouched.
+- `frontend/src/styles/nebula.css` — loaded after cosmic.css; the **Nebula**
+  look (since 2026-11-17, the owner's pick from the 3D previews): Cosmic plus
+  `:root[data-nebula]` — `applyBg('nebula')` sets `data-bg='cosmic'` AND
+  `data-nebula`, so every Cosmic rule applies and nebula.css only adds: a
+  richer still wallpaper (nebula clouds, a light beam, film grain baked in as
+  an SVG-noise layer — never a full-screen blend layer), the planet + ring +
+  moons (`.nebula` in Shell, a still fixed layer behind the glass, hidden in
+  other looks), the chrome clock (gradient text: digits only), an AI orb on
+  the briefing / Ask button, `.tcard.mit`'s lit edge (needs a deep padding-box
+  base under the glass, or the edge gradient tints the whole card), glowing
+  ticks. Same GPU cost as Cosmic (measured). Keep it still: no endless motion.
 - `frontend/src/styles/focus.css` — focus mode's full-screen deep-space
   timer: its own always-dark look in every theme (not scoped to Cosmic).
-- **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `cosmic` is
-  the default (every device switched to it once via `planner_bg_v3`; before
-  that `liquid` via `planner_bg_v2`), the others stay selectable in
+- **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `nebula` is
+  the default (every device switched to it once via `planner_bg_v4`; before
+  that `cosmic` via `planner_bg_v3`, `liquid` via `planner_bg_v2`), the others stay selectable in
   Settings → Background. `applyBg` re-runs `applyTheme` so the window bar
   colour follows (Cosmic: #050716).
 - **Typography**: Inter for body/UI; headings Inter (Liquid) or Sora

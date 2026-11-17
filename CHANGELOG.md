@@ -8,6 +8,15 @@ those.
 
 ## 2026-11-17
 
+- **New look: Nebula** — the "cinematic cosmos" you picked from the 3D
+  previews, now on every device. Everything Cosmic had, plus a richer
+  nebula (pink, blue and cyan clouds) with a soft beam of light and fine
+  film grain, a planet with a glowing ring and moons in place of the
+  horizon line, Today's clock in chrome light, a glowing AI orb on the
+  briefing and the Ask button, a lit orange-to-pink edge on the day's top
+  task and glowing ticks. Just as light as Cosmic. Prefer the old one?
+  Settings → Background → Cosmic.
+  ([de3780d](https://github.com/YapSeng98/Personal-Planning/commit/de3780d))
 - **Ask Planner knows your whole planner and can do much more** (with AI
   set up in Settings). Ask about anything — "how are my habits this
   week?", "how close am I to my goals?", "what did I write about the
