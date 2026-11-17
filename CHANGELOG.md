@@ -6,6 +6,24 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-11-17
+
+- **Ask Planner knows your whole planner and can do much more** (with AI
+  set up in Settings). Ask about anything — "how are my habits this
+  week?", "how close am I to my goals?", "what did I write about the
+  Penang trip?", "how much did I focus this week?" — it now sees your
+  habits and streaks, goals, projects, focus time, your latest review, and
+  the notes, reviews and older tasks that match your words (before: only
+  today's, overdue and tomorrow's tasks). And it can do more: add tasks
+  with a time, priority and project; move, finish or delete tasks; set a
+  priority or the day's top task; tick a habit; add a habit, a goal or a
+  note; add to today's review; start focus. It lists what it will do, you
+  press **Do it**, and **Undo** takes it all back. Follow-up questions
+  ("and tomorrow?") work. "Add a habit…" and longer requests starting with
+  "add" now go to the AI instead of becoming one long task; simple ones
+  like "add call mom 7pm" still work instantly, without it.
+  ([8f2c332](https://github.com/YapSeng98/Personal-Planning/commit/8f2c332))
+
 ## 2026-11-16
 
 - **Fix: apps in Planner's pop-up window jumped and half-drew.** Every app
