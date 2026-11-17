@@ -1,8 +1,9 @@
 // The command bar on Today (components/AskBar.tsx): "move gym to 6pm",
 // "what's overdue?", "plan my evening"… Common requests are understood here,
 // in English and Chinese, with no network — so they work offline and
-// without the AI. Anything else goes to the AI (lib/ai.ts) when it's set
-// up, which answers and may propose the same kinds of changes.
+// without the AI. Anything else goes to the AI (lib/askAi.ts) when it's set
+// up: it sees the whole planner, answers questions about it and proposes
+// changes to tasks, habits, goals, notes and today's review.
 //
 // Nothing changes until you press the answer's button, and every change can
 // be undone. Changes go through patchAndQueue / writeAndQueue like any edit,
@@ -12,7 +13,8 @@ import {
   byOrder, habitStreak, type Task,
 } from '../db/db'
 import { syncNow } from '../sync/engine'
-import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from './ai'
+import { aiEnabled } from './ai'
+import { aiAnswer } from './askAi'
 import { parseExtras, moveTasksTo } from './tasks'
 import { openFocus, focusedTodayMin } from './focus'
 import { hm } from './timer'
@@ -35,11 +37,11 @@ export interface Act {
 /** Today's "Plan tomorrow" sheet opens on this event. */
 export const PLAN_TOMORROW = 'planner:plan-tomorrow'
 
-interface Ctx { t: TFn; lang: Lang }
+export interface Ctx { t: TFn; lang: Lang }
 
-const isOpen = (x: Task) => !x.deleted && (x.state === 'open' || x.state === 'in_progress')
-const b = (s: string) => `**${s.replace(/\*\*/g, '')}**`
-const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
+export const isOpen = (x: Task) => !x.deleted && (x.state === 'open' || x.state === 'in_progress')
+export const b = (s: string) => `**${s.replace(/\*\*/g, '')}**`
+export const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 const minOf = (iso?: string) => (iso ? +iso.slice(11, 13) * 60 + +iso.slice(14, 16) : NaN)
 const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes() }
 
@@ -52,11 +54,11 @@ async function load() {
   const tomorrowTasks = (await db.tasks.where('due').equals(tomorrow).and((x) => !x.deleted).toArray()).sort(byOrder)
   return { today, tomorrow, todayTasks, overdue, tomorrowTasks }
 }
-type Data = Awaited<ReturnType<typeof load>>
+export type Data = Awaited<ReturnType<typeof load>>
 
 /** Tasks a request may mean, most likely first: today's open ones, the
     overdue, tomorrow's, then today's finished ones. */
-const pool = (d: Data) => [...d.todayTasks.filter(isOpen), ...d.overdue, ...d.tomorrowTasks.filter(isOpen), ...d.todayTasks.filter((x) => !isOpen(x))]
+export const pool = (d: Data) => [...d.todayTasks.filter(isOpen), ...d.overdue, ...d.tomorrowTasks.filter(isOpen), ...d.todayTasks.filter((x) => !isOpen(x))]
 
 const STOP = new Set(['the', 'my', 'a', 'an', 'to', 'task', 'on', 'for', 'of', 'and', 'with', 'please', 'it'])
 const CJK = /[㐀-鿿]/
@@ -131,7 +133,7 @@ export function parseDay(s: string, today = todayStr()): string | null {
 }
 
 /** Put fields back as they were before a change (the undo). */
-function restorer(tasks: Task[], fields: (keyof Task)[]) {
+export function restorer(tasks: Task[], fields: (keyof Task)[]) {
   const before = tasks.map((x) => ({ id: x.id, patch: Object.fromEntries(fields.map((f) => [f, x[f]])) as Partial<Task> }))
   return async () => {
     for (const { id, patch } of before) await patchAndQueue(db.tasks, 'task', id, patch)
@@ -139,12 +141,12 @@ function restorer(tasks: Task[], fields: (keyof Task)[]) {
   }
 }
 
-const undoAct = (c: Ctx, undo: () => Promise<void>): Act => ({
+export const undoAct = (c: Ctx, undo: () => Promise<void>): Act => ({
   label: c.t('ask.undo'),
   run: async () => { await undo(); return { text: c.t('ask.undone'), tone: 'muted' } },
 })
 
-function dayLabel(day: string, c: Ctx, today = todayStr()): string {
+export function dayLabel(day: string, c: Ctx, today = todayStr()): string {
   if (day === today) return c.t('ask.today')
   if (day === addDays(today, 1)) return c.t('ask.tomorrow')
   return new Date(day + 'T00:00').toLocaleDateString(c.lang === 'zh' ? 'zh-CN' : undefined, { weekday: 'short', month: 'short', day: 'numeric' })
@@ -154,7 +156,7 @@ function dayLabel(day: string, c: Ctx, today = todayStr()): string {
 /* the changes a command can make                                      */
 
 /** Move a task to a day and/or a time, keeping its length. */
-async function applyMove(task: Task, day: string | null, at: number | null) {
+export async function applyMove(task: Task, day: string | null, at: number | null) {
   const to = day ?? task.due ?? todayStr()
   const patch: Partial<Task> = {}
   if (day && day !== task.due) {
@@ -174,12 +176,12 @@ async function applyMove(task: Task, day: string | null, at: number | null) {
   await patchAndQueue(db.tasks, 'task', task.id, patch)
 }
 
-async function applyDone(task: Task) {
+export async function applyDone(task: Task) {
   const saved = await patchAndQueue(db.tasks, 'task', task.id, { state: 'done', completedAt: nextCompletedAt(task.state, task.completedAt, 'done') })
   if (saved?.goalId) await rollUpGoal(saved.goalId)
 }
 
-async function applyAdd(title: string, day: string, at: number | null, hours?: number): Promise<string> {
+export async function applyAdd(title: string, day: string, at: number | null, hours?: number): Promise<string> {
   const there = await db.tasks.where('due').equals(day).and((x) => !x.deleted).toArray()
   const id = uuid()
   await writeAndQueue(db.tasks, 'task', {
@@ -386,83 +388,12 @@ function planReply(c: Ctx, d: Data, win: Window): Reply {
 }
 
 function helpReply(c: Ctx, unknown?: string): Reply {
-  const text = (unknown ? c.t('ask.unknown') + '\n' : '') + c.t('ask.help') + (aiEnabled() ? '' : '\n' + c.t('ask.helpAi'))
+  const text = (unknown ? c.t('ask.unknown') + '\n' : '') + c.t('ask.help') + '\n' + c.t(aiEnabled() ? 'ask.helpAiOn' : 'ask.helpAi')
   // what was typed may simply be a task to add
   const add: Act[] = unknown && unknown.length <= 80
     ? [{ label: c.t('ask.addAsTask'), primary: true, run: async () => addReply(c, unknown) }]
     : []
   return { text, tone: 'muted', actions: add }
-}
-
-/* ------------------------------------------------------------------ */
-/* the AI, for anything else                                           */
-
-interface AiAction { type?: string; task?: string; date?: string; time?: string; title?: string }
-
-async function aiReply(c: Ctx, q: string, d: Data): Promise<Reply> {
-  const list = pool(d).slice(0, 40)
-  const ref = list.map((x, i) => `t${i + 1}: "${x.title}" | due ${x.due ?? '-'} | ${x.timeBlockStart ? x.timeBlockStart.slice(11, 16) + (x.timeBlockEnd ? '-' + x.timeBlockEnd.slice(11, 16) : '') : 'no time'} | ${x.state} | priority ${x.priority <= 2 ? 'high' : x.priority === 3 ? 'medium' : 'low'}${x.isMit ? ' | top task' : ''}${x.recurrence ? ' | repeats ' + x.recurrence : ''}`).join('\n')
-  const now = new Date()
-  const dateLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-  const prompt = `Now: ${dateLabel}, ${hhmm(nowMin())} (today is ${d.today}).\n`
-    + `My tasks (today, overdue, tomorrow):\n${ref || '(none)'}\n`
-    + `My request: "${q}"\n`
-    + `Reply with a JSON object {"say": string, "actions": array}. "say": 1-3 short, friendly sentences answering me${c.lang === 'zh' ? ', in Chinese' : ''}; refer to tasks by their titles, never by t-numbers. `
-    + `"actions": only changes I asked for (at most 6), each one of: `
-    + `{"type":"move","task":"t3","date":"YYYY-MM-DD","time":"HH:MM"} (date and/or time; omit what stays), `
-    + `{"type":"done","task":"t3"}, {"type":"add","title":"…","date":"YYYY-MM-DD","time":"HH:MM"} (time optional), {"type":"focus","task":"t3"}. `
-    + `For a question, use an empty actions array.`
-  const system = 'You are the command bar of a personal planner app. Return ONLY a JSON object with keys say and actions. Do not include any reasoning or preamble — the first character of your reply must be \'{\'. No markdown code fences, no extra text.'
-  let j: { say?: string; actions?: AiAction[] }
-  try {
-    j = await askAIJson(prompt, system)
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : ''
-    return { text: msg === AI_FORMAT_ERROR ? c.t('ask.aiFormat') : c.t('ask.aiErr', { msg: msg || '?' }), tone: 'muted' }
-  }
-  const byRef = (r?: string) => (r && /^t\d+$/.test(r) ? list[+r.slice(1) - 1] : undefined)
-  const ops: { line: string; run: () => Promise<void>; undo?: () => Promise<void>; focus?: Task }[] = []
-  for (const a of (Array.isArray(j.actions) ? j.actions : []).slice(0, 6)) {
-    const task = byRef(a.task)
-    const day = a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date) ? a.date : null
-    const at = a.time && /^\d{1,2}:\d{2}$/.test(a.time) ? parseTime(a.time) : null
-    if (a.type === 'move' && task && (day || at !== null)) {
-      if (day && day !== task.due && (task.recurrence || task.seriesId)) continue
-      const undo = restorer([task], ['due', 'timeBlockStart', 'timeBlockEnd', 'sortOrder'])
-      const where = [day && day !== task.due ? dayLabel(day, c) : '', at !== null ? hhmm(at) : ''].filter(Boolean).join(' ')
-      ops.push({ line: c.t('ask.opMove', { title: b(task.title), to: where }), run: () => applyMove(task, day, at), undo })
-    } else if (a.type === 'done' && task && isOpen(task)) {
-      ops.push({ line: c.t('ask.opDone', { title: b(task.title) }), run: () => applyDone(task), undo: restorer([task], ['state', 'completedAt']) })
-    } else if (a.type === 'add' && a.title?.trim()) {
-      const title = a.title.trim().slice(0, 200)
-      const on = day ?? d.today
-      let id = ''
-      ops.push({
-        line: c.t('ask.opAdd', { title: b(title), when: [dayLabel(on, c), at !== null ? hhmm(at) : ''].filter(Boolean).join(' ') }),
-        run: async () => { id = await applyAdd(title, on, at) },
-        undo: async () => { if (id) await patchAndQueue(db.tasks, 'task', id, { deleted: 1 }) },
-      })
-    } else if (a.type === 'focus' && task) {
-      ops.push({ line: c.t('ask.opFocus', { title: b(task.title) }), run: async () => {}, focus: task })
-    }
-  }
-  const say = (j.say ?? '').trim().replace(/\bt\d+\b/g, '') || (ops.length ? c.t('ask.aiPlan') : c.t('ask.aiEmpty'))
-  if (!ops.length) return { text: say }
-  return {
-    text: say + '\n' + ops.map((o) => '• ' + o.line).join('\n'),
-    actions: [
-      { label: c.t('ask.doIt'), primary: true, run: async () => {
-        for (const o of ops) await o.run()
-        syncNow()
-        const focus = ops.find((o) => o.focus)?.focus
-        if (focus) await openFocus(focus)
-        const undos = ops.filter((o) => o.undo)
-        if (!undos.length) return null
-        return { text: c.t('ask.doneAll', { n: undos.length }), tone: 'ok', actions: [undoAct(c, async () => { for (const o of [...undos].reverse()) await o.undo!(); syncNow() })] }
-      } },
-      { label: c.t('ask.cancel'), run: async () => null },
-    ],
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -506,9 +437,13 @@ export async function runCommand(input: string, c: Ctx): Promise<Reply> {
   m = q.match(/^(?:focus(?:\s+on)?|start|work\s+on|begin|timer\s+for)\s+(.+)$/i) ?? q.match(/^(?:专注|开始|计时)(.+)$/)
   if (m) return one(m[1], (x) => focusReply(c, x))
   m = q.match(/^(?:add|new|create|remind\s+me\s+to|todo|to-do)\s*:?\s+(.+)$/i) ?? q.match(/^(?:添加|加个|加|新建|新增|提醒我)(.+)$/)
-  if (m) return addReply(c, m[1])
+  // with the AI on, "add a habit / goal / note…" and requests of several
+  // parts ("add X, and move Y…") are for it — the rule would make them one task
+  const forAi = !!m && aiEnabled() && (/[,，;；]| and | then |和|然后|并且|还有/i.test(m[1])
+    || /^(a |an |new |to (my |today'?s )?)?(habit|goal|note|project|review|journal)\b|^(一个|个|到)?(习惯|目标|笔记|项目|回顾|日记)/i.test(m[1]))
+  if (m && !forAi) return addReply(c, m[1])
 
-  if (aiEnabled()) return aiReply(c, q, d)
+  if (aiEnabled()) return aiAnswer(c, q, d)
   return helpReply(c, q)
 }
 
