@@ -8,6 +8,25 @@ those.
 
 ## 2026-11-18
 
+- **More reasons to keep going, and copying a task.** Today's header now
+  shows your **day streak**: the days you finished your ⭐ top task (or any
+  task, on a day without one). Two days off in a row are fine; the third
+  ends it, and the header warns you on the last day. Your top task shows
+  **why it matters**, taken from its goal (or the goal above it). When you
+  tick a task linked to a goal, a message at the bottom shows that goal and
+  the ones above it **moving** (e.g. week 33% → 100%, quarter 55% → 100%).
+  Finishing everything on today's list brings up a **"Full sweep!" card**
+  once a day: tasks done, time focused, your streak, the goals you moved,
+  and Plan tomorrow. On **Goals**, each goal has a "Why it matters" box, and
+  goals with a target date show whether they're **on track or behind** (the
+  small white mark is where an even pace would be today; Today's year goals
+  show it too). A goal with nothing open to do next says **"No next step
+  yet"**, with a button that adds a task already linked to it. And any task
+  can be **copied** (Copy in the task form) to today, tomorrow, next week or
+  any day, with Undo, or copied as text to paste anywhere; the copy keeps the
+  time, priority, estimate, goal, project, notes and steps (unticked).
+  [`7fbfa05`](https://github.com/YapSeng98/Personal-Planning/commit/7fbfa05)
+
 - **New theme: Galaxy, meteors, and a sky that keeps moving.** Galaxy
   (Settings → Background), from your Andromeda photo: a spiral galaxy seen
   at a slant, slowly turning, with a warm glowing core, blue arms, dark
