@@ -12,6 +12,8 @@ import { live, spentHours, clearFocus, type CheckItem } from '../lib/items'
 import { parseExtras, fromDailyBrief, DAILY_BRIEF_URL } from '../lib/tasks'
 import { openAppFromClick } from '../lib/appWindow'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
+import { showToast } from '../lib/toast'
+import Icon from './Icon'
 
 // One form for BOTH adding and editing a task, so the two can never diverge.
 // task=null → create mode; task=existing → edit mode (adds Delete).
@@ -46,7 +48,8 @@ function nextMonday(from: string): string {
 
 const GOAL_LEVELS: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
 
-export default function TaskForm({ task, onClose }: { task: Task | null; onClose: () => void }) {
+/** `preset` fills a new task's goal (Goals → "+ Next step"). */
+export default function TaskForm({ task, preset, onClose }: { task: Task | null; preset?: { goalId?: string }; onClose: () => void }) {
   const editing = task !== null
   const [title, setTitle] = useState(task?.title ?? '')
   const titleRef = useRef<HTMLTextAreaElement>(null)
@@ -61,7 +64,7 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
   const [due, setDue] = useState(task?.due ?? todayStr())
   const [start, setStart] = useState(task?.timeBlockStart?.slice(11, 16) ?? '')
   const [end, setEnd] = useState(task?.timeBlockEnd?.slice(11, 16) ?? '')
-  const [goalId, setGoalId] = useState(task?.goalId ?? '')
+  const [goalId, setGoalId] = useState(task?.goalId ?? preset?.goalId ?? '')
   const [projectId, setProjectId] = useState(task?.projectId ?? '')
   const [state, setState] = useState<TaskState>(task?.state ?? 'open')
   const [isMit, setIsMit] = useState(Boolean(task?.isMit))
@@ -263,6 +266,80 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
     onClose()
   }
 
+  // Copy: a new task on the day picked, as the form shows it — title, time,
+  // priority, estimate, goal, project, notes, reminder and steps (unticked).
+  // Done, focus time and repeating stay with the original; the ⭐ comes along
+  // only to a day without a top task. Or the task as text, to paste anywhere.
+  const [copying, setCopying] = useState(false)
+  const [copyDay, setCopyDay] = useState('')
+  const [copyNote, setCopyNote] = useState('')
+  const tomorrow = todayStr(new Date(Date.now() + 86400_000))
+  const dayName = (d: string) => d === todayStr() ? t('task.today') : d === tomorrow ? t('task.tomorrow')
+    : new Date(d + 'T00:00').toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+
+  async function copyTo(day: string) {
+    if (!task || !title.trim() || submitting) return
+    setSubmitting(true)
+    try {
+      const [stored, there] = await Promise.all([
+        db.tasks.get(task.id),
+        db.tasks.where('due').equals(day).and((x) => !x.deleted).toArray(),
+      ])
+      const now = Date.now()
+      const stepsNow = live(stored?.checklist).map((s) => ({ id: uuid(), text: s.text, t: now }))
+      const copy: Task = {
+        id: uuid(),
+        title: title.trim(),
+        notes: notes.trim() ? notes : undefined,
+        state: 'open',
+        priority: prioLevel(task.priority) === priority ? task.priority : priority,
+        due: day,
+        timeBlockStart: start ? `${day}T${start}` : undefined,
+        timeBlockEnd: end ? `${day}T${end}` : undefined,
+        estimatedHours: hours,
+        checklist: stepsNow.length ? stepsNow : undefined,
+        goalId: goalId || undefined,
+        projectId: projectId || undefined,
+        isMit: isMit && !there.some((x) => x.isMit && x.state !== 'cancelled'),
+        reminderDaysBefore: reminderDays != null && reminderDays <= daysBetween(todayStr(), day) ? reminderDays : undefined,
+        sortOrder: Math.max(-1, ...there.map((x) => x.sortOrder ?? 0)) + 1,
+        deleted: 0,
+        updatedAt: now,
+      }
+      await writeAndQueue(db.tasks, 'task', copy)
+      if (copy.goalId) await rollUpGoal(copy.goalId)
+      syncNow()
+      onClose()
+      showToast({
+        kind: 'note',
+        text: t('copy.done', { title: copy.title, day: dayName(day) }),
+        action: {
+          label: t('copy.undo'),
+          run: async () => {
+            await patchAndQueue(db.tasks, 'task', copy.id, { deleted: 1 })
+            if (copy.goalId) await rollUpGoal(copy.goalId)
+            syncNow()
+          },
+        },
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function copyText() {
+    if (!task) return
+    const stored = await db.tasks.get(task.id)
+    const steps = live(stored?.checklist).map((s) => `${s.done ? '☑' : '☐'} ${s.text}`)
+    const text = [title.trim(), ...steps, ...(notes.trim() ? ['', notes.trim()] : [])].join('\n')
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopyNote(t('copy.textDone'))
+    } catch {
+      setCopyNote(t('copy.textFail'))
+    }
+  }
+
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
@@ -445,9 +522,39 @@ export default function TaskForm({ task, onClose }: { task: Task | null; onClose
               <button className="btn btn-danger-solid" onClick={() => removeRepeating(true)}>{t('task.deleteAllAfter')}</button>
             </div>
           </div>
+        ) : copying ? (
+          <div className="sheet-actions copy-panel" role="group" aria-labelledby="copy-h">
+            <div className="copy-head">
+              <b id="copy-h"><Icon name="copy" size={15} />{t('copy.title')}</b>
+              <button type="button" className="clear-link" onClick={() => { setCopying(false); setCopyNote('') }}>{t('common.cancel')}</button>
+            </div>
+            <div className="copy-days">
+              {([['task.today', todayStr()], ['task.tomorrow', tomorrow], ['task.nextWeek', nextMonday(todayStr())]] as const).map(([key, d]) => (
+                <button key={key} type="button" className="btn copy-day" onClick={() => copyTo(d)} disabled={submitting}>{t(key)}</button>
+              ))}
+            </div>
+            <div className="copy-other">
+              <div className={`date-wrap ${copyDay ? '' : 'no-val'}`} data-ph={t('copy.otherDay')}>
+                <input type="date" value={copyDay} onChange={(e) => setCopyDay(e.target.value)} aria-label={t('copy.otherDay')} />
+              </div>
+              <button type="button" className="btn btn-primary" onClick={() => copyDay && copyTo(copyDay)} disabled={!copyDay || submitting}>{t('copy.go')}</button>
+            </div>
+            <div className="copy-text-row">
+              <button type="button" className="btn copy-text" onClick={copyText}>{t('copy.asText')}</button>
+              {copyNote && <span className="copy-note" role="status">{copyNote}</span>}
+            </div>
+            <p className="hint copy-hint">{t('copy.hint')}</p>
+          </div>
         ) : (
         <div className="row sheet-actions" style={{ justifyContent: editing ? 'space-between' : 'flex-end' }}>
-          {editing && <button className="btn btn-danger" onClick={remove} disabled={submitting}>{t('common.delete')}</button>}
+          {editing && (
+            <span className="sa-left">
+              <button className="btn btn-danger" onClick={remove} disabled={submitting}>{t('common.delete')}</button>
+              <button type="button" className="btn sa-copy" onClick={() => setCopying(true)} disabled={submitting} aria-label={t('copy.btn')} title={t('copy.title')}>
+                <Icon name="copy" size={16} /><span className="sa-copy-l">{t('copy.btn')}</span>
+              </button>
+            </span>
+          )}
           <span style={{ display: 'flex', gap: '0.6rem' }}>
             <button className="btn" onClick={onClose} disabled={submitting}>{t('common.cancel')}</button>
             <button className="btn btn-primary" onClick={save} disabled={submitting}>

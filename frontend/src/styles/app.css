@@ -2405,3 +2405,170 @@ button.preview-row:hover .title { color: var(--accent-bright); }
   .hc-viz { height: 2.1rem; margin-top: 0.55rem; }
   .hc-label { font-size: 0.64rem; }
 }
+
+/* ---- Motivation (2026-11-18): the day streak, why a goal matters, goal
+   pace, "no next step", goals moving after a tick (components/Toaster.tsx),
+   the day's card (components/DayDone.tsx), copying a task ---- */
+/* Today's header: "Next" and the day streak share a row */
+.hero-acts { grid-area: next; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; min-width: 0; margin-top: 0.75rem; }
+.hero-acts .hero-next { margin-top: 0; }
+@media (min-width: 1000px) { .hero-acts { align-self: start; margin-top: 0.85rem; } }
+.hero-streak { display: inline-flex; align-items: center; gap: 0.38rem; min-width: 0; max-width: 100%; min-height: 2.35rem; box-sizing: border-box;
+  padding: 0.3rem 0.9rem 0.3rem 0.65rem; border-radius: 999px; border: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--glass-strong) 70%, transparent); font-size: 0.86rem; white-space: nowrap; }
+.hs-fire { font-size: 1.02rem; line-height: 1; filter: drop-shadow(0 0 6px rgba(255, 140, 50, 0.55)); }
+.hs-n { font-family: var(--font-display); font-size: 1.12rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; color: var(--text-1); }
+.hs-l { color: var(--text-2); font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
+.hs-sub { color: var(--text-3); font-size: 0.76rem; font-weight: 650; }
+.hero-streak.lit { border-color: rgba(255, 150, 70, 0.55); box-shadow: 0 0 20px -6px rgba(255, 130, 50, 0.65); }
+.hero-streak.risk { border-color: color-mix(in srgb, var(--amber) 65%, transparent); }
+.hero-streak.risk .hs-sub { color: color-mix(in srgb, var(--amber) 70%, var(--text-1)); }
+.hero-streak.zero .hs-fire { filter: grayscale(1); opacity: 0.55; }
+:root[data-bg='cosmic'] .hs-n { background: linear-gradient(180deg, #FFF1C9 0%, #FFB54D 50%, #FF6A5C 100%); -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 8px rgba(255, 140, 60, 0.45)); }
+:root[data-lunar] .hs-n { background: linear-gradient(180deg, #FFFFFF, #C9CED8); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.35)); }
+
+/* a goal's reason: under the top task, and on its goal card */
+.twhy, .goal-why { display: flex; align-items: baseline; gap: 0.45rem; min-width: 0; }
+.twhy { margin-top: 0.4rem; }
+.twhy-k { flex: none; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-bright); }
+.twhy-t, .goal-why-t { min-width: 0; font-style: italic; color: var(--text-2); line-height: 1.38;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.twhy-t { font-size: 0.8rem; }
+.goal-why-t { font-size: 0.84rem; }
+.goal-why-f { margin-top: 0.75rem; }
+.goal-why-f textarea { width: 100%; box-sizing: border-box; background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
+  padding: 0.65rem 0.85rem; font: inherit; font-size: 0.95rem; color: inherit; resize: none; line-height: 1.4; min-height: 2.75rem; }
+
+/* goal cards: the card opens the goal; "+ Next step" is its own button */
+.goal-open { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding: 0; border: none; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 10px; }
+.goal-card:has(> .goal-open:hover) { transform: translateY(-2px); }
+.goal-card .goal-open:hover .t { color: var(--accent-bright); }
+/* pace: a tick where an even pace would be today */
+.goal-pbar { position: relative; overflow: visible; }
+.goal-pbar > i { border-radius: 3px; }
+.pace-mark { position: absolute; top: 50%; width: 2px; height: 14px; margin-left: -1px; transform: translateY(-50%); border-radius: 2px;
+  background: var(--text-1); box-shadow: 0 0 6px color-mix(in srgb, var(--text-1) 70%, transparent); opacity: 0.9; pointer-events: none; }
+.pace-line { display: flex; align-items: center; gap: 0.4rem; font-size: 0.74rem; font-weight: 700; }
+.pace-line::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+.pace-line.on, .pace-line.ahead { color: var(--ok); }
+.pace-line.behind { color: color-mix(in srgb, var(--amber) 72%, var(--text-1)); }
+.pace-line.late { color: var(--danger); }
+.yg-row .pace-line { margin-top: 0.1rem; }
+.goal-stalled { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.7rem; padding: 0.5rem 0.5rem 0.5rem 0.85rem; border-radius: 14px;
+  border: 1px dashed color-mix(in srgb, var(--amber) 55%, transparent); background: color-mix(in srgb, var(--amber) 9%, transparent);
+  font-size: 0.8rem; color: var(--text-2); }
+.goal-stalled > span { flex: 1 1 11rem; min-width: 0; }
+.goal-step { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 44px; padding: 0 1rem; font-weight: 700; white-space: nowrap; }
+
+/* the message at the bottom: goals a finished task moved, or a note + Undo */
+.toast-wrap { position: fixed; z-index: 45; left: 0; right: 0; bottom: calc(1.6rem + env(safe-area-inset-bottom));
+  display: flex; justify-content: center; padding: 0 1rem; pointer-events: none; }
+.toast { pointer-events: auto; position: relative; display: flex; align-items: center; gap: 0.7rem; width: min(100%, 440px); box-sizing: border-box;
+  padding: 0.75rem 0.9rem 0.75rem 0.9rem; border-radius: 22px; border: 1px solid var(--hairline); background: var(--surface-2); color: var(--text-1);
+  animation: toast-in 420ms cubic-bezier(.2, .9, .25, 1.1) both; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(0.97); } }
+.tg-badge { flex: none; align-self: flex-start; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #04210F;
+  background: radial-gradient(circle at 35% 30%, #D2FFE6, var(--ok) 62%, #137A52); box-shadow: 0 0 18px color-mix(in srgb, var(--ok) 55%, transparent); }
+.tg-list { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+.tg-top { display: flex; align-items: baseline; gap: 0.45rem; min-width: 0; }
+.tg-lvl { flex: none; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-bright); }
+.tg-t { flex: 1; min-width: 0; font-size: 0.88rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tg-pct { flex: none; font-size: 0.78rem; color: var(--text-2); white-space: nowrap; }
+.tg-pct b { color: var(--ok); font-weight: 800; }
+.tg-row.up .tg-t { font-size: 0.8rem; font-weight: 600; color: var(--text-2); }
+.tg-line { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.3rem; }
+.tg-bar { flex: 1; min-width: 2rem; height: 5px; border-radius: 999px; background: var(--glass-strong); overflow: hidden; }
+.tg-row.up .tg-bar { height: 3px; }
+.tg-bar i { display: block; width: 100%; height: 100%; border-radius: inherit; background: var(--grad); transform-origin: left center;
+  transition: transform 1s cubic-bezier(.2, .8, .2, 1); }
+.toast-text { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; line-height: 1.35; }
+.toast-act { flex: none; min-height: 40px; padding: 0 1rem; border-radius: 999px; border: 1px solid var(--accent-bright); background: transparent;
+  color: var(--accent-bright); font: inherit; font-size: 0.86rem; font-weight: 750; cursor: pointer; }
+.toast-act:hover { background: var(--accent-wash); }
+.toast-x { position: absolute; top: 0.35rem; right: 0.35rem; width: 32px; height: 32px; display: grid; place-items: center;
+  border: none; border-radius: 50%; background: none; color: var(--text-3); cursor: pointer; }
+.toast-note { padding-right: 2.6rem; }
+.toast-goals { padding-right: 0.9rem; }
+.tg-row:first-child .tg-top { padding-right: 1.9rem; }
+.toast-x:hover { color: var(--text-1); background: var(--glass); }
+/* phones: above the tab bar, beside the + button */
+@media (max-width: 639px) {
+  .toast-wrap { bottom: calc(86px + env(safe-area-inset-bottom)); padding: 0 0.75rem; }
+  .toast { width: 100%; }
+  .tg-badge { width: 30px; height: 30px; }
+}
+
+/* the day's card: everything on today's list is done */
+.dd-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 1rem; background: rgba(4, 4, 14, 0.55);
+  animation: ql-fade 260ms ease both; }
+.dd-card { position: relative; width: min(100%, 400px); max-height: calc(100dvh - 2rem); overflow-y: auto; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; gap: 0.85rem; padding: 1.6rem 1.25rem 1.2rem; text-align: center;
+  border-radius: 30px; border: 1px solid var(--hairline); background: var(--surface-2); animation: dd-in 560ms cubic-bezier(.2, .9, .25, 1.15) both; }
+@keyframes dd-in { from { opacity: 0; transform: translateY(20px) scale(0.94); } }
+.dd-burst { position: relative; width: 136px; height: 136px; display: grid; place-items: center; }
+.dd-burst svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.dd-track { fill: none; stroke: var(--glass-strong); stroke-width: 7; }
+.dd-ring { fill: none; stroke: url(#dd-ring); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 1; animation: dd-draw 950ms 150ms cubic-bezier(.3, .7, .2, 1) both; }
+@keyframes dd-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.dd-check { position: relative; width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; font-size: 2.1rem; font-weight: 900;
+  color: #04210F; background: radial-gradient(circle at 35% 30%, #D2FFE6, var(--ok) 60%, #137A52);
+  box-shadow: 0 0 36px color-mix(in srgb, var(--ok) 65%, transparent); animation: dd-pop 650ms 800ms cubic-bezier(.2, .9, .3, 1.5) both; }
+@keyframes dd-pop { from { opacity: 0; transform: scale(0.35); } }
+.dd-spark { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: var(--c, var(--accent-bright));
+  box-shadow: 0 0 10px var(--c, var(--accent-bright)); opacity: 0; animation: dd-spark 1s calc(820ms + var(--d) * 70ms) cubic-bezier(.15, .7, .3, 1) both; }
+.dd-spark:nth-of-type(3n) { --c: var(--ok); }
+.dd-spark:nth-of-type(3n + 1) { --c: var(--amber); }
+@keyframes dd-spark {
+  0% { opacity: 1; transform: rotate(var(--a)) translateY(-44px) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-94px) scale(0.35); }
+}
+.dd-title { margin: 0.1rem 0 0; font-family: var(--font-display); font-size: 1.95rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+.dd-sub { margin: -0.3rem 0 0.2rem; color: var(--text-2); font-size: 0.95rem; }
+.dd-stats { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.dd-stats > div { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.75rem 0.3rem; border-radius: 16px;
+  background: var(--glass); border: 1px solid var(--hairline); min-width: 0; }
+.dd-stats b { font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+.dd-stats span { font-size: 0.66rem; font-weight: 750; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-3); }
+.dd-stats .dd-fire { border-color: rgba(255, 150, 70, 0.4); box-shadow: 0 0 22px -10px rgba(255, 130, 50, 0.8); }
+.dd-moves { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.45rem; padding: 0.8rem 0.95rem; border-radius: 16px;
+  background: var(--glass); border: 1px solid var(--hairline); text-align: left; }
+.dd-moves-h { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-bright); }
+.dd-move { display: flex; align-items: baseline; gap: 0.6rem; font-size: 0.86rem; }
+.dd-move-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-move b { color: var(--ok); }
+.dd-actions { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.2rem; }
+.dd-actions .btn { width: 100%; min-height: 46px; justify-content: center; }
+@media (max-height: 740px) {
+  .dd-card { gap: 0.6rem; padding: 1.1rem 1rem 1rem; }
+  .dd-burst { width: 100px; height: 100px; }
+  .dd-check { width: 56px; height: 56px; font-size: 1.6rem; }
+  .dd-title { font-size: 1.6rem; }
+  .dd-stats > div { padding: 0.55rem 0.3rem; }
+  .dd-moves { padding: 0.6rem 0.8rem; gap: 0.35rem; }
+}
+
+/* copying a task (TaskForm) */
+.sa-left { display: flex; gap: 0.5rem; }
+.sa-copy { display: inline-flex; align-items: center; gap: 0.4rem; }
+@media (max-width: 380px) { .sa-copy-l { display: none; } }
+.copy-panel { display: flex; flex-direction: column; gap: 0.65rem; }
+.copy-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.copy-head b { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.95rem; }
+.copy-head .clear-link { padding: 0.4rem 0.2rem; font-size: 0.8rem; }
+.copy-days { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.copy-day { justify-content: center; min-height: 44px; padding: 0 0.4rem; font-size: 0.9rem; font-weight: 700; white-space: nowrap; }
+.copy-other { display: flex; gap: 0.5rem; align-items: center; }
+.copy-other .date-wrap { flex: 1; min-width: 0; }
+.copy-other .btn { min-height: 2.75rem; }
+.copy-text-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; }
+.copy-text { min-height: 44px; }
+.copy-note { font-size: 0.8rem; font-weight: 700; color: var(--ok); }
+.sheet .copy-hint { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast, .dd-backdrop, .dd-card, .dd-ring, .dd-check { animation: none; }
+  .dd-spark { display: none; }
+  .tg-bar i { transition: none; }
+}

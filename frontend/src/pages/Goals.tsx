@@ -4,14 +4,20 @@ import { db, uuid, writeAndQueue, patchAndQueue, rollUpGoal, type Goal, type Goa
 import { patchFrom } from '../sync/fields'
 import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
+import AutoTextarea from '../components/AutoTextarea'
+import TaskForm from '../components/TaskForm'
+import Icon from '../components/Icon'
 import { useLang } from '../lib/i18n'
 import { useEscape } from '../lib/escape'
+import { useToday } from '../lib/today'
+import { paceOf, paceLine } from '../lib/pace'
 
 const ORDER: GoalType[] = ['vision', 'year', 'quarter', 'month', 'week']
 const STATUSES = ['not_started', 'in_progress', 'at_risk', 'completed', 'abandoned'] as const
 
 const blank = {
   title: '',
+  why: '',
   type: 'year' as GoalType,
   parentId: '',
   targetDate: '',
@@ -21,6 +27,10 @@ const blank = {
 
 export default function Goals() {
   const [goals, setGoals] = useState<Goal[]>([])
+  // goals with something open to do next: an open task linked, or an open goal under them
+  const [moving, setMoving] = useState<Set<string>>(new Set())
+  const [stepFor, setStepFor] = useState<Goal | null>(null)
+  const today = useToday()
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   // The goal as it was when the sheet opened — saving sends only what the
@@ -33,7 +43,13 @@ export default function Goals() {
   useEscape(() => setOpen(false), open)
 
   const load = useCallback(async () => {
-    setGoals(await db.goals.filter((g) => !g.deleted).toArray())
+    const gs = await db.goals.filter((g) => !g.deleted).toArray()
+    const open = await db.tasks.where('goalId').anyOf(gs.map((g) => g.id))
+      .and((x) => !x.deleted && (x.state === 'open' || x.state === 'in_progress')).toArray()
+    const busy = new Set(open.map((x) => x.goalId!))
+    for (const g of gs) if (g.parentId && g.status !== 'completed' && g.status !== 'abandoned') busy.add(g.parentId)
+    setGoals(gs)
+    setMoving(busy)
   }, [])
   useEffect(() => {
     load()
@@ -61,6 +77,7 @@ export default function Goals() {
     setEditingId(g.id)
     setForm({
       title: g.title,
+      why: g.whyItMatters ?? '',
       type: g.type,
       parentId: g.parentId ?? '',
       targetDate: g.targetDate ?? '',
@@ -77,6 +94,7 @@ export default function Goals() {
       const goal: Goal = {
         id: editingId ?? uuid(),
         title: form.title.trim(),
+        whyItMatters: form.why.trim() || undefined,
         type: form.type,
         parentId: form.parentId || undefined,
         targetDate: form.targetDate || undefined,
@@ -88,7 +106,7 @@ export default function Goals() {
       if (editingId && openedRef.current) {
         const opened = openedRef.current
         const saved = await patchAndQueue(db.goals, 'goal', editingId,
-          patchFrom(opened, goal, ['title', 'type', 'parentId', 'targetDate', 'status', 'progress']))
+          patchFrom(opened, goal, ['title', 'whyItMatters', 'type', 'parentId', 'targetDate', 'status', 'progress']))
         if (opened.parentId && opened.parentId !== saved?.parentId) await rollUpGoal(opened.parentId)
       } else {
         await writeAndQueue(db.goals, 'goal', goal)
@@ -134,25 +152,49 @@ export default function Goals() {
           <div key={lvl}>
             <div className="section-h">{t('level.' + lvl)}</div>
             <div className="stack goals-group" style={{ marginTop: 0 }}>
-              {group.map((g) => (
-                <button key={g.id} className="card goal-card" onClick={() => startEdit(g)}>
-                  <div className="top">
-                    <span className="t">{g.title}</span>
-                    <span className="pct num">{g.progress}%</span>
+              {group.map((g) => {
+                const pace = paceOf(g, today)
+                // nothing open to do next (a goal at 100% is done so far — its status is the owner's call)
+                const stalled = g.type !== 'vision' && g.status !== 'completed' && g.status !== 'abandoned' && g.progress < 100 && !moving.has(g.id)
+                return (
+                  <div key={g.id} className={`card goal-card ${pace ? `pace-${pace.state}` : ''}`}>
+                    <button type="button" className="goal-open" onClick={() => startEdit(g)}>
+                      <div className="top">
+                        <span className="t">{g.title}</span>
+                        <span className="pct num">{g.progress}%</span>
+                      </div>
+                      {g.whyItMatters?.trim() && (
+                        <div className="goal-why"><span className="twhy-k">{t('why.k')}</span><span className="goal-why-t">{g.whyItMatters}</span></div>
+                      )}
+                      <div className="pbar goal-pbar">
+                        <i style={{ width: `${g.progress}%` }} />
+                        {/* where an even pace would be today */}
+                        {pace && pace.state !== 'late' && <b className="pace-mark" style={{ left: `${pace.expected}%` }} aria-hidden />}
+                      </div>
+                      {pace && <div className={`pace-line ${pace.state}`}>{paceLine(pace, t)}</div>}
+                      <div className="meta">
+                        {g.parentId && byId.get(g.parentId) ? `↑ ${byId.get(g.parentId)!.title}` : ''}
+                        {g.targetDate ? `  ·  ${g.targetDate}` : ''}
+                        {`  ·  ${t('status.' + g.status)}`}
+                      </div>
+                    </button>
+                    {stalled && (
+                      <div className="goal-stalled">
+                        <span>{t('goals.noStep')}</span>
+                        <button type="button" className="btn goal-step" onClick={() => setStepFor(g)}>
+                          <Icon name="plus" size={14} strokeWidth={2.4} />{t('goals.addStep')}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="pbar"><i style={{ width: `${g.progress}%` }} /></div>
-                  <div className="meta">
-                    {g.parentId && byId.get(g.parentId) ? `↑ ${byId.get(g.parentId)!.title}` : ''}
-                    {g.targetDate ? `  ·  ${g.targetDate}` : ''}
-                    {`  ·  ${t('status.' + g.status)}`}
-                  </div>
-                </button>
-              ))}
+                )
+              })}
             </div>
           </div>
         )
       })}
       {goals.length === 0 && <div className="empty">{t('goals.empty')}</div>}
+      {stepFor && <TaskForm task={null} preset={{ goalId: stepFor.id }} onClose={() => setStepFor(null)} />}
 
       {open && (
         <div className="sheet-backdrop" onClick={() => setOpen(false)}>
@@ -166,6 +208,16 @@ export default function Goals() {
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               onKeyDown={(e) => e.key === 'Enter' && save()}
             />
+            <div className="f goal-why-f">
+              <label className="fl" htmlFor="goal-why">{t('goals.why')}</label>
+              <AutoTextarea
+                id="goal-why"
+                rows={2}
+                value={form.why}
+                placeholder={t('goals.whyPh')}
+                onChange={(e) => setForm({ ...form, why: e.target.value })}
+              />
+            </div>
             <div className="form-grid">
               <div className="f-pair">
                 <div className="f">

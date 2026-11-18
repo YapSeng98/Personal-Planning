@@ -7,7 +7,11 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { db, todayStr, addDays, OVERDUE_DAYS, isOpenOneOff, writeAndQueue, uuidFrom, patchAndQueue, habitStreak, rollUpGoal, cleanEmoji, byOrder, nextCompletedAt, type Task, type TaskState, type Habit, type Project, onChanged } from '../db/db'
+import { db, todayStr, addDays, OVERDUE_DAYS, isOpenOneOff, writeAndQueue, uuidFrom, patchAndQueue, habitStreak, cleanEmoji, byOrder, nextCompletedAt, TASKS_PULLED, type Task, type TaskState, type Habit, type Project, type Goal, onChanged } from '../db/db'
+import { dayMark, pastMarks, streakOf, type DayMark } from '../lib/streak'
+import { whyFor, rollUpReporting, noteMoves, movedOn } from '../lib/goals'
+import { showToast } from '../lib/toast'
+import DayDone from '../components/DayDone'
 import { syncNow } from '../sync/engine'
 import { currentUser } from '../sync/api'
 import { aiEnabled, askAI } from '../lib/ai'
@@ -131,8 +135,10 @@ function TimerButton({ task, since, t }: { task: Task; since?: number; t: TFn })
     a way to move a task that doesn't need a drag. */
 interface PrioMove { up?: () => void; down?: () => void; upLabel?: string; downLabel?: string }
 
-function TodayCard({ task, proj, timingSince, dropHint, prioMove, onToggle, onEdit, t }: {
+function TodayCard({ task, proj, why, timingSince, dropHint, prioMove, onToggle, onEdit, t }: {
   task: Task; proj?: Project; timingSince?: number
+  /** the top task's reason: its goal's "why it matters" (lib/goals.ts) */
+  why?: string
   /** a card dragged from another group would land above / below this one */
   dropHint?: 'above' | 'below'
   prioMove?: PrioMove
@@ -182,6 +188,7 @@ function TodayCard({ task, proj, timingSince, dropHint, prioMove, onToggle, onEd
             )}
           </div>
         )}
+        {why && !done && <div className="twhy"><span className="twhy-k">{t('why.k')}</span><span className="twhy-t">{why}</span></div>}
       </button>
       {prioMove && (
         <span className="prio-move">
@@ -510,6 +517,15 @@ export default function Today() {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [habits, setHabits] = useState<HabitView[]>([])
   const [projects, setProjects] = useState<Record<string, Project>>({})
+  const [goals, setGoals] = useState<Map<string, Goal>>(new Map())
+  // the day streak (lib/streak.ts): earlier days read once (again when a
+  // sync brings tasks, or a past day's task is ticked or moved); today's
+  // from the list on screen
+  const [past, setPast] = useState<Map<string, DayMark> | null>(null)
+  const [pastRev, setPastRev] = useState(0)
+  const reread = () => setPastRev((n) => n + 1)
+  // the day's card (once a day), listing the goals today's ticks moved
+  const [sweep, setSweep] = useState(false)
   const [mom, setMom] = useState<Momentum>({ series: [0, 0, 0, 0, 0, 0, 0], weekDone: 0, streak: 0 })
   const [editing, setEditing] = useState<Task | null>(null)
   const [editingHabit, setEditingHabit] = useState<Habit | 'new' | null>(null)
@@ -548,11 +564,14 @@ export default function Today() {
       db.habits.where('active').equals(1).and((x) => !x.deleted).toArray(),
       // momentum: last 7 days of completed tasks (one read for the week)
       db.tasks.where('due').between(weekDates[0], today, true, true).and((x) => x.state === 'done' && !x.deleted).toArray(),
+      // the top task's "why it matters" comes from its goal or an ancestor
+      db.goals.filter((g) => !g.deleted).toArray(),
     ])
     const rows = await rowsP
     setTasks(rows.sort(byDoneThenOrder))
     setLoaded(true)
-    const [late, tomorrowN, withReminder, projRows, hs, weekDone] = await restP
+    const [late, tomorrowN, withReminder, projRows, hs, weekDone, goalRows] = await restP
+    setGoals(new Map(goalRows.map((g) => [g.id, g])))
     const views: HabitView[] = await Promise.all(hs.map(async (h) => {
       const [logs, streak] = await Promise.all([
         db.habitLogs.where('[habitId+date]').between([h.id, weekDates[0]], [h.id, today], true, true).and((l) => !l.deleted).toArray(),
@@ -595,6 +614,19 @@ export default function Today() {
     load()
     return onChanged(load)
   }, [load])
+
+  // read after today's tasks are on screen: a long history is the slowest
+  // read here, and it mustn't hold up the list
+  useEffect(() => {
+    if (!loaded) return
+    let live = true
+    pastMarks(today).then((m) => { if (live) setPast(m) })
+    return () => { live = false }
+  }, [today, pastRev, loaded])
+  useEffect(() => {
+    window.addEventListener(TASKS_PULLED, reread)
+    return () => window.removeEventListener(TASKS_PULLED, reread)
+  }, [])
 
   // the command bar's "plan tomorrow"
   useEffect(() => {
@@ -651,16 +683,33 @@ export default function Today() {
     // shown at once; the save and the reload it triggers follow
     setTasks((list) => list.map((x) => (x.id === t.id ? { ...x, state } : x)).sort(byDoneThenOrder))
     if (state === 'done') setOverdue((list) => list.filter((x) => x.id !== t.id))
+    // the last of today's list: the day's card, once a day
+    const sweptNow = state === 'done' && t.due === today && localStorage.getItem('planner_sweep') !== today
+      && tasks.every((x) => x.id === t.id || x.state === 'done' || x.state === 'cancelled')
+    if (sweptNow) {
+      localStorage.setItem('planner_sweep', today)
+      setSweep(true)
+    }
     // finishing the task you're timing stops the clock (and saves the time)
     if (state === 'done' && timer?.taskId === t.id) await stopTimer()
     const saved = await patchAndQueue(db.tasks, 'task', t.id, { state, completedAt: nextCompletedAt(t.state, t.completedAt, state) })
-    if (saved?.goalId) await rollUpGoal(saved.goalId)
+    if (t.due && t.due < today) reread()
+    if (saved?.goalId) {
+      const moves = await rollUpReporting(saved.goalId)
+      if (state === 'done' && moves.length) {
+        noteMoves(today, moves)
+        if (!sweptNow) showToast({ kind: 'goals', moves })
+      }
+    }
     syncNow()
   }
 
   /** Bring tasks from earlier days onto today (keeping their time of day),
       after today's list. */
-  const moveToToday = (list: Task[]) => moveTasksTo(list, today)
+  const moveToToday = async (list: Task[]) => {
+    await moveTasksTo(list, today)
+    reread()
+  }
 
   async function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e
@@ -739,6 +788,7 @@ export default function Today() {
       dropHint={dropHint}
       prioMove={prioMove}
       proj={task.projectId ? projects[task.projectId] : undefined}
+      why={task.isMit ? whyFor(task.goalId, goals)?.text : undefined}
       timingSince={timer?.taskId === task.id ? timer.startedAt : undefined}
       onToggle={() => toggleTask(task)}
       onEdit={() => setEditing(task)}
@@ -754,6 +804,9 @@ export default function Today() {
     .sort((a, b) => a.timeBlockStart!.localeCompare(b.timeBlockStart!))[0]
     ?? openToday.find((x) => x.isMit) ?? openToday[0]
   const spark = areaPath(mom.series)
+  const streak = past && loaded ? streakOf(past, today, dayMark(tasks)) : null
+  const streakTip = !streak ? '' : streak.current === 0 ? t('streak.startTip')
+    : streak.atRisk ? t('streak.riskTip') : t('streak.tip', { best: streak.best })
 
   return (
     <div className="today-grid">
@@ -772,13 +825,33 @@ export default function Today() {
             <div className="hero-wm">{dateLabel}</div>
             <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
           </div>
-          {nextUp && (
-            <button type="button" className="hero-next" onClick={() => openFocus(nextUp)} title={t('focus.startFor', { title: nextUp.title })}>
-              <span className="hn-k">{t('today.nextUp')}</span>
-              {nextUp.timeBlockStart ? <span className="hn-time num">{nextUp.timeBlockStart.slice(11, 16)}</span> : nextUp.isMit ? <span className="hn-time">⭐</span> : null}
-              <span className="hn-title">{nextUp.title}</span>
-              <span className="hn-go" aria-hidden><Icon name="play" size={11} strokeWidth={2.6} /></span>
-            </button>
+          {(nextUp || streak) && (
+            <div className="hero-acts">
+              {nextUp && (
+                <button type="button" className="hero-next" onClick={() => openFocus(nextUp)} title={t('focus.startFor', { title: nextUp.title })}>
+                  <span className="hn-k">{t('today.nextUp')}</span>
+                  {nextUp.timeBlockStart ? <span className="hn-time num">{nextUp.timeBlockStart.slice(11, 16)}</span> : nextUp.isMit ? <span className="hn-time">⭐</span> : null}
+                  <span className="hn-title">{nextUp.title}</span>
+                  <span className="hn-go" aria-hidden><Icon name="play" size={11} strokeWidth={2.6} /></span>
+                </button>
+              )}
+              {/* the day streak (lib/streak.ts) */}
+              {streak && (
+                <span className={`hero-streak ${streak.current ? '' : 'zero'} ${streak.atRisk ? 'risk' : ''} ${streak.today ? 'lit' : ''}`}
+                  role="img" aria-label={`${t('streak.aria', { n: streak.current, best: streak.best })} ${streakTip}`} title={streakTip}>
+                  <span className="hs-fire" aria-hidden>🔥</span>
+                  {streak.current > 0 ? (
+                    <>
+                      <b className="hs-n num">{streak.current}</b>
+                      <span className="hs-l">{t(streak.current === 1 ? 'streak.day' : 'streak.days')}</span>
+                      {streak.atRisk
+                        ? <span className="hs-sub">{t('streak.risk')}</span>
+                        : streak.best > streak.current && <span className="hs-sub num">{t('streak.best', { n: streak.best })}</span>}
+                    </>
+                  ) : <span className="hs-l">{t('streak.start')}</span>}
+                </span>
+              )}
+            </div>
           )}
         </div>
         <HeroVideoSlot />
@@ -998,6 +1071,11 @@ export default function Today() {
     </div>
     {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
     {planning && <PlanTomorrow summary={{ done: doneCount, total: tasks.length, focusedMin }} onClose={() => setPlanning(false)} />}
+    {sweep && (
+      <DayDone done={doneCount} focusedMin={focusedMin} streak={streak?.current ?? 0}
+        moves={movedOn(today)}
+        onPlan={() => { setSweep(false); setPlanning(true) }} onClose={() => setSweep(false)} />
+    )}
     {editingHabit && (
       <HabitEdit habit={editingHabit === 'new' ? null : editingHabit} onClose={() => setEditingHabit(null)} />
     )}

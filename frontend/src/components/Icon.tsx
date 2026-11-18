@@ -6,9 +6,15 @@ export type IconName =
   | 'today' | 'plan' | 'board' | 'goals' | 'reviews' | 'sketches' | 'stats'
   | 'settings' | 'search' | 'close' | 'trash' | 'folder' | 'pencil'
   | 'chevronLeft' | 'chevronRight' | 'plus' | 'check' | 'sparkle' | 'image' | 'move' | 'pin'
-  | 'play' | 'pause' | 'stop' | 'timer' | 'down' | 'external' | 'minimise' | 'expand' | 'shrink' | 'reload'
+  | 'play' | 'pause' | 'stop' | 'timer' | 'down' | 'external' | 'minimise' | 'expand' | 'shrink' | 'reload' | 'copy'
 
 const PATHS: Record<IconName, React.ReactNode> = {
+  copy: (
+    <>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2.2" />
+      <path d="M15.5 8.5V6.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v7.4a1.8 1.8 0 0 0 1.8 1.8h2.2" />
+    </>
+  ),
   image: (
     <>
       <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />

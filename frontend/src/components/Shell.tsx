@@ -12,6 +12,7 @@ import { updateReady, onUpdateReady, applyUpdate } from '../lib/pwaUpdate'
 import { useRunningTimer, useElapsed, stopTimer, clock, type RunningTimer } from '../lib/timer'
 import { useFocus, openFocus, nextRound, endFocus, roundElapsed, remaining, type Focus } from '../lib/focus'
 import FocusMode from './FocusMode'
+import Toaster from './Toaster'
 import PageGuard from './PageGuard'
 import { reminderPrefs, reminderBody, type Reminder } from '../lib/reminders'
 
@@ -338,6 +339,7 @@ export default function Shell() {
       {searchTask && <TaskForm task={searchTask} onClose={() => setSearchTask(null)} />}
       <AppWindow />
       <FocusMode />
+      <Toaster />
     </div>
     </VideoProvider>
   )
