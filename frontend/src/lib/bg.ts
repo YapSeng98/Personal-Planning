@@ -6,11 +6,13 @@
 // Andromeda (galaxy.css) — and 'lunar' (Moon) — black, a white moon
 // (lunar.css) — the same way. All three have the moving sky (sky.css,
 // data-sky). 'cosmic' is the deep-space look (cosmic.css — always dark);
-// 'liquid' the Liquid Glass wallpaper (glass.css).
+// 'liquid' the Liquid Glass wallpaper (glass.css). 'graphite' (Linear-style)
+// and 'ops' (a NOC screen) are the flat professional looks (pro.css): no
+// glass, no sky.
 import { applyTheme } from './theme'
 
-export type Bg = 'nebula' | 'galaxy' | 'lunar' | 'cosmic' | 'liquid' | 'none' | 'sunrise' | 'aurora' | 'dusk' | 'ember' | 'bloom'
-export const BGS: Bg[] = ['nebula', 'galaxy', 'lunar', 'cosmic', 'liquid', 'none', 'sunrise', 'aurora', 'dusk', 'ember', 'bloom']
+export type Bg = 'nebula' | 'galaxy' | 'lunar' | 'graphite' | 'ops' | 'cosmic' | 'liquid' | 'none' | 'sunrise' | 'aurora' | 'dusk' | 'ember' | 'bloom'
+export const BGS: Bg[] = ['nebula', 'galaxy', 'lunar', 'graphite', 'ops', 'cosmic', 'liquid', 'none', 'sunrise', 'aurora', 'dusk', 'ember', 'bloom']
 
 const KEY = 'planner_bg'
 // Each new look the owner picked starts every device on it once, whatever it

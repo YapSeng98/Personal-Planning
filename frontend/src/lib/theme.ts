@@ -21,9 +21,10 @@ export function applyTheme(t: Theme = getTheme()) {
   const cosmic = root.getAttribute('data-bg') === 'cosmic'
   const lunar = root.hasAttribute('data-lunar')
   const galaxy = root.hasAttribute('data-galaxy')
+  const pro = ({ graphite: '#0F1011', ops: '#0A0E12' } as Record<string, string>)[root.getAttribute('data-bg') ?? '']
   let meta = document.querySelector('meta[name="theme-color"]')
   if (!meta) { meta = document.createElement('meta'); meta.setAttribute('name', 'theme-color'); document.head.appendChild(meta) }
-  meta.setAttribute('content', lunar ? '#000000' : galaxy ? '#03040b' : cosmic ? '#050716' : dark ? BAR.dark : BAR.light)
+  meta.setAttribute('content', pro ? pro : lunar ? '#000000' : galaxy ? '#03040b' : cosmic ? '#050716' : dark ? BAR.dark : BAR.light)
 }
 
 // following the system: the bar changes when the system theme does

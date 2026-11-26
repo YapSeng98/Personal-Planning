@@ -287,6 +287,20 @@ export default function Shell() {
           <i className="gx-sat s1" /><i className="gx-sat s2" />
         </div></div>
       </div>
+      {/* the professional looks' backgrounds (pro.css): a chip's circuit
+          traces with signals running (Graphite), a network map with packets
+          moving between servers (Ops) */}
+      <div className="pro-bg" aria-hidden>
+        {['tr', 'br'].map((c) => (
+          <div key={c} className={`circ ${c}`}>
+            <i className="circ-pk c1" /><i className="circ-pk c2 v" /><i className="circ-pk c3" />
+          </div>
+        ))}
+        <div className="net-map">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => <i key={n} className={`net-pk p${n}`} />)}
+          {[1, 2, 3, 4].map((n) => <i key={`g${n}`} className={`net-ping g${n}`} />)}
+        </div>
+      </div>
       <nav className="nav-rail" aria-label="Main">
         <div className="nav-rail-top">
           <div className="brand grad-text">{t('brand')}</div>
