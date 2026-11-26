@@ -8,6 +8,19 @@ those.
 
 ## 2026-11-26
 
+- **Two professional looks: Graphite and Ops.** New in Settings → Background,
+  both dark and flat, with no glass and no space sky. **Graphite** is in the
+  style of Linear: graphite panels, one calm indigo accent, thin borders and
+  a plain sidebar, over a fine dot grid with a chip's circuit traces in the
+  right-hand corners and small signals running along them. **Ops** looks like
+  a network operations screen: square panels, monospace headings and
+  numbers, a green status light on every section, and OPEN / DONE tags on
+  Today's tasks on a laptop. Behind it is a network map of servers (core
+  switch, firewalls, databases, k8s nodes, DNS, VPN) with data packets moving
+  along the links. Both move as smoothly as the space looks but use about a
+  sixth of the graphics work, so they're easy on the battery. Nebula stays
+  your default. [`6afd46e`](https://github.com/YapSeng98/Personal-Planning/commit/6afd46e)
+
 - **Smoother, more natural motion, and lighter on the graphics chip.** The
   glass is a touch softer (blur 16px instead of 22px). It looks the same but
   costs about a quarter less work every frame the sky moves. Taps now feel
