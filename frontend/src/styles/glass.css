@@ -19,7 +19,9 @@
   --font-display: var(--font-body);
   --radius-card: 24px;
   /* the glass material */
-  --g-blur: blur(22px) saturate(175%);
+  /* 16px: looks the same as the 22px it was over these fills (compared
+     side by side), a quarter less graphics work every frame the sky moves */
+  --g-blur: blur(16px) saturate(175%);
   --g-border: rgba(255, 255, 255, 0.11);
   --g-rim: rgba(255, 255, 255, 0.20);
   --g-rim-low: rgba(255, 255, 255, 0.05);

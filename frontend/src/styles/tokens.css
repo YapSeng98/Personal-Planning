@@ -31,6 +31,12 @@
   --radius-chip: 999px;
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.35);
   --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+  /* springs (a damped spring, sampled): things that move overshoot a little
+     and settle, like real objects. --spring for taps and pops (16%),
+     --spring-soft for sheets and cards arriving (3%). Older browsers get
+     the curve below instead (the @supports rule replaces it). */
+  --spring: cubic-bezier(0.34, 1.45, 0.5, 1);
+  --spring-soft: cubic-bezier(0.22, 1.12, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --font-body: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   /* Display face for headings, the wordmark and big numbers only — body/UI
@@ -160,8 +166,9 @@ h1, h2, h3 { letter-spacing: -0.015em; margin: 0; font-family: var(--font-displa
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 150ms var(--ease), transform 150ms var(--ease), border-color 150ms var(--ease), box-shadow 150ms var(--ease);
+  transition: background 150ms var(--ease), transform 460ms var(--spring), border-color 150ms var(--ease), box-shadow 150ms var(--ease);
 }
+.btn:active { transition-duration: 150ms, 90ms, 150ms, 150ms; }
 .btn:hover { background: var(--glass-strong); border-color: color-mix(in srgb, var(--accent-bright) 35%, var(--hairline)); }
 .btn:active { transform: scale(0.97); }
 .btn-primary {
@@ -173,6 +180,12 @@ h1, h2, h3 { letter-spacing: -0.015em; margin: 0; font-family: var(--font-displa
 .btn-primary:hover { filter: brightness(1.06); box-shadow: 0 10px 22px -8px var(--accent-wash); transform: translateY(-1px); }
 .btn-primary:active { transform: translateY(0) scale(0.97); }
 
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --spring: linear(0, 0.047, 0.166, 0.327, 0.503, 0.675, 0.828, 0.954, 1.049, 1.114, 1.15, 1.163, 1.158, 1.14, 1.114, 1.086, 1.057, 1.032, 1.01, 0.994, 0.983, 0.976, 0.974, 0.974, 0.977, 0.981, 0.985, 0.99, 0.994, 0.998, 1.001, 1.003, 1.004, 1.004, 1.004, 1.004, 1.003, 1.003, 1.002, 1.001, 1);
+    --spring-soft: linear(0, 0.025, 0.089, 0.177, 0.278, 0.383, 0.486, 0.583, 0.671, 0.748, 0.815, 0.87, 0.916, 0.951, 0.979, 0.999, 1.014, 1.023, 1.029, 1.031, 1.031, 1.03, 1.028, 1.025, 1.022, 1.018, 1.015, 1.012, 1.01, 1.007, 1.005, 1.004, 1.002, 1.001, 1, 1, 0.999, 0.999, 0.999, 0.999, 1);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }

@@ -239,8 +239,9 @@ export default function Shell() {
       <div className="sky" aria-hidden>
         <div className="sky-stars s1" /><div className="sky-stars s2" /><div className="sky-beam" />
         <i className="sky-meteor m1" /><i className="sky-meteor m2" /><i className="sky-meteor m3" />
-        <i className="sky-rock k1" /><i className="sky-rock k2" /><i className="sky-rock k3" /><i className="sky-rock k4" /><i className="sky-rock k5" />
-        <div className="sky-astro"><div className="sky-astro-spin">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => <i key={n} className={`sky-tw t${n}`} />)}
+        {[1, 2, 3, 4, 5].map((n) => <i key={n} className={`sky-rock k${n}`}><i className="rk-body"><i className="rk-shade" /></i></i>)}
+        <div className="sky-astro"><div className="sky-astro-y"><div className="sky-astro-z"><div className="sky-astro-spin">
           <svg viewBox="0 0 120 150" width="100%" height="100%">
             <defs>
               <linearGradient id="as-suit" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset="0.6" stopColor="#dfe3ec" /><stop offset="1" stopColor="#9aa1b3" /></linearGradient>
@@ -259,7 +260,7 @@ export default function Shell() {
             <ellipse cx="51" cy="35" rx="8" ry="4.5" fill="#ffffff" opacity="0.55" transform="rotate(-24 51 35)" />
             <circle cx="70" cy="49" r="2" fill="#ffffff" opacity="0.4" />
           </svg>
-        </div></div>
+        </div></div></div></div>
         <div className="sky-scene"><div className="sky-rise">
           <div className="nb-halo" />
           <div className="nb-sys">

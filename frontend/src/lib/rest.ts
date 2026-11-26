@@ -8,7 +8,7 @@
 // about a fifth of the graphics chip busy (measured on Today: 241 frames per
 // 4 s; at rest: 4, the clock's seconds). Loading indicators, the video's and
 // music's bars and focus mode keep moving, and the moving sky (Nebula, Galaxy,
-// Moon) at 15 steps a second (sky.css).
+// Moon) at 30 steps a second (sky.css).
 const IDLE_MS = 20_000
 const AWAY_MS = 3_000
 

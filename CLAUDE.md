@@ -229,16 +229,25 @@ the "Sunrise" identity. Two layers:
   planet (weather turning, three moons in real 3D orbit — `preserve-3d`, the
   ring and moons pass behind the planet and in front; never put opacity,
   filter or overflow on those containers or the 3D flattens), Moon's turning
-  moon, an astronaut and asteroids drifting with depth (scale), swirling AI
+  moon, bright stars twinkling one by one (`.sky-tw`, tiny layers), an
+  astronaut floating on smooth sines (x / y / depth on nested elements, eased
+  by equal-step sine keyframes with linear timing so the shape survives
+  stepping) and asteroids drifting in straight lines with depth (scale),
+  tumbling under fixed light (`.rk-shade` counter-turns), swirling AI
   orbs, and (sky.ts, mouse only) parallax plus a 3D lean + shine on the card
   under the pointer — never on cards that drag (task/board cards, Plan's
   days: dnd-kit measures them). Only transform/opacity animate, no filters on
   moving things; nothing moves with reduced motion. At rest the sky keeps
-  moving (the owner's ask) but steps 15 times a second on one shared beat:
+  moving (the owner's ask) but steps 30 times a second on one shared beat
+  (15 until 2026-11-18 — visibly jerky on the moons and rocks):
   `steps(var(--rn))`, each part's `--rn` = one keyframe interval's length
-  × 15 (steps() counts per interval: a rock's path has two halves), all
+  × 30 (steps() counts per interval: the astronaut's sines have eight), all
   lengths and delays whole seconds or fifths — a new moving part must follow
-  that, or the steps fall between beats and the redraws add up.
+  that, or the steps fall between beats and the redraws add up (the kit's
+  `beat30.mjs` lists any part off the beat). Motion feel: `--spring` /
+  `--spring-soft` (tokens.css, a sampled damped spring via `linear()`) for
+  taps, ticks, sheets, cards arriving and messages — use them for new motion.
+  Glass blur is 16px (looked the same as 22px, a quarter less GPU per frame).
 - `frontend/src/styles/focus.css` — focus mode's full-screen deep-space
   timer: its own always-dark look in every theme (not scoped to Cosmic).
 - **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `nebula` is
