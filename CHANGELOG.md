@@ -6,6 +6,24 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-11-26
+
+- **Smoother, more natural motion, and lighter on the graphics chip.** The
+  glass is a touch softer (blur 16px instead of 22px). It looks the same but
+  costs about a quarter less work every frame the sky moves. Taps now feel
+  physical: ticking a task springs the circle in with a ring, buttons and
+  tabs give under your finger and spring back, sheets slide up on a soft
+  spring, and cards rise in as a page opens. In the sky, rocks drift in
+  straight lines at a steady speed and tumble while the light on them stays
+  on one side. The astronaut floats on smooth curves without ever stopping,
+  and a dozen bright stars twinkle one by one with small light spikes. Left
+  alone, the sky now moves 30 times a second instead of 15, so the moons and
+  rocks no longer jerk. That uses a little more of the graphics chip while
+  idle (about 580 ms of every 4 s instead of 360), still less than half of
+  when you're using it. Today's cards also open without a costly blur
+  effect, and two small decorations that redrew every frame are now still.
+  [`afca570`](https://github.com/YapSeng98/Personal-Planning/commit/afca570)
+
 ## 2026-11-18
 
 - **More reasons to keep going, and copying a task.** Today's header now
