@@ -8,6 +8,18 @@ those.
 
 ## 2026-11-28
 
+- **Your old backgrounds are back, now in 3D.** Each look has its own scene
+  again, with real depth. Nebula's planet is lit like a real sphere (a glossy
+  highlight, a darker edge, a glowing atmosphere), its ring has bands with a
+  gap and some thickness, and the moons are glossy. Galaxy's spiral now lies
+  in true perspective, its near side larger. The Moon has a deeper shadow and
+  a lit edge. In Ops the network map is a 3D floor stretching into the
+  distance, with light rising from the main servers; in Graphite the circuit
+  boards stand as a wall in perspective with the chip raised off the board.
+  The 3D objects from earlier today are still there as an option: Settings →
+  Background → Scene → 3D objects.
+  [`a86fbd2`](https://github.com/YapSeng98/Personal-Planning/commit/a86fbd2)
+
 - **3D objects in every look.** The style you picked: glossy 3D shapes float
   behind the app while the interface stays crisp. There's a large ring whose
   colours turn under a fixed highlight, three spheres lit from the top left
