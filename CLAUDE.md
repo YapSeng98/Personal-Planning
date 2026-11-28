@@ -264,23 +264,12 @@ the "Sunrise" identity. Two layers:
   `genbg.py`. Idle GPU ~0.2 s / 4 s vs Nebula's ~1.3 s, still 60 fps; at
   rest they step on the sky's 30/s beat. Scoped under
   `:root[data-bg='graphite' | 'ops']`; data marks indigo / cyan + green.
-- `frontend/src/styles/objects.css` + Shell's `.obj3d` — **3D objects**
-  (since 2026-11-28, the owner's pick "B" of three 3D styles, for every
-  look): a glossy ring (a conic-colour tube turning under a still specular
-  highlight, tilted in `preserve-3d`), three spheres (fixed top-left light +
-  a coloured rim light, floating on equal-step sine keyframes) and a glass
-  cube (wireframe in Ops), tinted per look via `--c1/--c2/--c3`. They replace
-  each look's centrepiece (Nebula's planet, Galaxy's spiral, Moon's moon,
-  rocks + astronaut, Graphite's circuits, Ops's network map); stars, meteors
-  and grids stay. OFF by default since the same day (the owner: "use back
-  [the old backgrounds] and make 3D"): Settings → Background → Scene → 3D
-  objects turns them on (`planner_objects` = '1', `data-objects` on :root,
-  lib/bg.ts). sky.ts drifts each `.ob` with the mouse by its `data-k`
-  (in any look; cards still lean only in sky looks). At rest they step on the
-  30/s beat (each `--rn` set). GPU ≈ the centrepiece they replace, except
-  Liquid at rest (was still, now ~0.4 s / 4 s).
-- `frontend/src/styles/depth3d.css` — the classic scenes in **3D** (the
-  default scene since 2026-11-28; loaded AFTER sky.css or the sky's flat
+- **3D objects** (objects.css, 2026-11-28) were tried and removed the same
+  day — the owner: "not what I want"; they want the whole app to look
+  advanced and professional, not shapes in the background. Don't bring
+  them back.
+- `frontend/src/styles/depth3d.css` — the classic scenes in **3D** (since
+  2026-11-28; loaded AFTER sky.css or the sky's flat
   rules win): Nebula's planet lit as a sphere (`.nb-shine`: glossy highlight,
   darker limb, atmosphere) with Saturn-like ring bands and a second ring
   layer below for thickness (`.nb-ring.under`), glossy moons; Galaxy's

@@ -48,21 +48,12 @@ export function applyBg(b: Bg = getBg()) {
   root.toggleAttribute('data-nebula', b === 'nebula')
   root.toggleAttribute('data-galaxy', b === 'galaxy')
   root.toggleAttribute('data-lunar', b === 'lunar')
-  root.toggleAttribute('data-objects', getObjects())
   applyTheme() // the window bar follows (Cosmic is always dark)
 }
 
-/** The scene: each look's own centrepiece in 3D (planet, galaxy, moon,
-    circuits, network — depth3d.css; the default: the owner asked for the old
-    backgrounds back, made 3D) or the 3D objects (objects.css), by choice. */
-const OBJ_KEY = 'planner_objects'
-export function getObjects(): boolean {
-  try { return localStorage.getItem(OBJ_KEY) === '1' } catch { return false }
-}
-export function setObjects(on: boolean) {
-  try { localStorage.setItem(OBJ_KEY, on ? '1' : '0') } catch { /* this visit only */ }
-  document.documentElement.toggleAttribute('data-objects', on)
-}
+// The 3D objects option (2026-11-28) was removed the same day at the
+// owner's word ("not what I want"); forget the choice on devices that made it.
+try { localStorage.removeItem('planner_objects') } catch { /* nothing kept */ }
 
 export function setBg(b: Bg) {
   try {

@@ -10,7 +10,6 @@ import './styles/nebula.css'
 import './styles/lunar.css'
 import './styles/galaxy.css'
 import './styles/pro.css'
-import './styles/objects.css'
 import './styles/sky.css'
 // after sky.css: it reshapes the sky's own scenes in 3D
 import './styles/depth3d.css'

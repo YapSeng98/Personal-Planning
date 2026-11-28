@@ -11,7 +11,7 @@ import { binItems } from '../lib/bin'
 import RestoreSheet from '../components/RestoreSheet'
 import { useNowPlaying, canUseExtension, olderVersion, EXTENSION_VERSION, EXTENSION_ZIP } from '../lib/nowPlaying'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
-import { getBg, setBg, BGS, getObjects, setObjects, type Bg } from '../lib/bg'
+import { getBg, setBg, BGS, type Bg } from '../lib/bg'
 import { getAiUrl, setAiUrl, askAI, clearAiUrlLocal } from '../lib/ai'
 import { getYoutubeUrl, setYoutubeUrl, extractYoutubeId } from '../lib/youtube'
 import { useLang, LANGS, type Lang } from '../lib/i18n'
@@ -129,7 +129,6 @@ function RemindersCard({ offlineMode }: { offlineMode: boolean }) {
 export default function Settings() {
   const [theme, setThemeState] = useState<Theme>(getTheme())
   const [bg, setBgState] = useState<Bg>(getBg())
-  const [objects, setObjectsState] = useState(getObjects())
   const [aiUrl, setAiUrlState] = useState(getAiUrl())
   const [aiTest, setAiTest] = useState<{ state: 'idle' | 'testing' | 'ok' | 'err'; msg: string }>({ state: 'idle', msg: '' })
   const [ytUrl, setYtUrlState] = useState(getYoutubeUrl())
@@ -322,21 +321,6 @@ export default function Settings() {
               onClick={() => pickBg(b)}
             >
               <span>{t('bg.' + b)}</span>
-            </button>
-          ))}
-        </div>
-        <div className="app-picks-h"><b>{t('set.scene')}</b></div>
-        <div className="seg" role="radiogroup" aria-label={t('set.scene')}>
-          {([[false, 'set.sceneClassic', 'set.sceneClassicHint'], [true, 'set.sceneObjects', 'set.sceneObjectsHint']] as const).map(([on, label, hint]) => (
-            <button
-              key={label}
-              role="radio"
-              aria-checked={objects === on}
-              className={`seg-btn ${objects === on ? 'on' : ''}`}
-              onClick={() => { setObjects(on); setObjectsState(on) }}
-            >
-              <b>{t(label)}</b>
-              <span>{t(hint)}</span>
             </button>
           ))}
         </div>

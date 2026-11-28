@@ -23,10 +23,6 @@ export function startSkyMotion(): void {
     document.querySelectorAll<HTMLElement>('.sky-scene, .gx-scene').forEach((s) => {
       s.style.transform = `translate3d(${(-x * 26).toFixed(1)}px, ${(-y * 18).toFixed(1)}px, 0)`
     })
-    document.querySelectorAll<HTMLElement>('.obj3d .ob').forEach((o) => {
-      const k = Number(o.dataset.k) || 10
-      o.style.transform = `translate3d(${(-x * k).toFixed(1)}px, ${(-y * k * 0.7).toFixed(1)}px, 0)`
-    })
     // the IT scenes (Graphite, Ops) sway too — by `translate`, which adds to their own 3D transform
     document.querySelectorAll<HTMLElement>('.pro-bg .circ, .pro-bg .net-map').forEach((s) => {
       s.style.translate = `${(-x * 18).toFixed(1)}px ${(-y * 12).toFixed(1)}px`
@@ -51,11 +47,11 @@ export function startSkyMotion(): void {
   let lastX = 0, lastY = 0
   window.addEventListener('pointermove', (e) => {
     const bg = root.getAttribute('data-bg')
-    if (e.pointerType !== 'mouse' || !(root.hasAttribute('data-sky') || root.hasAttribute('data-objects') || bg === 'graphite' || bg === 'ops')) return
+    if (e.pointerType !== 'mouse' || !(root.hasAttribute('data-sky') || bg === 'graphite' || bg === 'ops')) return
     lastX = e.clientX; lastY = e.clientY
     x = e.clientX / window.innerWidth - 0.5
     y = e.clientY / window.innerHeight - 0.5
-    // the cards lean only in the sky looks; the 3D objects drift in any look
+    // the cards lean only in the sky looks
     hero = root.hasAttribute('data-sky') ? (e.target as Element | null)?.closest?.(TILT) as HTMLElement | null : null
     if (!frame) frame = requestAnimationFrame(apply)
   }, { passive: true })

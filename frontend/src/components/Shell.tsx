@@ -290,17 +290,6 @@ export default function Shell() {
       {/* the professional looks' backgrounds (pro.css): a chip's circuit
           traces with signals running (Graphite), a network map with packets
           moving between servers (Ops) */}
-      {/* 3D objects (objects.css): a ring, three spheres and a glass cube in
-          the scene, tinted per look — in place of its centrepiece unless
-          Settings → Background → Scene is Classic. data-k: how far the
-          mouse moves each (lib/sky.ts), nearer = more */}
-      <div className="obj3d" aria-hidden>
-        <div className="ob ob-ring" data-k="34"><div><i /><b /><s /></div></div>
-        <div className="ob ob-sphere s1" data-k="22"><i /></div>
-        <div className="ob ob-sphere s2" data-k="14"><i /></div>
-        <div className="ob ob-sphere s3" data-k="8"><i /></div>
-        <div className="ob ob-cube" data-k="18"><div><i /><i /><i /><i /><i /><i /></div></div>
-      </div>
       <div className="pro-bg" aria-hidden>
         {['tr', 'br'].map((c) => (
           <div key={c} className={`circ ${c}`}>
