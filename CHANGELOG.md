@@ -8,6 +8,12 @@ those.
 
 ## 2026-11-28
 
+- **The 3D objects are gone.** The floating ring, spheres and cube option
+  has been removed (it wasn't the look you wanted), along with Settings →
+  Background → Scene. Every look keeps its own 3D scene: Nebula's planet,
+  Galaxy's spiral, the Moon, Graphite's circuits, Ops's network floor.
+  [`02cbcde`](https://github.com/YapSeng98/Personal-Planning/commit/02cbcde)
+
 - **A cleaner, more professional look: line icons instead of emoji.** The
   little emoji around the app (⭐ top task, 🔁 repeats, 📝 notes, ⏱ time,
   🔔 reminders, 🔥 streaks, 🌙 Plan tomorrow, 📋 Daily Brief, 📎 files, the
