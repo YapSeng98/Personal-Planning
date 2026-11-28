@@ -8,6 +8,18 @@ those.
 
 ## 2026-11-28
 
+- **A new professional look: Vision.** On a computer the whole app now sits
+  in one floating glass window over your scene, like an app on Apple Vision
+  Pro. The window is clear, so the planet, galaxy, moon, circuits or network
+  stay sharp behind it, and it scrolls inside its own rounded frame. The menu
+  is a round icon bar beside the window; hover an icon to see its name. In
+  Nebula, Galaxy, Moon and Cosmic the panels are calm frosted glass with
+  white text and white buttons, and the neon edges are gone. Liquid keeps
+  its glass, and Graphite and Ops keep their solid panels in the same window.
+  Phones keep the tab bar at the bottom. It also uses less graphics power
+  than before.
+  [`3906dee`](https://github.com/YapSeng98/Personal-Planning/commit/3906dee)
+
 - **The 3D objects are gone.** The floating ring, spheres and cube option
   has been removed (it wasn't the look you wanted), along with Settings →
   Background → Scene. Every look keeps its own 3D scene: Nebula's planet,
