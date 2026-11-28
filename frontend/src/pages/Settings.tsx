@@ -327,7 +327,7 @@ export default function Settings() {
         </div>
         <div className="app-picks-h"><b>{t('set.scene')}</b></div>
         <div className="seg" role="radiogroup" aria-label={t('set.scene')}>
-          {([[true, 'set.sceneObjects', 'set.sceneObjectsHint'], [false, 'set.sceneClassic', 'set.sceneClassicHint']] as const).map(([on, label, hint]) => (
+          {([[false, 'set.sceneClassic', 'set.sceneClassicHint'], [true, 'set.sceneObjects', 'set.sceneObjectsHint']] as const).map(([on, label, hint]) => (
             <button
               key={label}
               role="radio"

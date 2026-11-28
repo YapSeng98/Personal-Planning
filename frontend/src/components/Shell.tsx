@@ -264,9 +264,9 @@ export default function Shell() {
         <div className="sky-scene"><div className="sky-rise">
           <div className="nb-halo" />
           <div className="nb-sys">
-            <div className="nb-planet" />
+            <div className="nb-planet" /><div className="nb-shine" />
             <div className="nb-orbit">
-              <div className="nb-ring" />
+              <div className="nb-ring under" /><div className="nb-ring" />
               <div className="nb-spin o1"><b className="nb-moon o1" /></div>
               <div className="nb-spin o2"><b className="nb-moon o2" /></div>
               <div className="nb-spin o3"><b className="nb-moon o3" /></div>
@@ -304,13 +304,16 @@ export default function Shell() {
       <div className="pro-bg" aria-hidden>
         {['tr', 'br'].map((c) => (
           <div key={c} className={`circ ${c}`}>
+            <i className="chip3d" />
             <i className="circ-pk c1" /><i className="circ-pk c2 v" /><i className="circ-pk c3" />
           </div>
         ))}
         <div className="net-map">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => <i key={n} className={`net-pk p${n}`} />)}
           {[1, 2, 3, 4].map((n) => <i key={`g${n}`} className={`net-ping g${n}`} />)}
+          {[1, 2, 3, 4, 5].map((n) => <i key={`b${n}`} className={`net-beam b${n}`} />)}
         </div>
+        <div className="net-fog" />
       </div>
       <nav className="nav-rail" aria-label="Main">
         <div className="nav-rail-top">

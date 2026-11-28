@@ -27,6 +27,10 @@ export function startSkyMotion(): void {
       const k = Number(o.dataset.k) || 10
       o.style.transform = `translate3d(${(-x * k).toFixed(1)}px, ${(-y * k * 0.7).toFixed(1)}px, 0)`
     })
+    // the IT scenes (Graphite, Ops) sway too — by `translate`, which adds to their own 3D transform
+    document.querySelectorAll<HTMLElement>('.pro-bg .circ, .pro-bg .net-map').forEach((s) => {
+      s.style.translate = `${(-x * 18).toFixed(1)}px ${(-y * 12).toFixed(1)}px`
+    })
     document.querySelectorAll<HTMLElement>('.sky-stars').forEach((s, i) => {
       const k = i ? 12 : 6
       s.style.transform = `translate3d(${(-x * k).toFixed(1)}px, ${(-y * k).toFixed(1)}px, 0)`
@@ -46,7 +50,8 @@ export function startSkyMotion(): void {
   }
   let lastX = 0, lastY = 0
   window.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse' || !(root.hasAttribute('data-sky') || root.hasAttribute('data-objects'))) return
+    const bg = root.getAttribute('data-bg')
+    if (e.pointerType !== 'mouse' || !(root.hasAttribute('data-sky') || root.hasAttribute('data-objects') || bg === 'graphite' || bg === 'ops')) return
     lastX = e.clientX; lastY = e.clientY
     x = e.clientX / window.innerWidth - 0.5
     y = e.clientY / window.innerHeight - 0.5

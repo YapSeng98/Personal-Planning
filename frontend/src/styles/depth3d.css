@@ -1,0 +1,83 @@
+/* ======================================================================
+   The classic scenes, in 3D (2026-11-28, the owner's "use back [the old
+   backgrounds] and make 3D" — after trying the 3D objects). Each look keeps
+   its own centrepiece and gains real depth:
+   - Nebula: the planet lit as a sphere (glossy highlight, darker limb, a
+     glowing atmosphere), Saturn-like ring bands with a second layer below
+     for thickness, glossy moons;
+   - Galaxy: the spiral laid in real perspective (rotateX, near side larger)
+     instead of squashed flat;
+   - Moon: a deeper phase shadow, a lit rim, a softer glow;
+   - Ops: the network map becomes a 3D floor with a perspective grid, light
+     beams rising from key servers, fading into the distance;
+   - Graphite: the circuit boards stand as a wall in perspective at the
+     right edge, the chip raised off the board.
+   Only transform / opacity animate (as before); 3D containers carry no
+   opacity, filter, mask or overflow (any of them would flatten the 3D).
+   ====================================================================== */
+
+/* ---- Nebula ---- */
+.nb-shine { position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background:
+    radial-gradient(circle at 33% 27%, rgba(255, 255, 255, 0.6) 0 2.5%, rgba(255, 240, 255, 0.22) 9%, transparent 26%),
+    radial-gradient(circle at 50% 50%, transparent 56%, rgba(6, 3, 26, 0.5) 88%, rgba(6, 3, 26, 0.75) 100%);
+  box-shadow: inset 0.5vmax 0.4vmax 1.4vmax rgba(190, 220, 255, 0.35), 0 0 2.2vmax 0.2vmax rgba(150, 120, 255, 0.45), -0.6vmax -0.5vmax 3vmax rgba(255, 120, 220, 0.25); }
+/* Saturn-like bands with a gap, and the same ring a little lower: its thickness */
+.nb-ring { background: radial-gradient(closest-side, transparent 72%, rgba(255, 205, 238, 0.5) 74%, rgba(255, 230, 250, 0.78) 77%, rgba(255, 230, 250, 0.1) 78.6%,
+  rgba(160, 205, 255, 0.78) 80.5%, rgba(200, 228, 255, 0.6) 85%, rgba(120, 160, 255, 0.15) 87%, rgba(255, 255, 255, 0.3) 89%, transparent 94%); }
+.nb-ring.under { transform: translateZ(-0.45vmax); background: radial-gradient(closest-side, transparent 72%, rgba(40, 20, 90, 0.7) 74%, rgba(30, 30, 90, 0.75) 87%, rgba(20, 20, 60, 0.4) 89%, transparent 94%); }
+.nb-moon.o1 { background: radial-gradient(circle at 32% 26%, #ffffff 0 5%, #c8f6ff 14%, #4fc6e6 42%, #155a78 74%, #03111c 100%);
+  box-shadow: inset -0.5vmax -0.45vmax 0.9vmax rgba(0, 0, 0, 0.45), 0 0 1.6vmax rgba(143, 233, 255, 0.75); }
+.nb-moon.o2 { background: radial-gradient(circle at 32% 26%, #ffffff 0 5%, #c9ffe2 14%, #3fcf8c 42%, #136640 74%, #021a0e 100%);
+  box-shadow: inset -0.55vmax -0.5vmax 1vmax rgba(0, 0, 0, 0.45), 0 0 1.8vmax rgba(126, 240, 180, 0.75); }
+.nb-moon.o3 { background: radial-gradient(circle at 32% 26%, #ffffff 0 5%, #eedcff 14%, #a77ef0 42%, #4a2c8a 74%, #0d0620 100%);
+  box-shadow: inset -0.4vmax -0.35vmax 0.7vmax rgba(0, 0, 0, 0.45), 0 0 1.2vmax rgba(216, 180, 255, 0.7); }
+
+/* ---- Galaxy: real perspective ---- */
+:root[data-galaxy] .gx-rise { perspective: 130vmax; }
+.gx-tilt { transform: rotate(-24deg) rotateX(70deg); }
+
+/* ---- Moon: deeper ---- */
+.lu-moon::after { box-shadow: inset -3vmax -2.2vmax 4.4vmax rgba(0, 0, 0, 0.62), inset 0.9vmax 0.7vmax 1.8vmax rgba(255, 255, 255, 0.6), inset -0.4vmax -0.3vmax 0.6vmax rgba(170, 190, 255, 0.25); }
+.lu-moon { box-shadow: 0 0 5vmax rgba(255, 255, 255, 0.38), 0 0 16vmax rgba(255, 255, 255, 0.1), 2vmax 2.4vmax 4vmax -1vmax rgba(0, 0, 0, 0.8); }
+
+/* ---- Ops: the network map as a 3D floor ---- */
+:root[data-bg='ops'] .pro-bg { perspective: 1000px; perspective-origin: 50% 8%; }
+:root[data-bg='ops'] {
+  --app-bg: radial-gradient(90vmax 46vmax at 50% 18%, rgba(38, 182, 201, 0.12), transparent 70%), #0A0E12; }
+:root[data-bg='ops'] .net-map { top: 64%; opacity: 1; transform-style: preserve-3d;
+  transform: translate(-50%, -50%) rotateX(58deg) scale(1.55);
+  /* a grid on the floor, under the map */
+  background:
+    var(--net-art) no-repeat 0 0 / 100% 100%,
+    linear-gradient(rgba(82, 212, 228, 0.09) 1px, transparent 1px) 0 0 / 2.5% 4%,
+    linear-gradient(90deg, rgba(82, 212, 228, 0.09) 1px, transparent 1px) 0 0 / 2.5% 4%; }
+/* light rising from key servers */
+.net-beam { position: absolute; width: 3px; height: 26%; margin-left: -1.5px; transform-origin: 50% 100%; transform: translateY(-100%) rotateX(-90deg);
+  background: linear-gradient(to top, rgba(110, 230, 245, 0.85), rgba(82, 212, 228, 0.25) 55%, transparent);
+  box-shadow: 0 0 10px rgba(82, 212, 228, 0.6); }
+.net-beam.b1 { left: 50%; top: 50%; height: 34%; } .net-beam.b2 { left: 32.5%; top: 33%; } .net-beam.b3 { left: 67.5%; top: 33%; }
+.net-beam.b4 { left: 35%; top: 70%; height: 20%; } .net-beam.b5 { left: 65%; top: 70%; height: 20%; background: linear-gradient(to top, rgba(110, 230, 140, 0.85), rgba(63, 185, 80, 0.25) 55%, transparent); box-shadow: 0 0 10px rgba(63, 185, 80, 0.6); }
+/* the floor fading into the distance, a horizon glow */
+.net-fog { display: none; }
+:root[data-bg='ops'] .net-fog { display: block; position: absolute; left: 0; right: 0; top: 0; height: 46vh; pointer-events: none;
+  background: linear-gradient(180deg, #0A0E12 30%, rgba(10, 14, 18, 0.6) 62%, transparent),
+    radial-gradient(60vw 2.2vh at 50% 34%, rgba(82, 212, 228, 0.16), transparent 70%); }
+
+/* ---- Graphite: the circuit boards as a wall in perspective ---- */
+:root[data-bg='graphite'] .pro-bg { perspective: 1100px; perspective-origin: 70% 50%; }
+:root[data-bg='graphite'] .circ.tr { transform-origin: 100% 50%; transform: rotateY(-36deg) scale(1.12); }
+:root[data-bg='graphite'] .circ.br { transform-origin: 100% 50%; transform: rotateY(-36deg) scale(1.12); }
+@media (min-width: 1600px) { :root[data-bg='graphite'] :is(.circ.tr, .circ.br) { transform: rotateY(-36deg) scale(1.4); } }
+@media (max-width: 639px) { :root[data-bg='graphite'] :is(.circ.tr, .circ.br) { transform: rotateY(-30deg) scale(0.62); } }
+/* the chip, raised off the board (its thickness drawn as a stack of edges) */
+.chip3d { display: none; }
+:root[data-bg='graphite'] .chip3d { display: block; position: absolute; left: 250px; top: 110px; width: 120px; height: 100px; border-radius: 7px;
+  background: linear-gradient(150deg, #34387a, #1b1d45 55%, #12132e); border: 1px solid rgba(156, 163, 246, 0.6);
+  box-shadow: inset 0 1px 0 rgba(220, 225, 255, 0.35), 1px 1px 0 #2a2d68, 2px 2px 0 #25285d, 3px 3px 0 #202252, 4px 4px 0 #1b1d47, 5px 5px 0 #16183c, 6px 6px 0 #121332, 12px 16px 26px rgba(0, 0, 0, 0.7); }
+:root[data-bg='graphite'] .chip3d::after { content: 'PLN-26'; position: absolute; inset: 0; display: grid; place-items: center;
+  font: 600 12px/1 ui-monospace, Menlo, monospace; letter-spacing: 1.5px; color: rgba(190, 196, 255, 0.75); }
+:root[data-bg='graphite'] .chip3d::before { content: ''; position: absolute; left: 10px; top: 10px; width: 6px; height: 6px; border-radius: 50%; background: rgba(190, 196, 255, 0.6); }
+
+/* the mouse sways the IT scenes a little too (lib/sky.ts sets `translate`) */
+.pro-bg :is(.circ, .net-map) { transition: translate 900ms cubic-bezier(.2, .7, .2, 1); }

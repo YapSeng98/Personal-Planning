@@ -52,11 +52,12 @@ export function applyBg(b: Bg = getBg()) {
   applyTheme() // the window bar follows (Cosmic is always dark)
 }
 
-/** The scene: 3D objects (objects.css — the owner's pick, 2026-11-28) or
-    each look's classic centrepiece (planet, galaxy, moon, circuits, network). */
+/** The scene: each look's own centrepiece in 3D (planet, galaxy, moon,
+    circuits, network — depth3d.css; the default: the owner asked for the old
+    backgrounds back, made 3D) or the 3D objects (objects.css), by choice. */
 const OBJ_KEY = 'planner_objects'
 export function getObjects(): boolean {
-  try { return localStorage.getItem(OBJ_KEY) !== '0' } catch { return true }
+  try { return localStorage.getItem(OBJ_KEY) === '1' } catch { return false }
 }
 export function setObjects(on: boolean) {
   try { localStorage.setItem(OBJ_KEY, on ? '1' : '0') } catch { /* this visit only */ }

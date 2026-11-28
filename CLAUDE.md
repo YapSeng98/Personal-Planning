@@ -272,12 +272,27 @@ the "Sunrise" identity. Two layers:
   cube (wireframe in Ops), tinted per look via `--c1/--c2/--c3`. They replace
   each look's centrepiece (Nebula's planet, Galaxy's spiral, Moon's moon,
   rocks + astronaut, Graphite's circuits, Ops's network map); stars, meteors
-  and grids stay. On by default; Settings → Background → Scene → Classic
-  brings the centrepieces back (`planner_objects` = '0', `data-objects` on
-  :root, lib/bg.ts). sky.ts drifts each `.ob` with the mouse by its `data-k`
+  and grids stay. OFF by default since the same day (the owner: "use back
+  [the old backgrounds] and make 3D"): Settings → Background → Scene → 3D
+  objects turns them on (`planner_objects` = '1', `data-objects` on :root,
+  lib/bg.ts). sky.ts drifts each `.ob` with the mouse by its `data-k`
   (in any look; cards still lean only in sky looks). At rest they step on the
   30/s beat (each `--rn` set). GPU ≈ the centrepiece they replace, except
   Liquid at rest (was still, now ~0.4 s / 4 s).
+- `frontend/src/styles/depth3d.css` — the classic scenes in **3D** (the
+  default scene since 2026-11-28; loaded AFTER sky.css or the sky's flat
+  rules win): Nebula's planet lit as a sphere (`.nb-shine`: glossy highlight,
+  darker limb, atmosphere) with Saturn-like ring bands and a second ring
+  layer below for thickness (`.nb-ring.under`), glossy moons; Galaxy's
+  spiral in real perspective (`.gx-rise` perspective + `rotateX(70deg)`
+  instead of `scaleY`); a deeper Moon; Ops's network map as a 3D floor
+  (`.pro-bg` perspective, `.net-map` `rotateX(58deg)` + a grid under the
+  `--net-art` SVG, `.net-beam`s standing up via `rotateX(-90deg)` in its
+  `preserve-3d`, `.net-fog` fading the distance); Graphite's circuits as a
+  wall in perspective (`rotateY(-36deg)`) with a raised chip (`.chip3d`,
+  thickness from stacked box-shadows). sky.ts sways the IT scenes with the
+  mouse through `translate` (adds to their 3D `transform`). 3D containers:
+  no opacity / filter / mask / overflow, or the 3D flattens.
 - `frontend/src/styles/focus.css` — focus mode's full-screen deep-space
   timer: its own always-dark look in every theme (not scoped to Cosmic).
 - **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `nebula` is
