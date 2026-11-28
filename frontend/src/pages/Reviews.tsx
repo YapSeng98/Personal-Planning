@@ -12,6 +12,7 @@ import { storeFile, deleteStoredFiles, MAX_STORED_BYTES } from '../lib/files'
 import AttachmentChip from '../components/AttachmentChip'
 import AttachmentImage from '../components/AttachmentImage'
 import ReviewCalendar from '../components/ReviewCalendar'
+import { pageScrollTo } from '../lib/scroll'
 
 type RType = Review['type']
 const TYPES: RType[] = ['daily', 'weekly', 'monthly', 'yearly']
@@ -274,7 +275,7 @@ export default function Reviews() {
   function openPeriod(rt: RType, date: string) {
     setType(rt)
     setAnchorDate(rt === 'daily' && date === todayStr() ? null : date)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    pageScrollTo(0, 'smooth')
   }
 
   async function remove() {

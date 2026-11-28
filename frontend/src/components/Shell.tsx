@@ -14,6 +14,7 @@ import { useFocus, openFocus, nextRound, endFocus, roundElapsed, remaining, type
 import FocusMode from './FocusMode'
 import Toaster from './Toaster'
 import PageGuard from './PageGuard'
+import { pageScrollY, pageScrollTo, onPageScroll } from '../lib/scroll'
 import { reminderPrefs, reminderBody, type Reminder } from '../lib/reminders'
 
 const links: { to: string; key: string; ico: IconName }[] = [
@@ -125,20 +126,20 @@ function usePageScroll() {
   const current = useRef(pathname)
   useEffect(() => {
     let raf = 0
-    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => scrollMemory.set(current.current, window.scrollY)) }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', onScroll) }
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => scrollMemory.set(current.current, pageScrollY())) }
+    const off = onPageScroll(onScroll)
+    return () => { cancelAnimationFrame(raf); off() }
   }, [])
   useLayoutEffect(() => {
     if (current.current === pathname) return
     current.current = pathname
     const saved = navType === 'POP' ? scrollMemory.get(pathname) : undefined
     if (saved === undefined) {
-      window.scrollTo(0, 0)
+      pageScrollTo(0)
       return
     }
     // the page's content loads from the database a moment later: try again as it grows
-    const timers = [0, 80, 250, 600].map((ms) => window.setTimeout(() => window.scrollTo(0, saved), ms))
+    const timers = [0, 80, 250, 600].map((ms) => window.setTimeout(() => pageScrollTo(saved), ms))
     return () => timers.forEach((id) => window.clearTimeout(id))
   }, [pathname, navType])
 }
@@ -196,25 +197,25 @@ export default function Shell() {
     navigate(pathname, { replace: true })
   }, [search, pathname, navigate])
   useEffect(() => {
-    let last = window.scrollY
+    let last = pageScrollY()
     // only scrolling you do shrinks it — not the app putting a page back
     // where you left it (Back), which would leave your next tap opening
     // the bar instead of the page you tapped
     let gesture = 0
     const mark = () => { gesture = Date.now() }
     const onScroll = () => {
-      const y = window.scrollY
+      const y = pageScrollY()
       const yours = Date.now() - gesture < 800
       if (yours && y > last + 8 && y > 120) setCompact(true)
       else if (y < last - 8 || y < 60) setCompact(false)
       last = y
     }
-    window.addEventListener('scroll', onScroll, { passive: true })
+    const offScroll = onPageScroll(onScroll)
     window.addEventListener('touchmove', mark, { passive: true })
     window.addEventListener('wheel', mark, { passive: true })
     window.addEventListener('keydown', mark)
     return () => {
-      window.removeEventListener('scroll', onScroll)
+      offScroll()
       window.removeEventListener('touchmove', mark)
       window.removeEventListener('wheel', mark)
       window.removeEventListener('keydown', mark)
@@ -304,6 +305,8 @@ export default function Shell() {
         </div>
         <div className="net-fog" />
       </div>
+      {/* the window the app sits in on computers (vision.css): a clear pane behind .shell-main */}
+      <div className="vwin" aria-hidden />
       <nav className="nav-rail" aria-label="Main">
         <div className="nav-rail-top">
           <div className="brand grad-text">{t('brand')}</div>

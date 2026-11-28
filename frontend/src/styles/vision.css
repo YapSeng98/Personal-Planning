@@ -1,0 +1,144 @@
+/* ======================================================================
+   Vision (2026-11-28 — the owner's pick "C" of three professional
+   directions, then "background can't see clearly" on its first preview):
+   the app sits in one floating window over each look's scene.
+   - Computers (≥ 640px): the window is a CLEAR pane with a bright rim — no
+     blur, so the planet / galaxy / moon / circuits / network stay sharp
+     behind it. `.shell-main` is the window and scrolls by itself (the page
+     doesn't: lib/scroll.ts); it stays `position: relative` with no z-index,
+     transform or filter, so sheets inside it (position: fixed) still cover
+     the whole screen and their z-index still counts against the buttons
+     outside it. `.vwin` (Shell) draws the pane behind it.
+   - The menu is an ornament: a round icon bar outside the window, each
+     label shown on hover / keyboard focus (still read by screen readers).
+   - Panels inside are visionOS glass in the dark looks (Nebula, Galaxy,
+     Moon, Cosmic): neutral frosted fills (their own blur, as before — the
+     pane has none, so it is never glass in glass), white type, large radii,
+     white primary buttons, no neon edges. Liquid keeps its glass; Graphite
+     and Ops keep their solid panels and get the window and ornament.
+   - Phones keep the page scroll and the floating tab bar.
+   Loaded after depth3d.css, before focus.css (focus mode keeps its look).
+   ====================================================================== */
+
+:root {
+  --v-gap: 18px; --v-orn: 64px; --v-left: calc(var(--v-orn) + 44px); --v-r: 32px; --v-max: 1320px; --v-lane: 2.6rem;
+  /* the pane: a faint sheen, a bright rim — never a blur */
+  --v-win: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.018) 36%, rgba(6, 8, 22, 0.12));
+  --v-rim: rgba(255, 255, 255, 0.16); --v-hi: rgba(255, 255, 255, 0.28);
+  --v-orn-bg: rgba(26, 28, 50, 0.62);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']):not([data-bg='cosmic']):not([data-bg='graphite']):not([data-bg='ops']) {
+    --v-win: linear-gradient(155deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0.05));
+    --v-rim: rgba(255, 255, 255, 0.7); --v-hi: rgba(255, 255, 255, 0.95); --v-orn-bg: rgba(255, 255, 255, 0.55); }
+}
+:root[data-theme='light']:not([data-bg='cosmic']):not([data-bg='graphite']):not([data-bg='ops']) {
+  --v-win: linear-gradient(155deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0.05));
+  --v-rim: rgba(255, 255, 255, 0.7); --v-hi: rgba(255, 255, 255, 0.95); --v-orn-bg: rgba(255, 255, 255, 0.55); }
+:root[data-bg='graphite'] { --v-r: 16px; --v-win: rgba(15, 16, 17, 0.22); --v-rim: rgba(255, 255, 255, 0.1); --v-hi: rgba(255, 255, 255, 0.05); --v-orn-bg: rgba(22, 23, 26, 0.96); }
+:root[data-bg='ops'] { --v-r: 6px; --v-win: rgba(10, 14, 18, 0.22); --v-rim: rgba(82, 212, 228, 0.24); --v-hi: rgba(82, 212, 228, 0.07); --v-orn-bg: rgba(12, 17, 22, 0.96); }
+
+.vwin { display: none; }
+
+/* ---------------- computers: the window and the ornament ---------------- */
+@media (min-width: 640px) {
+  :root:has(.vwin) { overflow: hidden; }
+  .shell { height: 100dvh; min-height: 0; }
+  .vwin { display: block; position: fixed; z-index: -1; pointer-events: none;
+    left: var(--v-left); top: var(--v-gap); right: var(--v-gap); bottom: var(--v-gap); border-radius: var(--v-r);
+    background: var(--v-win); border: 1px solid var(--v-rim);
+    box-shadow: inset 0 1px 0 var(--v-hi), inset 1px 0 0 rgba(255, 255, 255, 0.05), 0 40px 90px -36px rgba(0, 0, 0, 0.75); }
+  /* the window scrolls, inside its rounded edge */
+  .shell-main { position: relative; flex: 1; min-width: 0; max-width: none !important; box-sizing: border-box;
+    height: calc(100dvh - 2 * var(--v-gap)); margin: var(--v-gap) var(--v-gap) var(--v-gap) var(--v-left) !important;
+    overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; border-radius: var(--v-r);
+    padding-top: 2.2rem !important;
+    padding-left: max(2.6rem, calc((100vw - var(--v-left) - var(--v-gap) - var(--v-max)) / 2)) !important;
+    padding-right: max(var(--v-lane), calc((100vw - var(--v-left) - var(--v-gap) - var(--v-max)) / 2)) !important; }
+
+  /* the menu: a round icon bar beside the window; labels on hover */
+  .nav-rail { position: fixed !important; z-index: 3; left: 22px !important; top: 50% !important; bottom: auto !important; transform: translateY(-50%);
+    width: var(--v-orn) !important; min-width: 0 !important; height: auto !important; margin: 0 !important; box-sizing: border-box;
+    padding: 9px !important; gap: 4px !important; align-items: center;
+    border-radius: calc(var(--v-orn) / 2) !important; border: 1px solid var(--v-rim) !important; background: var(--v-orn-bg) !important;
+    box-shadow: inset 0 1px 0 var(--v-hi), 0 20px 50px -20px rgba(0, 0, 0, 0.75) !important; }
+  .nav-rail .nav-rail-top { justify-content: center !important; margin: 0 0 2px !important; padding: 0 !important; }
+  .nav-rail .brand { display: none !important; }
+  .nav-rail .nav-search-btn { width: 44px; height: 44px; }
+  .nav-rail .nav-link { position: relative; width: 44px !important; height: 44px !important; padding: 0 !important; justify-content: center !important;
+    border-radius: 50% !important; border: none !important; box-shadow: none !important; background: transparent; }
+  .nav-rail .nav-link .ico { margin: 0 !important; }
+  .nav-rail .nav-link.active { background: rgba(255, 255, 255, 0.16) !important; color: var(--text-1) !important; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24) !important; }
+  .nav-rail .nav-link:hover:not(.active) { background: rgba(255, 255, 255, 0.07); }
+  .nav-rail .nav-link > span:not(.ico) { position: absolute; left: calc(100% + 16px); top: 50%; transform: translateY(-50%); white-space: nowrap;
+    padding: 5px 11px; border-radius: 9px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0; color: #fff; background: rgba(18, 20, 36, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; transition: opacity 120ms; }
+  .nav-rail .nav-link:hover > span:not(.ico), .nav-rail .nav-link:focus-visible > span:not(.ico) { opacity: 1; }
+  .nav-rail > div:not(.nav-rail-top) { flex: none !important; width: 26px; height: 1px; margin: 4px auto; background: var(--v-rim); }
+  .nav-rail .sync-link { padding: 6px 0 2px !important; margin: 0 !important; display: flex; justify-content: center; }
+  .nav-rail .sync-link .sync-dot { font-size: 0 !important; gap: 0 !important; margin: 0 !important; padding: 0 !important; }
+  /* the floating + and quick apps sit inside the window's corner */
+  .fab-desktop { right: calc(var(--v-gap) + 22px) !important; bottom: calc(var(--v-gap) + 22px) !important; }
+  .ql-orbit { right: calc(var(--v-gap) + 28px) !important; bottom: calc(var(--v-gap) + 92px) !important; }
+}
+@media (min-width: 1000px) { :root { --v-lane: 6.5rem; } }
+
+/* ---------------- the dark looks' panels: visionOS glass ---------------- */
+:root[data-bg='cosmic'] {
+  --font-display: var(--font-body);
+  --v-card: rgba(30, 32, 56, 0.42); --v-card-hi: rgba(42, 44, 72, 0.5); --v-line: rgba(255, 255, 255, 0.12);
+  --v-mute: rgba(232, 235, 248, 0.62);
+}
+:root[data-bg='cosmic'] :is(.card, .tcard, .m-card, .board-card, .stat-tile, .hx-row, .hero-card, .ask-bar, .day-card, .goal-card, .board-col,
+  .overdue, .wrap-card, .ptm, .rem-banner, .proj-card, .week-nav, .board-head, .chart-card, .ins-card-list) {
+  background: var(--v-card) !important; border: 1px solid var(--v-line) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 18px 40px -24px rgba(0, 0, 0, 0.7) !important; }
+:root[data-bg='cosmic'] :is(.card, .m-card, .stat-tile, .hx-row, .hero-card, .goal-card, .day-card, .board-col, .overdue, .wrap-card, .chart-card) { border-radius: 24px !important; }
+:root[data-bg='cosmic'] :is(.tcard, .board-card, .ask-bar) { border-radius: 18px !important; }
+:root[data-bg='cosmic'] .tcard.mit { background: var(--v-card-hi) !important; border-color: rgba(255, 255, 255, 0.24) !important; }
+:root[data-bg='cosmic'] .tcard.mit::before, :root[data-bg='cosmic'] .tcard.mit::after { display: none !important; }
+:root[data-bg='cosmic'] .hx-row .hx { background: rgba(255, 255, 255, 0.045) !important; border: none !important; box-shadow: none !important; border-radius: 18px !important; }
+:root[data-bg='cosmic'] .hero-brief { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid var(--v-line) !important; border-radius: 18px !important; box-shadow: none !important; }
+:root[data-bg='cosmic'] .hero-brief::before, :root[data-bg='cosmic'] .hero-brief::after { display: none !important; }
+/* no neon: the turning edges, the HUD bits, the glows */
+:root[data-bg='cosmic'] :is(.hero-card, .ask-bar) > .glow-edge, :root[data-bg='cosmic'] :is(.hero-scan, .hero-grid, .hud-c) { display: none !important; }
+:root[data-bg='cosmic'] :is(.greet h1, .page-head h1, .hero-hi, .brand, .section-h) { text-shadow: none !important; filter: none !important; }
+/* type: one family, quiet titles, sentence-case section names */
+:root[data-bg='cosmic'] :is(.greet h1, .page-head h1) { font-weight: 700 !important; letter-spacing: -0.035em !important; color: #fff !important; background: none !important; -webkit-text-fill-color: #fff !important; }
+:root[data-bg='cosmic'] .hero-hi { font-weight: 700 !important; letter-spacing: -0.035em !important; }
+:root[data-bg='cosmic'] .section-h { font-size: 1.05rem !important; letter-spacing: -0.015em !important; text-transform: none !important; color: #fff !important;
+  -webkit-text-fill-color: #fff !important; background: none !important; font-weight: 650 !important; }
+:root[data-bg='cosmic'] .section-h::before { display: none !important; }
+:root[data-bg='cosmic'] .hc-time { background: none !important; -webkit-text-fill-color: #fff !important; color: #fff !important; text-shadow: none !important; filter: none !important; font-weight: 300 !important; letter-spacing: -0.05em; }
+:root[data-bg='cosmic'] .hc-time small { -webkit-text-fill-color: var(--v-mute) !important; color: var(--v-mute) !important; }
+:root[data-bg='cosmic'] :is(.big, .stat-v, .hs-n, .cv) { background: none !important; -webkit-text-fill-color: currentColor !important; color: #fff !important; filter: none !important; }
+:root[data-bg='cosmic'] .nav-rail .brand { background: none !important; -webkit-text-fill-color: #fff !important; }
+/* buttons: white primary, soft secondary */
+:root[data-bg='cosmic'] :is(.btn-primary, .fab, .ask-go) { background: rgba(255, 255, 255, 0.94) !important; color: #12131F !important; border: none !important;
+  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.7) !important; }
+:root[data-bg='cosmic'] :is(.ask-go, .fab)::before, :root[data-bg='cosmic'] :is(.ask-go, .fab)::after { display: none !important; }
+:root[data-bg='cosmic'] :is(.btn:not(.btn-primary), .ask-chips button, .hero-next, .hero-streak, .seg, .view-seg) {
+  background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.09) !important; box-shadow: none !important; }
+:root[data-bg='cosmic'] :is(.seg-btn.on, .view-seg button.on, .view-seg [aria-pressed='true']) { background: rgba(255, 255, 255, 0.18) !important; color: #fff !important; box-shadow: none !important; }
+/* marks: white bars, the menu's current page in white */
+:root[data-bg='cosmic'] :is(.pbar, .goal-bar, .bar) i, :root[data-bg='cosmic'] .hc-bar i { background: rgba(255, 255, 255, 0.92) !important; box-shadow: none !important; }
+:root[data-bg='cosmic'] .nav-link.active .ico { color: #fff !important; filter: none !important; }
+:root[data-bg='cosmic'] .nav-bottom { background: rgba(26, 28, 50, 0.62) !important; border-color: rgba(255, 255, 255, 0.16) !important; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 18px 40px -16px rgba(0, 0, 0, 0.7) !important; }
+:root[data-bg='cosmic'] .nav-bottom .nav-link.active { color: #fff !important; background: rgba(255, 255, 255, 0.16) !important; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22) !important; }
+:root[data-bg='cosmic'] .nav-bottom .nav-link.active::after { display: none !important; }
+/* sheets and menus: the same neutral glass */
+:root[data-bg='cosmic'] :is(.sheet, .search-modal, .sel-list, .ql-item, .toast) { background: rgba(30, 32, 54, 0.9) !important; border-color: rgba(255, 255, 255, 0.14) !important; }
+/* words on the window itself (not in a panel) stay readable over the scene */
+:root[data-bg='cosmic'] :is(.section-h, .greet, .page-head, .sec-sum) { text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55) !important; }
+
+/* ---------------- Liquid: the window's radius on its glass ---------------- */
+:root[data-bg='liquid'] :is(.card, .m-card, .stat-tile, .hx-row, .hero-card, .goal-card, .day-card, .board-col) { border-radius: 24px; }
+
+/* ---------------- Graphite / Ops: their own corners on the ornament ---------------- */
+@media (min-width: 640px) {
+  :root[data-bg='graphite'] .nav-rail { border-radius: 16px !important; }
+  :root[data-bg='graphite'] .nav-rail .nav-link, :root[data-bg='graphite'] .nav-rail .nav-search-btn { border-radius: 10px !important; }
+  :root[data-bg='ops'] .nav-rail { border-radius: 6px !important; }
+  :root[data-bg='ops'] .nav-rail .nav-link, :root[data-bg='ops'] .nav-rail .nav-search-btn { border-radius: 3px !important; }
+  :root[data-bg='ops'] .nav-rail .nav-link.active { box-shadow: inset 2px 0 0 #52D4E4 !important; }
+}

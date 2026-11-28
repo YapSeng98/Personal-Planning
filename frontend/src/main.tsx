@@ -13,6 +13,7 @@ import './styles/pro.css'
 import './styles/sky.css'
 // after sky.css: it reshapes the sky's own scenes in 3D
 import './styles/depth3d.css'
+import './styles/vision.css' // after every look: the app in one floating window (Vision)
 import './styles/focus.css'
 import App from './App.tsx'
 import { applyTheme } from './lib/theme'
