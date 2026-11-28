@@ -114,7 +114,7 @@ export default function ReviewCalendar({ reviews, selected, onOpen }: {
       </div>
 
       <div className="rcal-stats">
-        {streak > 0 && <span className="rcal-streak">🔥 {t(streak === 1 ? 'rev.streak1' : 'rev.streak', { n: streak })}</span>}
+        {streak > 0 && <span className="rcal-streak"><Icon name="flame" size={13} strokeWidth={2.2} className="ic-in" /> {t(streak === 1 ? 'rev.streak1' : 'rev.streak', { n: streak })}</span>}
         {daysSoFar > 0 && (
           <span className="rcal-count">
             <span className="rcal-meter"><span style={{ width: `${(reviewed / daysSoFar) * 100}%` }} /></span>

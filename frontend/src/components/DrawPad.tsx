@@ -156,8 +156,8 @@ export default function DrawPad({ onInsert, onClose }: { onInsert: (dataUrl: str
             ))}
           </div>
           <button type="button" className={`sketch-tool-btn ${tool === 'eraser' ? 'on' : ''}`} onClick={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}>{t('sketch.eraser')}</button>
-          <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo} aria-label={t('sketch.undo')} title={t('sketch.undo')}>↶</button>
-          <button type="button" className="sketch-tool-btn" onClick={redo} disabled={!canRedo} aria-label={t('sketch.redo')} title={t('sketch.redo')}>↷</button>
+          <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo} aria-label={t('sketch.undo')} title={t('sketch.undo')}><Icon name="undo" size={17} /></button>
+          <button type="button" className="sketch-tool-btn" onClick={redo} disabled={!canRedo} aria-label={t('sketch.redo')} title={t('sketch.redo')}><Icon name="redo" size={17} /></button>
           <button type="button" className="fv-close" style={{ marginLeft: 'auto' }} onClick={onClose} aria-label={t('common.close')}><Icon name="close" size={18} /></button>
         </div>
         <div className="drawpad-body">

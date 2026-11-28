@@ -3,6 +3,7 @@ import { db, type NoteAttachment } from '../db/db'
 import { formatBytes, uploadProgress, onUploadChange } from '../lib/files'
 import { useLang } from '../lib/i18n'
 import FileViewer from './FileViewer'
+import Icon from './Icon'
 
 /** One attachment pill: tap to open it in the in-app viewer (which also
     has Download), × to remove. */
@@ -27,7 +28,7 @@ export default function AttachmentChip({ a, onRemove }: { a: NoteAttachment; onR
   return (
     <div className="sketch-attachment-chip" title={upload !== null ? `${a.name} — ${t('att.keepOpen')}` : a.name}>
       <button type="button" className="sketch-attachment-link" onClick={() => setViewing(true)}>
-        <span className="sketch-attachment-icon">{a.type.startsWith('image/') ? '🖼️' : '📎'}</span>
+        <span className="sketch-attachment-icon"><Icon name={a.type.startsWith('image/') ? 'image' : 'paperclip'} size={15} strokeWidth={2} /></span>
         <span className="sketch-attachment-name">{a.name}</span>
         {a.size ? <span className="sketch-attachment-size">{formatBytes(a.size)}</span> : null}
         {upload !== null && (

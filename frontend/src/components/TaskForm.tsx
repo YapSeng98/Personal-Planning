@@ -429,7 +429,7 @@ export default function TaskForm({ task, preset, onClose }: { task: Task | null;
                   ariaLabel={t('task.goal')}
                   value={goalId}
                   onChange={setGoalId}
-                  options={[{ value: '', label: t('task.noGoal') }, ...goals.map((g) => ({ value: g.id, label: `🎯 ${g.title} · ${t(`gtype.${g.type}`)}${g.status === 'completed' ? ' ✓' : ''}` }))]}
+                  options={[{ value: '', label: t('task.noGoal') }, ...goals.map((g) => ({ value: g.id, label: `${g.title} · ${t(`gtype.${g.type}`)}${g.status === 'completed' ? ' ✓' : ''}` }))]}
                 />
               </div>
             )}
@@ -440,7 +440,7 @@ export default function TaskForm({ task, preset, onClose }: { task: Task | null;
                   ariaLabel={t('task.project')}
                   value={projectId}
                   onChange={setProjectId}
-                  options={[{ value: '', label: t('task.noProject') }, ...projects.map((p) => ({ value: p.id, label: `🗂️ ${p.title}` }))]}
+                  options={[{ value: '', label: t('task.noProject') }, ...projects.map((p) => ({ value: p.id, label: p.title }))]}
                 />
               </div>
             )}
@@ -487,7 +487,7 @@ export default function TaskForm({ task, preset, onClose }: { task: Task | null;
               onClick={() => setIsMit(!isMit)}
               aria-pressed={isMit}
             >
-              ⭐ {t('task.mitFull')} {isMit ? t('task.on') : ''}
+              <Icon name="star" size={14} strokeWidth={2} className={`ic-in ic-star ${isMit ? 'ic-fill' : ''}`} /> {t('task.mitFull')} {isMit ? t('task.on') : ''}
             </button>
             <div className="f">
               <label className="fl">{t('task.notes')}</label>
@@ -501,13 +501,13 @@ export default function TaskForm({ task, preset, onClose }: { task: Task | null;
               />
               {task && fromDailyBrief(task) && (
                 <a className="brief-link" href={DAILY_BRIEF_URL} target="_blank" rel="noopener noreferrer" onClick={(e) => openAppFromClick(e, { url: DAILY_BRIEF_URL, title: t('today.briefLink'), icon: '📋', color: 'var(--accent)' })}>
-                  📋 {t('brief.open')} ↗
+                  <Icon name="clipboard" size={13} strokeWidth={2.1} className="ic-in" /> {t('brief.open')} <Icon name="external" size={12} strokeWidth={2.1} className="ic-in" />
                 </a>
               )}
             </div>
             {editing && spent > 0 && !resetSpent && (
               <div className="f spent-row">
-                <span>⏱ {t('task.spent', { time: hm(spent) })}{hours ? ` · ${t('task.ofEstimate', { time: hm(hours) })}` : ''}</span>
+                <span><Icon name="timer" size={13} strokeWidth={2.1} className="ic-in" /> {t('task.spent', { time: hm(spent) })}{hours ? ` · ${t('task.ofEstimate', { time: hm(hours) })}` : ''}</span>
                 <button type="button" className="clear-link" onClick={() => setResetSpent(true)}>{t('task.resetSpent')}</button>
               </div>
             )}

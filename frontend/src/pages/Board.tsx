@@ -99,9 +99,9 @@ function BoardCard({ task, proj, onEdit }: { task: Task; proj?: Project; onEdit:
       <div className="t">{task.title}</div>
       {(task.due || Boolean(task.isMit) || task.recurrence || proj || steps.all > 0 || fromDailyBrief(task)) && (
         <div className="meta">
-          {Boolean(task.isMit) && <span>⭐</span>}
-          {task.recurrence && <span>🔁</span>}
-          {fromDailyBrief(task) && <span className="tbrief" title={t('brief.badgeTitle')}>📋 {t('brief.badge')}</span>}
+          {Boolean(task.isMit) && <span className="b-star" title={t('task.mitFull')}><Icon name="star" size={12} strokeWidth={2} className="ic-fill" /></span>}
+          {task.recurrence && <span className="b-recur" title={t('task.repeat')}><Icon name="repeat" size={12} strokeWidth={2.2} /></span>}
+          {fromDailyBrief(task) && <span className="tbrief" title={t('brief.badgeTitle')}><Icon name="clipboard" size={11} strokeWidth={2.2} />{t('brief.badge')}</span>}
           {steps.all > 0 && <span className={`tsteps num ${steps.done === steps.all ? 'all' : ''}`}><Icon name="check" size={11} strokeWidth={2.6} />{steps.done}/{steps.all}</span>}
           {task.due && <span className="num">{task.due.slice(5)}</span>}
           {proj && (

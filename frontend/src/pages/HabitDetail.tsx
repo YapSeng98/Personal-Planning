@@ -169,7 +169,7 @@ export default function HabitDetail() {
             <div className="stat-tile">
               <div className="stat-v num">{s.current}</div>
               <div className="stat-l">{t('habit.currentStreak')}</div>
-              <div className="stat-sub">🔥 {t(s.current === 1 ? 'ins.day' : 'ins.days')}</div>
+              <div className="stat-sub"><Icon name="flame" size={11} strokeWidth={2.3} className="ic-in" /> {t(s.current === 1 ? 'ins.day' : 'ins.days')}</div>
             </div>
             <div className="stat-tile">
               <div className="stat-v num">{s.longest}</div>
@@ -199,7 +199,7 @@ export default function HabitDetail() {
                   aria-label={t('today.refresh')}
                   title={t('today.refresh')}
                 >
-                  {insightState === 'loading' ? '…' : '↻'}
+                  {insightState === 'loading' ? '…' : <Icon name="reload" size={14} strokeWidth={2.1} />}
                 </button>
               </div>
               <div className="txt">

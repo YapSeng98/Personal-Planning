@@ -700,12 +700,12 @@ export default function SketchDetail() {
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('bold')} aria-label={t('sketch.bold')}><b>B</b></button>
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('italic')} aria-label={t('sketch.italic')}><i>I</i></button>
               <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')} aria-label={t('sketch.underline')}><u>U</u></button>
-              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('insertUnorderedList')} aria-label={t('sketch.bulletList')}>☰</button>
-              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => stepText('undo')} disabled={!textHist.undo} aria-label={t('sketch.undo')} title={t('sketch.undo')}>↶</button>
-              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => stepText('redo')} disabled={!textHist.redo} aria-label={t('sketch.redo')} title={t('sketch.redo')}>↷</button>
-              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={openDrawPad} aria-label={t('sketch.drawInNote')} title={t('sketch.drawInNote')}>✏️</button>
-              <button type="button" className="sketch-tool-btn" onClick={() => imageInputRef.current?.click()} aria-label={t('sketch.addImage')}>🖼️</button>
-              <button type="button" className="sketch-tool-btn" onClick={() => fileInputRef.current?.click()} aria-label={t('sketch.addAttachment')} title={t('sketch.addAttachment')}>📎</button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => exec('insertUnorderedList')} aria-label={t('sketch.bulletList')} title={t('sketch.bulletList')}><Icon name="list" size={17} /></button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => stepText('undo')} disabled={!textHist.undo} aria-label={t('sketch.undo')} title={t('sketch.undo')}><Icon name="undo" size={17} /></button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => stepText('redo')} disabled={!textHist.redo} aria-label={t('sketch.redo')} title={t('sketch.redo')}><Icon name="redo" size={17} /></button>
+              <button type="button" className="sketch-tool-btn" onMouseDown={(e) => e.preventDefault()} onClick={openDrawPad} aria-label={t('sketch.drawInNote')} title={t('sketch.drawInNote')}><Icon name="pencil" size={17} /></button>
+              <button type="button" className="sketch-tool-btn" onClick={() => imageInputRef.current?.click()} aria-label={t('sketch.addImage')} title={t('sketch.addImage')}><Icon name="image" size={17} /></button>
+              <button type="button" className="sketch-tool-btn" onClick={() => fileInputRef.current?.click()} aria-label={t('sketch.addAttachment')} title={t('sketch.addAttachment')}><Icon name="paperclip" size={17} /></button>
             </div>
           </div>
           <input
@@ -793,9 +793,9 @@ export default function SketchDetail() {
               ))}
             </div>
             <div className="sketch-tools">
-              <button type="button" className={`sketch-tool-btn ${tool === 'eraser' ? 'on' : ''}`} onClick={() => setTool('eraser')} aria-label={t('sketch.eraser')}>🧽</button>
-              <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo} aria-label={t('sketch.undo')} title={t('sketch.undo')}>↺</button>
-              <button type="button" className="sketch-tool-btn" onClick={redo} disabled={!canRedo} aria-label={t('sketch.redo')} title={t('sketch.redo')}>↻</button>
+              <button type="button" className={`sketch-tool-btn ${tool === 'eraser' ? 'on' : ''}`} onClick={() => setTool('eraser')} aria-label={t('sketch.eraser')} title={t('sketch.eraser')}><Icon name="eraser" size={17} /></button>
+              <button type="button" className="sketch-tool-btn" onClick={undo} disabled={!canUndo} aria-label={t('sketch.undo')} title={t('sketch.undo')}><Icon name="undo" size={17} /></button>
+              <button type="button" className="sketch-tool-btn" onClick={redo} disabled={!canRedo} aria-label={t('sketch.redo')} title={t('sketch.redo')}><Icon name="redo" size={17} /></button>
               <button type="button" className="sketch-tool-btn" onClick={clearCanvas}>{t('sketch.clear')}</button>
             </div>
           </div>

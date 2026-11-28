@@ -2027,7 +2027,7 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 .wrap-card { margin-top: 0.6rem; display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0.6rem 0.75rem 0.9rem; flex-wrap: wrap;
   background: linear-gradient(120deg, color-mix(in srgb, var(--project-purple) 16%, var(--surface)) 0%, var(--surface) 70%);
   border-color: color-mix(in srgb, var(--project-purple) 35%, var(--hairline)); }
-.wrap-moon { font-size: 1.4rem; }
+.wrap-moon { display: inline-flex; color: color-mix(in srgb, var(--project-purple) 70%, var(--text-1)); }
 .wrap-text { flex: 1; min-width: 12rem; display: flex; flex-direction: column; gap: 0.1rem; }
 .wrap-text b { font-size: 0.92rem; }
 .wrap-text span { font-size: 0.78rem; color: var(--text-2); }
@@ -2430,7 +2430,7 @@ button.preview-row:hover .title { color: var(--accent-bright); }
 .hero-streak { display: inline-flex; align-items: center; gap: 0.38rem; min-width: 0; max-width: 100%; min-height: 2.35rem; box-sizing: border-box;
   padding: 0.3rem 0.9rem 0.3rem 0.65rem; border-radius: 999px; border: 1px solid var(--hairline);
   background: color-mix(in srgb, var(--glass-strong) 70%, transparent); font-size: 0.86rem; white-space: nowrap; }
-.hs-fire { font-size: 1.02rem; line-height: 1; filter: drop-shadow(0 0 6px rgba(255, 140, 50, 0.55)); }
+.hs-fire { flex: none; color: var(--flame); filter: drop-shadow(0 0 5px rgba(255, 140, 50, 0.6)); }
 .hs-n { font-family: var(--font-display); font-size: 1.12rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; color: var(--text-1); }
 .hs-l { color: var(--text-2); font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
 .hs-sub { color: var(--text-3); font-size: 0.76rem; font-weight: 650; }
@@ -2586,3 +2586,27 @@ button.preview-row:hover .title { color: var(--accent-bright); }
   .dd-spark { display: none; }
   .tg-bar i { transition: none; }
 }
+
+/* ---- line icons in the chrome (2026-11-28: in place of the ⭐ 🔁 📝 ⏱ 🔔
+   🌙 🔥 📋 📎 emoji — one stroke style in every look, components/Icon.tsx) ---- */
+:root { --flame: #FF8A3D; }
+.ic-in { display: inline-block; vertical-align: -0.16em; flex: none; }
+.ic-fill path { fill: currentColor; }
+.ic-star { color: var(--amber); }
+.tcard .tmeta > :is(.tstar, .trecur, .tnote) { display: inline-flex; align-items: center; }
+.tcard :is(.trecur, .tnote), .p-recur, .b-recur { color: var(--text-3); }
+.tcard .tspent { display: inline-flex; align-items: center; gap: 0.2rem; }
+.b-star, .b-recur { display: inline-flex; align-items: center; }
+.b-star { color: var(--amber); }
+.hn-star { display: inline-flex; color: var(--amber); }
+.hero-hi-ic { width: 0.62em; height: 0.62em; vertical-align: -0.02em; margin-left: 0.12em; color: var(--accent-bright); }
+.reminder-bell { vertical-align: -0.16em; color: var(--amber); }
+.hx-fire { display: inline-flex; align-items: center; gap: 0.15rem; }
+.hx-fire svg, .m-streak .sl svg, .stat-sub svg, .rcal-streak svg, .dd-flame { color: var(--flame); }
+.dd-flame { vertical-align: -0.14em; }
+.sr-ic { flex: none; color: var(--text-3); }
+.sketch-attachment-icon { display: inline-flex; color: var(--text-2); }
+.chip-toggle.on .ic-star { color: var(--amber); }
+.sketch-tool-btn svg { display: block; width: 1em; height: 1em; margin: 0 auto; }
+.brief-refresh svg, .insight-refresh svg { display: block; }
+.brief-refresh, .insight-refresh { display: inline-flex; align-items: center; vertical-align: middle; }

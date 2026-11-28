@@ -11,6 +11,7 @@ import TaskForm from '../components/TaskForm'
 import { useLang, type TFn } from '../lib/i18n'
 import { useToday } from '../lib/today'
 import { useEscape } from '../lib/escape'
+import Icon from '../components/Icon'
 
 interface DayView {
   date: string
@@ -60,7 +61,7 @@ function TaskRow({ task, onToggle, onEdit, t }: { task: Task; onToggle: () => vo
       <button className="drag-grip" aria-label="Drag to reorder" {...listeners} {...attributes}>⠿</button>
       <button className={`check ${task.state === 'done' ? 'on' : ''}`} onClick={onToggle} aria-label={task.title}>✓</button>
       <button className={`title title-btn ${task.state === 'done' ? 'done' : ''}`} onClick={onEdit} title={task.title}>
-        {task.recurrence && <span title={t('task.repeat')}>🔁 </span>}{task.title}
+        {task.recurrence && <span className="p-recur" title={t('task.repeat')}><Icon name="repeat" size={12} strokeWidth={2.2} className="ic-in" /> </span>}{task.title}
       </button>
       <span className={`when num ${task.timeBlockStart ? '' : 'faint'}`}>
         {task.timeBlockStart ? task.timeBlockStart.slice(11, 16) : t('today.anytime')}
@@ -542,7 +543,7 @@ export default function Plan() {
         <div className="sheet-backdrop" onClick={() => setPreview(null)}>
           <div className="sheet repeat-sheet" role="dialog" aria-modal="true" aria-labelledby="rp-h" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-body">
-              <h2 id="rp-h">🔁 {preview.series.title}{preview.series.timeBlockStart && ` · ${preview.series.timeBlockStart.slice(11, 16)}`}</h2>
+              <h2 id="rp-h"><Icon name="repeat" size={18} strokeWidth={2.1} className="ic-in" /> {preview.series.title}{preview.series.timeBlockStart && ` · ${preview.series.timeBlockStart.slice(11, 16)}`}</h2>
               <p className="row-sub">
                 {t('plan.repeatsOn', {
                   how: t(`task.repeat${preview.series.recurrence === 'weekly' ? 'Weekly' : preview.series.recurrence === 'monthly' ? 'Monthly' : 'Daily'}`),

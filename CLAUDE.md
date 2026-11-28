@@ -324,7 +324,12 @@ the "Sunrise" identity. Two layers:
 - **Icons**: `frontend/src/components/Icon.tsx` — a small hand-authored
   stroke-icon set (`currentColor`, themes for free) for nav/chrome.
   Genuinely expressive content (mood faces, the ✦ AI sparkle) stays emoji on
-  purpose — don't convert those.
+  purpose — don't convert those. Since 2026-11-28 the task / day markers are
+  icons too (star = top task, repeat, note, timer, bell, flame = streak,
+  moon, sun / cloudSun greeting, clipboard = Daily Brief, paperclip, list,
+  eraser, undo / redo; `ic-in` aligns one in a line of text, `ic-fill` fills
+  a closed one); what stays emoji: mood faces, ✦, habits' own emoji, the
+  quick apps' icons, and emoji inside sentences.
 
 ## Safety notes specific to this project
 

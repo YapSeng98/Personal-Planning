@@ -2,6 +2,7 @@ import { useLang } from '../lib/i18n'
 import { useEscape } from '../lib/escape'
 import { hm } from '../lib/timer'
 import type { GoalMove } from '../lib/goals'
+import Icon from './Icon'
 
 const SPARKS = 12
 
@@ -39,7 +40,7 @@ export default function DayDone({ done, focusedMin, streak, moves, onPlan, onClo
         <div className="dd-stats">
           <div><b className="num">{done}</b><span>{t(done === 1 ? 'dd.task' : 'dd.tasks')}</span></div>
           <div><b className="num">{focusedMin > 0 ? hm(focusedMin / 60) : '—'}</b><span>{t('dd.focused')}</span></div>
-          <div className="dd-fire"><b className="num">🔥 {streak}</b><span>{t('streak.label')}</span></div>
+          <div className="dd-fire"><b className="num"><Icon name="flame" size={18} strokeWidth={2.1} className="dd-flame" /> {streak}</b><span>{t('streak.label')}</span></div>
         </div>
         {moves.length > 0 && (
           <div className="dd-moves">

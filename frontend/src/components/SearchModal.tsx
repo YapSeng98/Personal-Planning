@@ -151,7 +151,7 @@ export default function SearchModal({ onClose, onOpenTask }: Props) {
                   <div className="search-group-label">{t('search.goals')}</div>
                   {matchGoals.map((goal) => (
                     <button key={goal.id} type="button" className="search-result-row" onClick={() => openGoal(goal)}>
-                      <span aria-hidden>🎯</span>
+                      <Icon name="goals" size={16} className="sr-ic" />
                       <span className="search-result-title">{goal.title}</span>
                     </button>
                   ))}
@@ -162,7 +162,7 @@ export default function SearchModal({ onClose, onOpenTask }: Props) {
                   <div className="search-group-label">{t('search.sketches')}</div>
                   {matchSketches.map((sketch) => (
                     <button key={sketch.id} type="button" className="search-result-row" onClick={() => openSketch(sketch)}>
-                      <span aria-hidden>{sketch.kind === 'text' ? '⌨️' : '✏️'}</span>
+                      <Icon name={sketch.kind === 'text' ? 'note' : 'pencil'} size={16} className="sr-ic" />
                       <span className="search-result-title">{sketch.title || t('sketch.untitled')}</span>
                     </button>
                   ))}
@@ -173,7 +173,7 @@ export default function SearchModal({ onClose, onOpenTask }: Props) {
                   <div className="search-group-label">{t('search.folders')}</div>
                   {matchFolders.map((f) => (
                     <button key={f.id} type="button" className="search-result-row" onClick={() => openFolder(f)}>
-                      <span aria-hidden>📁</span>
+                      <Icon name="folder" size={16} className="sr-ic" />
                       <span className="search-result-title">{f.name}</span>
                     </button>
                   ))}
@@ -195,7 +195,7 @@ export default function SearchModal({ onClose, onOpenTask }: Props) {
                   <div className="search-group-label">{t('search.projects')}</div>
                   {matchProjects.map((pr) => (
                     <button key={pr.id} type="button" className="search-result-row" onClick={() => openProject(pr)}>
-                      <span aria-hidden>🗂️</span>
+                      <Icon name="board" size={16} className="sr-ic" />
                       <span className="search-result-title">{pr.title}</span>
                     </button>
                   ))}

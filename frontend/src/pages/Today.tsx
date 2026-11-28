@@ -22,7 +22,7 @@ import { projectColorVar } from '../lib/projectColors'
 import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
 import HabitEdit from '../components/HabitEdit'
-import Icon from '../components/Icon'
+import Icon, { type IconName } from '../components/Icon'
 import { useLang, type TFn } from '../lib/i18n'
 import { stopTimer, useRunningTimer, useElapsed, clock, hm } from '../lib/timer'
 import { openFocus } from '../lib/focus'
@@ -42,11 +42,11 @@ interface HabitView extends Habit {
   week: boolean[]
 }
 
-function greeting(t: TFn): [string, string] {
+function greeting(t: TFn): [string, IconName] {
   const h = new Date().getHours()
-  if (h < 12) return [t('today.morning'), '☀️']
-  if (h < 18) return [t('today.afternoon'), '🌤️']
-  return [t('today.evening'), '🌙']
+  if (h < 12) return [t('today.morning'), 'sun']
+  if (h < 18) return [t('today.afternoon'), 'cloudSun']
+  return [t('today.evening'), 'moon']
 }
 
 /** Today's list sinks finished work to the bottom so what's left to do stays
@@ -165,19 +165,19 @@ function TodayCard({ task, proj, why, timingSince, dropHint, prioMove, onToggle,
             {task.timeBlockStart && (
               <span className="ttime-m num">{task.timeBlockStart.slice(11, 16)}{task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}</span>
             )}
-            {Boolean(task.isMit) && <span className="tstar">⭐</span>}
-            {task.recurrence && <span className="trecur" title={t('task.repeat')}>🔁</span>}
+            {Boolean(task.isMit) && <span className="tstar" title={t('task.mitFull')}><Icon name="star" size={12} strokeWidth={2} className="ic-fill" /></span>}
+            {task.recurrence && <span className="trecur" title={t('task.repeat')}><Icon name="repeat" size={12} strokeWidth={2.2} /></span>}
             {steps.all > 0 && (
               <span className={`tsteps num ${steps.done === steps.all ? 'all' : ''}`} title={t('step.title')}>
                 <Icon name="check" size={11} strokeWidth={2.6} />{steps.done}/{steps.all}
               </span>
             )}
             {fromDailyBrief(task)
-              ? <span className="tbrief" title={t('brief.badgeTitle')}>📋 {t('brief.badge')}</span>
-              : task.notes && <span className="tnote" title={t('task.notes')}>📝</span>}
+              ? <span className="tbrief" title={t('brief.badgeTitle')}><Icon name="clipboard" size={11} strokeWidth={2.2} />{t('brief.badge')}</span>
+              : task.notes && <span className="tnote" title={t('task.notes')}><Icon name="note" size={12} strokeWidth={2.1} /></span>}
             {(spent > 0 || !!task.estimatedHours) && (
               <span className={`tspent num ${task.estimatedHours && spent > task.estimatedHours ? 'over' : ''}`} title={t('timer.spentTitle')}>
-                ⏱ {spent > 0 ? hm(spent) : '0m'}{task.estimatedHours ? ` / ${hm(task.estimatedHours)}` : ''}
+                <Icon name="timer" size={11} strokeWidth={2.4} />{spent > 0 ? hm(spent) : '0m'}{task.estimatedHours ? ` / ${hm(task.estimatedHours)}` : ''}
               </span>
             )}
             {proj && (
@@ -823,14 +823,14 @@ export default function Today() {
           <HeroClock done={doneCount} total={tasks.length} />
           <div className="hero-head">
             <div className="hero-wm">{dateLabel}</div>
-            <div className="hero-hi">{hello}{name ? `, ${name}` : ''} {emoji}</div>
+            <div className="hero-hi">{hello}{name ? `, ${name}` : ''} <Icon name={emoji} size={22} strokeWidth={1.9} className="hero-hi-ic" /></div>
           </div>
           {(nextUp || streak) && (
             <div className="hero-acts">
               {nextUp && (
                 <button type="button" className="hero-next" onClick={() => openFocus(nextUp)} title={t('focus.startFor', { title: nextUp.title })}>
                   <span className="hn-k">{t('today.nextUp')}</span>
-                  {nextUp.timeBlockStart ? <span className="hn-time num">{nextUp.timeBlockStart.slice(11, 16)}</span> : nextUp.isMit ? <span className="hn-time">⭐</span> : null}
+                  {nextUp.timeBlockStart ? <span className="hn-time num">{nextUp.timeBlockStart.slice(11, 16)}</span> : nextUp.isMit ? <span className="hn-time hn-star"><Icon name="star" size={13} strokeWidth={2} className="ic-fill" /></span> : null}
                   <span className="hn-title">{nextUp.title}</span>
                   <span className="hn-go" aria-hidden><Icon name="play" size={11} strokeWidth={2.6} /></span>
                 </button>
@@ -839,7 +839,7 @@ export default function Today() {
               {streak && (
                 <span className={`hero-streak ${streak.current ? '' : 'zero'} ${streak.atRisk ? 'risk' : ''} ${streak.today ? 'lit' : ''}`}
                   role="img" aria-label={`${t('streak.aria', { n: streak.current, best: streak.best })} ${streakTip}`} title={streakTip}>
-                  <span className="hs-fire" aria-hidden>🔥</span>
+                  <Icon name="flame" size={17} strokeWidth={2} className="hs-fire" />
                   {streak.current > 0 ? (
                     <>
                       <b className="hs-n num">{streak.current}</b>
@@ -866,7 +866,7 @@ export default function Today() {
                 aria-label={t('today.refresh')}
                 title={t('today.refresh')}
               >
-                {briefState === 'loading' ? '…' : '↻'}
+                {briefState === 'loading' ? '…' : <Icon name="reload" size={14} strokeWidth={2.1} />}
               </button>
             )}
           </div>
@@ -879,7 +879,7 @@ export default function Today() {
       <div className="hero-toprow">
         {reminders.length > 0 && (
           <div className="card reminder-banner">
-            <div className="lbl"><span className="reminder-bell">🔔</span> {t('today.reminders')}</div>
+            <div className="lbl"><span className="reminder-bell"><Icon name="bell" size={14} strokeWidth={2.2} /></span> {t('today.reminders')}</div>
             {reminders.map(({ task, daysUntilDue }, i) => (
               <button
                 key={task.id}
@@ -927,7 +927,7 @@ export default function Today() {
                 ))}
               </div>
               <div className="hx-meta num">
-                <span>🔥 <b>{h.streak}</b></span>
+                <span className="hx-fire"><Icon name="flame" size={11} strokeWidth={2.3} /><b>{h.streak}</b></span>
                 <span className="cnt">{h.doneToday}/{h.targetPerDay}</span>
               </div>
             </div>
@@ -966,12 +966,12 @@ export default function Today() {
           <button className="m-card m-streak m-streak-btn" onClick={() => navigate(`/habits/${mom.streakHabit!.id}`)}>
             <div className="m-streak-who">{cleanEmoji(mom.streakHabit.emoji, mom.streakHabit.name)} {mom.streakHabit.name}</div>
             <div className="big num">{mom.streak}</div>
-            <div className="sl">{t(mom.streak === 1 ? 'ins.day' : 'ins.days')} 🔥</div>
+            <div className="sl">{t(mom.streak === 1 ? 'ins.day' : 'ins.days')} <Icon name="flame" size={11} strokeWidth={2.4} className="ic-in" /></div>
           </button>
         ) : (
           <div className="m-card m-streak">
             <div className="big num">{mom.streak}</div>
-            <div className="sl">{t(mom.streak === 1 ? 'ins.day' : 'ins.days')} 🔥</div>
+            <div className="sl">{t(mom.streak === 1 ? 'ins.day' : 'ins.days')} <Icon name="flame" size={11} strokeWidth={2.4} className="ic-in" /></div>
           </div>
         )}
       </div>
@@ -986,13 +986,13 @@ export default function Today() {
         {(tasks.length > 0 || focused > 0) && (
           <span className="sec-sum num">
             {t('today.doneOf', { done: doneCount, n: tasks.length })}
-            {focused > 0 && <> · ⏱ {t('today.focused', { time: hm(focused) })}</>}
+            {focused > 0 && <> · <Icon name="timer" size={12} strokeWidth={2.2} className="ic-in" /> {t('today.focused', { time: hm(focused) })}</>}
           </span>
         )}
       </div>
       {showWrap && (
         <div className="card wrap-card" role="region" aria-label={t('ptm.wrapTitle')}>
-          <span className="wrap-moon" aria-hidden>🌙</span>
+          <span className="wrap-moon" aria-hidden><Icon name="moon" size={22} strokeWidth={1.9} /></span>
           <div className="wrap-text">
             <b>{t('ptm.wrapTitle')}</b>
             <span>
@@ -1066,7 +1066,7 @@ export default function Today() {
         </>
       )}
       <button type="button" className="ptm-open" onClick={() => setPlanning(true)}>
-        🌙 {t('ptm.title')}{tomorrowCount > 0 && <span className="num"> · {t('ptm.planned', { n: tomorrowCount })}</span>}
+        <Icon name="moon" size={14} strokeWidth={2.1} className="ic-in" /> {t('ptm.title')}{tomorrowCount > 0 && <span className="num"> · {t('ptm.planned', { n: tomorrowCount })}</span>}
       </button>
     </div>
     {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}

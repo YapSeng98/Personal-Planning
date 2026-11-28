@@ -7,8 +7,85 @@ export type IconName =
   | 'settings' | 'search' | 'close' | 'trash' | 'folder' | 'pencil'
   | 'chevronLeft' | 'chevronRight' | 'plus' | 'check' | 'sparkle' | 'image' | 'move' | 'pin'
   | 'play' | 'pause' | 'stop' | 'timer' | 'down' | 'external' | 'minimise' | 'expand' | 'shrink' | 'reload' | 'copy'
+  | 'star' | 'repeat' | 'note' | 'bell' | 'flame' | 'moon' | 'sun' | 'cloudSun' | 'clipboard' | 'paperclip' | 'list' | 'eraser' | 'undo' | 'redo'
 
 const PATHS: Record<IconName, React.ReactNode> = {
+  // task / day markers (2026-11-28: they replace the ⭐ 🔁 📝 ⏱ 🔔 🌙 🔥 📋 📎 emoji in the chrome)
+  // closed shapes, so a "lit" state can fill them (fill="currentColor" on the svg's class)
+  star: <path d="M12 3.6l2.55 5.2 5.7.83-4.12 4.03.97 5.68L12 16.66l-5.1 2.68.97-5.68L3.75 9.63l5.7-.83z" />,
+  repeat: (
+    <>
+      <path d="M16.5 3.5l3 3-3 3" />
+      <path d="M4.5 11.5v-1a4 4 0 0 1 4-4h11" />
+      <path d="M7.5 20.5l-3-3 3-3" />
+      <path d="M19.5 12.5v1a4 4 0 0 1-4 4h-11" />
+    </>
+  ),
+  note: (
+    <>
+      <path d="M14 3.5H7.3a1.8 1.8 0 0 0-1.8 1.8v13.4a1.8 1.8 0 0 0 1.8 1.8h9.4a1.8 1.8 0 0 0 1.8-1.8V8z" />
+      <path d="M14 3.5V8h4.5M9 12.5h6M9 16h4" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M6.2 16.5v-5.3a5.8 5.8 0 0 1 11.6 0v5.3l1.7 1.9h-15z" />
+      <path d="M10 21a2.1 2.1 0 0 0 4 0" />
+    </>
+  ),
+  flame: (
+    <>
+      <path d="M12 21.2c-3.7 0-6.6-2.7-6.6-6.3 0-2.7 1.6-4.5 3.1-6 .3 1.6 1.1 2.7 2.2 3.2-.3-3.4 1-6.5 4.1-9.3.4 3.1 1.7 4.8 2.9 6.4 1 1.4 1.8 3 1.8 5.1 0 3.8-3.2 6.9-7.5 6.9z" />
+      <path d="M12 21.2c-1.6 0-2.8-1.2-2.8-2.8 0-1.5 1.1-2.5 2.8-4.2 1.7 1.7 2.8 2.7 2.8 4.2 0 1.6-1.2 2.8-2.8 2.8z" />
+    </>
+  ),
+  moon: <path d="M19.6 14.6A7.8 7.8 0 0 1 9.4 4.4a7.8 7.8 0 1 0 10.2 10.2z" />,
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.8v2M12 19.2v2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M2.8 12h2M19.2 12h2M5.5 18.5l1.4-1.4M17.1 6.9l1.4-1.4" />
+    </>
+  ),
+  cloudSun: (
+    <>
+      <path d="M9 2.8v1.6M3.6 5l1.1 1.1M2 10.4h1.6M14.4 5l-1.1 1.1" />
+      <path d="M5.9 12.6a3.4 3.4 0 0 1 6.3-3.4" />
+      <path d="M8.2 20.5h9.3a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.5 1.4 2.8 2.8 0 0 0-.2 5.6z" />
+    </>
+  ),
+  clipboard: (
+    <>
+      <path d="M9 4.6H7.3a1.8 1.8 0 0 0-1.8 1.8v12.8a1.8 1.8 0 0 0 1.8 1.8h9.4a1.8 1.8 0 0 0 1.8-1.8V6.4a1.8 1.8 0 0 0-1.8-1.8H15" />
+      <rect x="9" y="3" width="6" height="3.3" rx="1" />
+      <path d="M9 11.5h6M9 15h4" />
+    </>
+  ),
+  paperclip: <path d="M19.5 11.6l-7.6 7.6a4.9 4.9 0 0 1-6.9-6.9l8-8a3.3 3.3 0 0 1 4.6 4.6l-8 8a1.6 1.6 0 0 1-2.3-2.3l7.3-7.3" />,
+  list: (
+    <>
+      <path d="M9.5 6.5h10M9.5 12h10M9.5 17.5h10" />
+      <path d="M4.9 6.5h.2M4.9 12h.2M4.9 17.5h.2" strokeWidth="2.6" />
+    </>
+  ),
+  undo: (
+    <>
+      <path d="M9.5 5.5L5 10l4.5 4.5" />
+      <path d="M5 10h9a5 5 0 0 1 0 10h-3" />
+    </>
+  ),
+  redo: (
+    <>
+      <path d="M14.5 5.5L19 10l-4.5 4.5" />
+      <path d="M19 10h-9a5 5 0 0 0 0 10h3" />
+    </>
+  ),
+  eraser: (
+    <>
+      <path d="M9 20.5h10.5" />
+      <path d="M9 20.5l-4.3-4.3a1.8 1.8 0 0 1 0-2.5l8.8-8.8a1.8 1.8 0 0 1 2.5 0l3.6 3.6a1.8 1.8 0 0 1 0 2.5L11.4 18.2" />
+      <path d="M8.6 9.6l6.8 6.8" />
+    </>
+  ),
   copy: (
     <>
       <rect x="8.5" y="8.5" width="11" height="11" rx="2.2" />

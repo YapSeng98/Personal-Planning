@@ -82,12 +82,12 @@ export default function PlanTomorrow({ summary, onClose }: {
       <div className="sheet plan-tmr" role="dialog" aria-modal="true" aria-labelledby="ptm-h" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-body">
           <div className="ptm-head">
-            <h2 id="ptm-h">🌙 {t('ptm.title')}</h2>
+            <h2 id="ptm-h"><Icon name="moon" size={19} strokeWidth={2} className="ic-in" /> {t('ptm.title')}</h2>
             <button type="button" className="icon-btn" onClick={onClose} aria-label={t('common.close')}><Icon name="close" size={18} /></button>
           </div>
           <p className="ptm-recap num">
             {t('ptm.recap', { done: summary.done, n: summary.total })}
-            {summary.focusedMin >= 1 && <> · ⏱ {t('today.focused', { time: hm(summary.focusedMin / 60) })}</>}
+            {summary.focusedMin >= 1 && <> · <Icon name="timer" size={12} strokeWidth={2.2} className="ic-in" /> {t('today.focused', { time: hm(summary.focusedMin / 60) })}</>}
           </p>
 
           <div className="ptm-sec">
@@ -110,12 +110,12 @@ export default function PlanTomorrow({ summary, onClose }: {
                 </button>
               </div>
             ))}
-            {repeating > 0 && <p className="ptm-note">🔁 {t('ptm.repeating', { n: repeating })}</p>}
+            {repeating > 0 && <p className="ptm-note"><Icon name="repeat" size={12} strokeWidth={2.2} className="ic-in" /> {t('ptm.repeating', { n: repeating })}</p>}
           </div>
 
           <div className="ptm-sec">
             <div className="ptm-sec-h"><span>{t('ptm.tomorrowH', { date: tomorrowLabel })} <b className="num">{next.length}</b></span></div>
-            {next.length > 0 && !next.some((x) => x.isMit) && <p className="ptm-note">⭐ {t('ptm.pickMit')}</p>}
+            {next.length > 0 && !next.some((x) => x.isMit) && <p className="ptm-note"><Icon name="star" size={12} strokeWidth={2} className="ic-in ic-fill ic-star" /> {t('ptm.pickMit')}</p>}
             {next.map((task) => (
               <div key={task.id} className="ptm-row">
                 <button type="button" className={`ptm-star ${task.isMit ? 'on' : ''}`} onClick={() => star(task)} aria-pressed={!!task.isMit}
