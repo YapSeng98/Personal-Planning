@@ -1677,9 +1677,14 @@ exception when others then
 end;
 $$;
 
-revoke execute on function public.repeat_in_month(date, int, int, int) from public, anon, authenticated;
-revoke execute on function public.repeat_next(text, date, date) from public, anon, authenticated;
-revoke execute on function public.repeat_on(text, date, date) from public, anon, authenticated;
+-- pure date maths: signed-in users may call them (how a device can check
+-- this part of the schema is live), anonymous visitors not
+revoke execute on function public.repeat_in_month(date, int, int, int) from public, anon;
+revoke execute on function public.repeat_next(text, date, date) from public, anon;
+revoke execute on function public.repeat_on(text, date, date) from public, anon;
+grant execute on function public.repeat_in_month(date, int, int, int) to authenticated;
+grant execute on function public.repeat_next(text, date, date) to authenticated;
+grant execute on function public.repeat_on(text, date, date) to authenticated;
 
 -- The reminders due at `moment`, per device: blocks starting `lead_minutes`
 -- from now in the device's time zone (sent up to 10 minutes late, if the

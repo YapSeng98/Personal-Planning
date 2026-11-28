@@ -393,6 +393,13 @@ for (const rule of rules) for (const anchor of anchors) {
   if (JSON.stringify(app) === JSON.stringify(sqlSeq) && JSON.stringify(onApp) === JSON.stringify(onSql)) same++
   else diffs.push(`${rule} @ ${anchor}: app ${JSON.stringify(app?.slice(0, 4))} db ${JSON.stringify(sqlSeq?.slice(0, 4))}`)
 }
+await db.exec('set role authenticated')
+const asUser = (await db.query(`select public.repeat_on('FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', '2026-11-28', '2026-11-30') as a`)).rows[0].a
+await db.exec('reset role')
+await db.exec('set role anon')
+const anonRefused = await refused(() => db.query(`select public.repeat_next('FREQ=DAILY', '2026-11-28', '2026-11-28')`))
+await db.exec('reset role')
+check('a signed-in user can call repeat_on (how the live check works); anonymous can\'t', asUser === true && anonRefused)
 check(`the next 40 days and "lands on" for 120 days match for ${total} rule × start pairs (incl. bad rules)`, same === total, diffs.slice(0, 3).join(' | '))
 }
 
