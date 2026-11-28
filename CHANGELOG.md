@@ -8,6 +8,19 @@ those.
 
 ## 2026-11-28
 
+- **Custom repeats.** A task's Repeat now offers Every weekday (Mon–Fri) and
+  names the day for the others (Weekly on Saturday, Monthly on day 28,
+  Yearly on 28 Nov). Custom… sets anything else: every 2 days, every 2 weeks
+  on Tue and Thu, monthly on the second Tuesday, the last Friday or the last
+  day, every 3 months, every 2 years. It shows the next dates as you choose.
+  A new repeat starts on the first day it lands on, so "every weekday" set on
+  a Saturday starts on Monday. Plan previews it on the right days, a
+  preview's sheet says the repeat in words, and the repeat icon's tooltip
+  does too. Push reminders cover custom repeats once the database update
+  (schema.sql) is run; until then they still remind on days the app has
+  already made.
+  [`dd60741`](https://github.com/YapSeng98/Personal-Planning/commit/dd60741)
+
 - **A new professional look: Vision.** On a computer the whole app now sits
   in one floating glass window over your scene, like an app on Apple Vision
   Pro. The window is clear, so the planet, galaxy, moon, circuits or network
