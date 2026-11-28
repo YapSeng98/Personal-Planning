@@ -264,6 +264,20 @@ the "Sunrise" identity. Two layers:
   `genbg.py`. Idle GPU ~0.2 s / 4 s vs Nebula's ~1.3 s, still 60 fps; at
   rest they step on the sky's 30/s beat. Scoped under
   `:root[data-bg='graphite' | 'ops']`; data marks indigo / cyan + green.
+- `frontend/src/styles/objects.css` + Shell's `.obj3d` — **3D objects**
+  (since 2026-11-28, the owner's pick "B" of three 3D styles, for every
+  look): a glossy ring (a conic-colour tube turning under a still specular
+  highlight, tilted in `preserve-3d`), three spheres (fixed top-left light +
+  a coloured rim light, floating on equal-step sine keyframes) and a glass
+  cube (wireframe in Ops), tinted per look via `--c1/--c2/--c3`. They replace
+  each look's centrepiece (Nebula's planet, Galaxy's spiral, Moon's moon,
+  rocks + astronaut, Graphite's circuits, Ops's network map); stars, meteors
+  and grids stay. On by default; Settings → Background → Scene → Classic
+  brings the centrepieces back (`planner_objects` = '0', `data-objects` on
+  :root, lib/bg.ts). sky.ts drifts each `.ob` with the mouse by its `data-k`
+  (in any look; cards still lean only in sky looks). At rest they step on the
+  30/s beat (each `--rn` set). GPU ≈ the centrepiece they replace, except
+  Liquid at rest (was still, now ~0.4 s / 4 s).
 - `frontend/src/styles/focus.css` — focus mode's full-screen deep-space
   timer: its own always-dark look in every theme (not scoped to Cosmic).
 - **Wallpaper**: `frontend/src/lib/bg.ts` presets (`data-bg`); `nebula` is

@@ -48,7 +48,19 @@ export function applyBg(b: Bg = getBg()) {
   root.toggleAttribute('data-nebula', b === 'nebula')
   root.toggleAttribute('data-galaxy', b === 'galaxy')
   root.toggleAttribute('data-lunar', b === 'lunar')
+  root.toggleAttribute('data-objects', getObjects())
   applyTheme() // the window bar follows (Cosmic is always dark)
+}
+
+/** The scene: 3D objects (objects.css — the owner's pick, 2026-11-28) or
+    each look's classic centrepiece (planet, galaxy, moon, circuits, network). */
+const OBJ_KEY = 'planner_objects'
+export function getObjects(): boolean {
+  try { return localStorage.getItem(OBJ_KEY) !== '0' } catch { return true }
+}
+export function setObjects(on: boolean) {
+  try { localStorage.setItem(OBJ_KEY, on ? '1' : '0') } catch { /* this visit only */ }
+  document.documentElement.toggleAttribute('data-objects', on)
 }
 
 export function setBg(b: Bg) {
