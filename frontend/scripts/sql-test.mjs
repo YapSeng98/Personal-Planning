@@ -333,6 +333,21 @@ await push([
 ])
 const t2 = (await due('2026-10-23T00:50:00Z')).map((x) => x.title).sort()
 check('a repeat whose last day was deleted reminds no more; one whose last day was skipped goes on', t2.includes('Skipped repeat') && !t2.includes('Deleted repeat') && t2.includes('Gym'), JSON.stringify(t2))
+// custom repeats (lib/repeat.ts) — 2026-10-23 is a Friday, the 4th of October
+const cr = (title, due, recurrence) => { const id = uuid(); return { ...blk(title, due, '09:00', '', { recurrence, seriesId: id }), client_uuid: id } }
+await push([
+  cr('Weekday standup', '2026-10-21', 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR'),
+  cr('Fourth Friday', '2026-09-25', 'FREQ=MONTHLY;BYDAY=4FR'),
+  cr('Every 2 weeks', '2026-10-16', 'FREQ=WEEKLY;INTERVAL=2;BYDAY=FR'),
+  cr('Last Friday', '2026-09-25', 'FREQ=MONTHLY;BYDAY=-1FR'),
+  cr('Weekends', '2026-10-18', 'FREQ=WEEKLY;BYDAY=SA,SU'),
+  cr('Unknown rule', '2026-10-22', 'FREQ=HOURLY;BYDAY=??'),
+])
+const t3 = (await due('2026-10-23T00:50:00Z')).map((x) => x.title)
+check('custom repeats remind on their days before the day is made (every weekday, the 4th Friday) — not off them, and a rule it can’t read is skipped quietly',
+  t3.includes('Weekday standup') && t3.includes('Fourth Friday') && !t3.some((x) => ['Every 2 weeks', 'Last Friday', 'Weekends', 'Unknown rule'].includes(x)) && t3.includes('Gym'), JSON.stringify(t3.sort()))
+const t4 = (await due('2026-10-30T00:50:00Z')).map((x) => x.title)
+check('…and a week later: every 2 weeks and the last Friday do, the 4th Friday doesn\'t', t4.includes('Every 2 weeks') && t4.includes('Last Friday') && !t4.includes('Fourth Friday') && t4.includes('Weekday standup'), JSON.stringify(t4.sort()))
 await saveSub({ lang: 'zh', lead: 0 })
 d1 = await due('2026-10-23T01:00:00Z')
 check('lead and language follow the device\'s latest setting', d1.find((x) => x.title === 'Prepare slides')?.body === '09:00–10:00 · 现在开始')
@@ -351,6 +366,34 @@ await db.exec(`insert into net._http_response (id, status_code, content) values 
 await db.query(`select public.send_due_reminders()`)
 check('a device the push service reports gone is forgotten', (await db.query(`select * from public.push_subscriptions`)).rows.length === 0)
 await as(U1)
+}
+
+// ---- repeat_next / repeat_on agree with the app's lib/repeat.ts
+{
+console.log('\n— custom repeats: database = app')
+const R = await import(new URL('../src/lib/repeat.ts', import.meta.url).href)
+const rules = ['FREQ=DAILY', 'FREQ=DAILY;INTERVAL=3', 'FREQ=DAILY;INTERVAL=0', 'FREQ=DAILY;INTERVAL=500', 'FREQ=DAILY;INTERVAL=-2',
+  R.WEEKDAYS_RULE, 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH', 'FREQ=WEEKLY;INTERVAL=3;BYDAY=SU,MO', 'FREQ=WEEKLY;BYDAY=SA,SU,SA', 'FREQ=WEEKLY', 'FREQ=WEEKLY;BYDAY=XX',
+  'INTERVAL=2;FREQ=WEEKLY;BYDAY=FR', 'FREQ=MONTHLY;BYMONTHDAY=31', 'FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=-1', 'FREQ=MONTHLY;BYDAY=2TU',
+  'FREQ=MONTHLY;BYDAY=-1FR', 'FREQ=MONTHLY;INTERVAL=4;BYDAY=1SU', 'FREQ=MONTHLY', 'FREQ=MONTHLY;BYMONTHDAY=40', 'FREQ=MONTHLY;BYDAY=5MO',
+  'FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29', 'FREQ=YEARLY;INTERVAL=2', 'FREQ=YEARLY;BYMONTH=13;BYMONTHDAY=0', 'FREQ=YEARLY;BYMONTH=12;BYMONTHDAY=-1',
+  'FREQ=HOURLY', 'FREQ=toString', 'garbage', '']
+const anchors = ['2026-01-31', '2026-02-28', '2026-11-28', '2027-12-31', '2028-02-29', '2026-10-25']
+let same = 0, total = 0
+const diffs = []
+for (const rule of rules) for (const anchor of anchors) {
+  total++
+  const r = R.parseRule(rule, anchor)
+  const app = r ? R.upcoming(r, anchor, 40) : null
+  const days = (await db.query(`with recursive w(i, d) as (select 0, $2::date union all select i + 1, public.repeat_next($1, $2::date, d) from w where i < 40 and d is not null)
+    select to_char(d, 'YYYY-MM-DD') as d from w order by i`, [rule, anchor])).rows.map((x) => x.d)
+  const sqlSeq = days[1] == null ? null : days.slice(1)
+  const onApp = Array.from({ length: 120 }, (_, k) => !!r && R.occursOn(r, anchor, R.upcoming({ freq: 'day', every: 1 }, anchor, k + 1).at(-1)))
+  const onSql = (await db.query(`select array_agg(public.repeat_on($1, $2::date, $2::date + k) order by k) as a from generate_series(1, 120) k`, [rule, anchor])).rows[0].a
+  if (JSON.stringify(app) === JSON.stringify(sqlSeq) && JSON.stringify(onApp) === JSON.stringify(onSql)) same++
+  else diffs.push(`${rule} @ ${anchor}: app ${JSON.stringify(app?.slice(0, 4))} db ${JSON.stringify(sqlSeq?.slice(0, 4))}`)
+}
+check(`the next 40 days and "lands on" for 120 days match for ${total} rule × start pairs (incl. bad rules)`, same === total, diffs.slice(0, 3).join(' | '))
 }
 
 console.log(`\n${results.filter(Boolean).length}/${results.length} SQL checks passed`)

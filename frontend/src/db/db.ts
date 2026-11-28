@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import { SYNC_FIELDS, diffRecord, applyAttachmentOps, filledFields, type SyncTable } from '../sync/fields'
 import { freshChecklist, type CheckItem, type FocusEntry } from '../lib/items'
+import { isLegacy, parseRule, nextAfter, occursOn } from '../lib/repeat'
 
 // Local mirror of the x_pps_* ServiceNow tables (design doc §04/§09).
 // `id` is the client_uuid used for idempotent sync; `sysId` arrives after
@@ -32,8 +33,10 @@ export interface Task {
   reminderDaysBefore?: number
   /** If set, this task repeats: once its due date's next scheduled
       occurrence has arrived, a NEW row is generated (see rollRecurringTasks)
-      rather than this row being mutated — this row stays as history. */
-  recurrence?: 'daily' | 'weekly' | 'monthly'
+      rather than this row being mutated — this row stays as history.
+      'daily' | 'weekly' | 'monthly', or a custom rule (lib/repeat.ts: every
+      weekday, every 2 weeks on Tue + Thu, the last Friday, …). */
+  recurrence?: string
   /** Links every occurrence of a recurring task together. Set to the first
       occurrence's own id when recurrence is first turned on. */
   seriesId?: string
@@ -544,7 +547,18 @@ export function editTaskList<K extends 'checklist' | 'focusLog'>(
   })
 }
 
-function nextOccurrence(date: string, recurrence: NonNullable<Task['recurrence']>): string {
+/** The day after `date` a series repeats on — null: a repeat this version
+    doesn't understand (made by a newer one), so nothing is made for it. The
+    first three kinds keep their old arithmetic exactly (older app versions
+    roll the same days); custom rules come from lib/repeat.ts, read from the
+    series' latest day. */
+function nextDay(latest: Task, date: string): string | null {
+  if (isLegacy(latest.recurrence)) return nextOccurrence(date, latest.recurrence as 'daily')
+  const r = parseRule(latest.recurrence, latest.due!)
+  return r ? nextAfter(r, date) : null
+}
+
+function nextOccurrence(date: string, recurrence: 'daily' | 'weekly' | 'monthly'): string {
   const d = new Date(date + 'T00:00')
   if (recurrence === 'daily') {
     d.setDate(d.getDate() + 1)
@@ -656,6 +670,10 @@ export async function stopRepeatingFrom(task: Task): Promise<void> {
     anything before it, since that's real data, not a preview. */
 export function isProjectedOccurrence(latest: Task, candidateDate: string): boolean {
   if (!latest.due || !latest.recurrence || candidateDate <= latest.due) return false
+  if (!isLegacy(latest.recurrence)) {
+    const r = parseRule(latest.recurrence, latest.due)
+    return !!r && occursOn(r, latest.due, candidateDate)
+  }
   if (latest.recurrence === 'daily') return true
   const latestD = new Date(latest.due + 'T00:00')
   const candD = new Date(candidateDate + 'T00:00')
@@ -710,7 +728,17 @@ async function dedupeRecurringOccurrences(): Promise<number> {
     same title at different times (a morning and an evening chart review)
     is meant and kept. */
 async function dedupeRecurringSeries(): Promise<void> {
-  const phase = (s: Task) => (s.recurrence === 'weekly' ? new Date(s.due + 'T00:00').getDay() : s.recurrence === 'monthly' ? s.due!.slice(8) : '')
+  const today = todayStr()
+  const phase = (s: Task) => {
+    if (s.recurrence === 'weekly') return new Date(s.due + 'T00:00').getDay()
+    if (s.recurrence === 'monthly') return s.due!.slice(8)
+    if (s.recurrence === 'daily') return ''
+    // a custom rule: copies land on the same days if their next day after
+    // today is the same (every 2 weeks: the same weeks)
+    let d: string | null = s.due!
+    for (let i = 0; d && d <= today && i < 2000; i++) d = nextDay(s, d)
+    return d ?? s.id
+  }
   const copies = new Map<string, string[]>()
   for (const s of await activeRecurringSeries()) {
     const key = `${s.title}|${s.recurrence}|${phase(s)}|${s.timeBlockStart?.slice(11, 16) ?? ''}`
@@ -787,9 +815,9 @@ async function rollRecurringTasksInner() {
     // Walk forward to the latest scheduled date that isn't past today —
     // may land on a past-but-unreached date for weekly/monthly cadences.
     let due = latest.due!
-    for (;;) {
-      const candidate = nextOccurrence(due, latest.recurrence!)
-      if (candidate > today) break
+    for (let i = 0; i < 5000; i++) {
+      const candidate = nextDay(latest, due)
+      if (!candidate || candidate > today) break
       due = candidate
     }
     if (due === latest.due) continue // next occurrence isn't due yet

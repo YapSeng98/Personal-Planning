@@ -14,6 +14,8 @@ import { openAppFromClick } from '../lib/appWindow'
 import { aiEnabled, askAIJson, AI_FORMAT_ERROR } from '../lib/ai'
 import { showToast } from '../lib/toast'
 import Icon from './Icon'
+import RepeatPicker from './RepeatPicker'
+import { pickFrom, pickValue, pickStart, type RepeatPick } from '../lib/repeat'
 
 // One form for BOTH adding and editing a task, so the two can never diverge.
 // task=null → create mode; task=existing → edit mode (adds Delete).
@@ -69,7 +71,7 @@ export default function TaskForm({ task, preset, onClose }: { task: Task | null;
   const [state, setState] = useState<TaskState>(task?.state ?? 'open')
   const [isMit, setIsMit] = useState(Boolean(task?.isMit))
   const [reminderDays, setReminderDays] = useState<number | undefined>(task?.reminderDaysBefore ?? undefined)
-  const [recurrence, setRecurrence] = useState<Task['recurrence']>(task?.recurrence)
+  const [repeat, setRepeat] = useState<RepeatPick>(() => pickFrom(task?.recurrence, task?.due ?? todayStr()))
   const [hours, setHours] = useState<number | undefined>(task?.estimatedHours)
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [priority, setPriority] = useState(task?.priority ?? 3)
@@ -84,6 +86,10 @@ export default function TaskForm({ task, preset, onClose }: { task: Task | null;
   const [aiParseErr, setAiParseErr] = useState('')
   const { t, lang } = useLang()
   useEscape(onClose)
+  // a new or changed repeat starts on the first day it lands on ("every
+  // Mon, Wed" set on a Saturday → Monday); moving a day of one doesn't snap
+  const repeatChanged = !task || pickValue(repeat, due) !== task.recurrence
+  const startDay = repeatChanged && state !== 'done' ? pickStart(repeat, due) : due
 
   // A reminder N days before due never fires if that day has already
   // passed — cap how far back it can be set to what's actually left between
@@ -176,6 +182,7 @@ export default function TaskForm({ task, preset, onClose }: { task: Task | null;
     setSubmitting(true)
 
     try {
+      const recurrence = pickValue(repeat, startDay)
       // Turning off repeat on an occurrence that hasn't happened yet removes
       // it outright — there's no history to preserve, and it was the latest
       // row in its series, so nothing more gets generated. An already-done
@@ -204,9 +211,9 @@ export default function TaskForm({ task, preset, onClose }: { task: Task | null;
         state,
         // an unchanged level keeps an in-between value (2, 4) as it was
         priority: task && prioLevel(task.priority) === priority ? task.priority : priority,
-        due,
-        timeBlockStart: start ? `${due}T${start}` : undefined,
-        timeBlockEnd: end ? `${due}T${end}` : undefined,
+        due: startDay,
+        timeBlockStart: start ? `${startDay}T${start}` : undefined,
+        timeBlockEnd: end ? `${startDay}T${end}` : undefined,
         estimatedHours: hours,
         actualHours: resetSpent ? undefined : task?.actualHours,
         checklist: task ? task.checklist : (live(steps).length ? steps : undefined),
@@ -466,18 +473,8 @@ export default function TaskForm({ task, preset, onClose }: { task: Task | null;
             </div>
             <div className="f">
               <label className="fl">{t('task.repeat')}</label>
-              <Select
-                ariaLabel={t('task.repeat')}
-                value={recurrence ?? ''}
-                onChange={(v) => setRecurrence(v === '' ? undefined : (v as Task['recurrence']))}
-                options={[
-                  { value: '', label: t('task.repeatOff') },
-                  { value: 'daily', label: t('task.repeatDaily') },
-                  { value: 'weekly', label: t('task.repeatWeekly') },
-                  { value: 'monthly', label: t('task.repeatMonthly') },
-                ]}
-              />
-              {task && task.recurrence && !recurrence && task.state !== 'done' && (
+              <RepeatPicker pick={repeat} due={due} start={startDay} onChange={setRepeat} />
+              {task && task.recurrence && repeat.kind === 'off' && task.state !== 'done' && (
                 <p className="hint">{t('task.repeatOffHint')}</p>
               )}
             </div>

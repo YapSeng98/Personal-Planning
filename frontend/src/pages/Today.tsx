@@ -23,6 +23,7 @@ import Insights from '../components/Insights'
 import TaskForm from '../components/TaskForm'
 import HabitEdit from '../components/HabitEdit'
 import Icon, { type IconName } from '../components/Icon'
+import { describeRepeat } from '../lib/repeat'
 import { useLang, type TFn } from '../lib/i18n'
 import { stopTimer, useRunningTimer, useElapsed, clock, hm } from '../lib/timer'
 import { openFocus } from '../lib/focus'
@@ -144,6 +145,7 @@ function TodayCard({ task, proj, why, timingSince, dropHint, prioMove, onToggle,
   prioMove?: PrioMove
   onToggle: () => void; onEdit: () => void; t: TFn
 }) {
+  const { lang } = useLang()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const done = task.state === 'done'
   const spent = spentHours(task)
@@ -166,7 +168,7 @@ function TodayCard({ task, proj, why, timingSince, dropHint, prioMove, onToggle,
               <span className="ttime-m num">{task.timeBlockStart.slice(11, 16)}{task.timeBlockEnd ? `–${task.timeBlockEnd.slice(11, 16)}` : ''}</span>
             )}
             {Boolean(task.isMit) && <span className="tstar" title={t('task.mitFull')}><Icon name="star" size={12} strokeWidth={2} className="ic-fill" /></span>}
-            {task.recurrence && <span className="trecur" title={t('task.repeat')}><Icon name="repeat" size={12} strokeWidth={2.2} /></span>}
+            {task.recurrence && <span className="trecur" title={(task.due && describeRepeat(task.recurrence, task.due, t, lang)) || t('task.repeat')}><Icon name="repeat" size={12} strokeWidth={2.2} /></span>}
             {steps.all > 0 && (
               <span className={`tsteps num ${steps.done === steps.all ? 'all' : ''}`} title={t('step.title')}>
                 <Icon name="check" size={11} strokeWidth={2.6} />{steps.done}/{steps.all}

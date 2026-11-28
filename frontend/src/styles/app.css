@@ -1992,6 +1992,30 @@ button.sketch-attachment-link { background: none; border: none; padding: 0; font
 .prio-seg .p3 { --c: var(--amber); }
 .prio-seg .p5 { --c: var(--ok); }
 .prio-seg .prio.on { background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--text-1); }
+/* Custom repeat (RepeatPicker): Every [− 2 +] [days|weeks|months|years],
+   the week's days, a month's choice — inside the task sheet, so fills only */
+.rep-custom { margin-top: 0.55rem; padding: 0.75rem; border: 1px solid var(--hairline); border-radius: 14px;
+  background: color-mix(in srgb, var(--text-1) 4%, transparent); display: flex; flex-direction: column; gap: 0.65rem; }
+.rep-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.rep-lbl { font-size: 0.85rem; font-weight: 700; color: var(--text-2); }
+.rep-step { display: inline-flex; align-items: center; height: 2.6rem; border: 1px solid var(--hairline); border-radius: 12px; background: var(--glass); overflow: hidden; }
+.rep-step button { width: 2.6rem; height: 100%; border: none; background: none; font: inherit; font-size: 1.15rem; font-weight: 700; color: var(--text-2); cursor: pointer; }
+.rep-step button:hover:not(:disabled) { color: var(--text-1); }
+.rep-step button:disabled { opacity: 0.3; cursor: default; }
+.rep-step b { min-width: 1.9rem; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.98rem; color: var(--text-1); }
+.rep-seg { flex: 1 1 15rem; display: grid; grid-template-columns: repeat(4, 1fr); height: 2.6rem; border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; background: var(--glass); }
+.rep-seg button { border: none; background: none; font: inherit; font-size: 0.82rem; font-weight: 700; color: var(--text-2); cursor: pointer; padding: 0 0.2rem; }
+.rep-seg button + button { border-left: 1px solid var(--hairline); }
+.rep-seg button.on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text-1); }
+.rep-days { display: flex; justify-content: space-between; gap: 0.2rem; }
+.rep-days button { flex: 1 1 0; min-width: 0; max-width: 2.6rem; aspect-ratio: 1; padding: 0; border-radius: 50%; border: 1px solid var(--hairline); background: var(--glass);
+  font: inherit; font-size: 0.85rem; font-weight: 700; color: var(--text-2); cursor: pointer; transition: transform 0.35s var(--spring), background-color 0.15s; }
+.rep-days button:active { transform: scale(0.92); }
+.rep-days button.on { background: var(--g-ink, var(--accent)); border-color: transparent; color: var(--g-on-ink, #fff); }
+.rep-month { margin-top: 0; }
+.rep-month .qd { min-height: 2.4rem; padding: 0.45rem 0.85rem; }
+.sheet .hint.rep-hint { margin: 0.45rem 0 0; }
+.sheet .hint.rep-hint + .hint.rep-hint { margin-top: 0.15rem; }
 .task-notes { width: 100%; box-sizing: border-box; min-height: 3.2rem; resize: vertical; background: var(--glass); border: 1px solid var(--hairline); border-radius: 12px;
   padding: 0.6rem 0.8rem; color: var(--text-1); font: inherit; font-size: 0.92rem; line-height: 1.45; }
 .task-notes:focus { outline: none; border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright); }

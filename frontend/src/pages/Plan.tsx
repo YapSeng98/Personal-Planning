@@ -12,6 +12,7 @@ import { useLang, type TFn } from '../lib/i18n'
 import { useToday } from '../lib/today'
 import { useEscape } from '../lib/escape'
 import Icon from '../components/Icon'
+import { describeRepeat } from '../lib/repeat'
 
 interface DayView {
   date: string
@@ -52,6 +53,7 @@ function relativeMonth(offset: number, t: TFn): string {
 
 function TaskRow({ task, onToggle, onEdit, t }: { task: Task; onToggle: () => void; onEdit: () => void; t: TFn }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
+  const { lang } = useLang()
   return (
     <div
       ref={setNodeRef}
@@ -61,7 +63,7 @@ function TaskRow({ task, onToggle, onEdit, t }: { task: Task; onToggle: () => vo
       <button className="drag-grip" aria-label="Drag to reorder" {...listeners} {...attributes}>⠿</button>
       <button className={`check ${task.state === 'done' ? 'on' : ''}`} onClick={onToggle} aria-label={task.title}>✓</button>
       <button className={`title title-btn ${task.state === 'done' ? 'done' : ''}`} onClick={onEdit} title={task.title}>
-        {task.recurrence && <span className="p-recur" title={t('task.repeat')}><Icon name="repeat" size={12} strokeWidth={2.2} className="ic-in" /> </span>}{task.title}
+        {task.recurrence && <span className="p-recur" title={(task.due && describeRepeat(task.recurrence, task.due, t, lang)) || t('task.repeat')}><Icon name="repeat" size={12} strokeWidth={2.2} className="ic-in" /> </span>}{task.title}
       </button>
       <span className={`when num ${task.timeBlockStart ? '' : 'faint'}`}>
         {task.timeBlockStart ? task.timeBlockStart.slice(11, 16) : t('today.anytime')}
@@ -546,7 +548,7 @@ export default function Plan() {
               <h2 id="rp-h"><Icon name="repeat" size={18} strokeWidth={2.1} className="ic-in" /> {preview.series.title}{preview.series.timeBlockStart && ` · ${preview.series.timeBlockStart.slice(11, 16)}`}</h2>
               <p className="row-sub">
                 {t('plan.repeatsOn', {
-                  how: t(`task.repeat${preview.series.recurrence === 'weekly' ? 'Weekly' : preview.series.recurrence === 'monthly' ? 'Monthly' : 'Daily'}`),
+                  how: ((h) => (lang === 'zh' ? h : h.charAt(0).toLowerCase() + h.slice(1)))(describeRepeat(preview.series.recurrence, preview.series.due!, t, lang)),
                   date: new Date(preview.date + 'T00:00').toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined, { weekday: 'long', month: 'long', day: 'numeric' }),
                 })}
               </p>

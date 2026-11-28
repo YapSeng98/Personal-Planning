@@ -119,7 +119,7 @@
 :root[data-bg='cosmic'] :is(.ask-go, .fab)::before, :root[data-bg='cosmic'] :is(.ask-go, .fab)::after { display: none !important; }
 :root[data-bg='cosmic'] :is(.btn:not(.btn-primary), .ask-chips button, .hero-next, .hero-streak, .seg, .view-seg) {
   background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.09) !important; box-shadow: none !important; }
-:root[data-bg='cosmic'] :is(.seg-btn.on, .view-seg button.on, .view-seg [aria-pressed='true']) { background: rgba(255, 255, 255, 0.18) !important; color: #fff !important; box-shadow: none !important; }
+:root[data-bg='cosmic'] :is(.seg-btn.on, .view-seg button.on, .view-seg [aria-pressed='true'], .rep-seg button.on) { background: rgba(255, 255, 255, 0.18) !important; color: #fff !important; box-shadow: none !important; }
 /* marks: white bars, the menu's current page in white */
 :root[data-bg='cosmic'] :is(.pbar, .goal-bar, .bar) i, :root[data-bg='cosmic'] .hc-bar i { background: rgba(255, 255, 255, 0.92) !important; box-shadow: none !important; }
 :root[data-bg='cosmic'] .nav-link.active .ico { color: #fff !important; filter: none !important; }

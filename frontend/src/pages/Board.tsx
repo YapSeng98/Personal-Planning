@@ -10,6 +10,7 @@ import { syncNow } from '../sync/engine'
 import Select from '../components/Select'
 import TaskForm from '../components/TaskForm'
 import Icon from '../components/Icon'
+import { describeRepeat } from '../lib/repeat'
 import ProjectForm from '../components/ProjectForm'
 import { projectColorVar } from '../lib/projectColors'
 import { computeProjectStats, type ProjectStat } from '../lib/projectStats'
@@ -84,7 +85,7 @@ function byDue(a: Task, b: Task): number {
 
 function BoardCard({ task, proj, onEdit }: { task: Task; proj?: Project; onEdit: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const steps = stepCount(task.checklist)
   return (
     <button
@@ -100,7 +101,7 @@ function BoardCard({ task, proj, onEdit }: { task: Task; proj?: Project; onEdit:
       {(task.due || Boolean(task.isMit) || task.recurrence || proj || steps.all > 0 || fromDailyBrief(task)) && (
         <div className="meta">
           {Boolean(task.isMit) && <span className="b-star" title={t('task.mitFull')}><Icon name="star" size={12} strokeWidth={2} className="ic-fill" /></span>}
-          {task.recurrence && <span className="b-recur" title={t('task.repeat')}><Icon name="repeat" size={12} strokeWidth={2.2} /></span>}
+          {task.recurrence && <span className="b-recur" title={(task.due && describeRepeat(task.recurrence, task.due, t, lang)) || t('task.repeat')}><Icon name="repeat" size={12} strokeWidth={2.2} /></span>}
           {fromDailyBrief(task) && <span className="tbrief" title={t('brief.badgeTitle')}><Icon name="clipboard" size={11} strokeWidth={2.2} />{t('brief.badge')}</span>}
           {steps.all > 0 && <span className={`tsteps num ${steps.done === steps.all ? 'all' : ''}`}><Icon name="check" size={11} strokeWidth={2.6} />{steps.done}/{steps.all}</span>}
           {task.due && <span className="num">{task.due.slice(5)}</span>}

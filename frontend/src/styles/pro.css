@@ -90,7 +90,8 @@
 :root:is([data-bg='graphite'], [data-bg='ops']) .btn:hover { background: var(--p-press); border-color: var(--text-3); }
 :root:is([data-bg='graphite'], [data-bg='ops']) .btn-primary { background: var(--accent); color: var(--g-on-ink); border: 1px solid transparent; }
 :root:is([data-bg='graphite'], [data-bg='ops']) .btn-primary:hover { background: var(--accent-bright); opacity: 1; box-shadow: none; }
-:root:is([data-bg='graphite'], [data-bg='ops']) :is(.btn-danger, .chip-toggle, .quick-dates .qd, .view-seg, .view-seg button, .prio-seg, .tchip, .hero-next, .hero-streak, .ask-chips button, .ask-go, .ttimer, .copy-day, .toast-act, .goal-step) { border-radius: var(--p-r-sm); }
+:root:is([data-bg='graphite'], [data-bg='ops']) :is(.btn-danger, .chip-toggle, .quick-dates .qd, .view-seg, .view-seg button, .prio-seg, .tchip, .hero-next, .hero-streak, .ask-chips button, .ask-go, .ttimer, .copy-day, .toast-act, .goal-step, .rep-custom, .rep-step, .rep-seg, .rep-days button) { border-radius: var(--p-r-sm); }
+:root:is([data-bg='graphite'], [data-bg='ops']) .rep-days button.on { background: var(--accent); color: var(--g-on-ink); }
 :root:is([data-bg='graphite'], [data-bg='ops']) :is(.sheet input[type='text'], .task-title-field, .sel-btn, .f input, .f textarea, .search-modal input, .form-grid select, .date-wrap input) {
   border-radius: var(--p-r-sm); background: var(--surface); border-color: var(--hairline); }
 :root:is([data-bg='graphite'], [data-bg='ops']) :is(.task-title-field, .f input, .f textarea, .sel-btn):focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-wash); }

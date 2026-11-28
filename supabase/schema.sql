@@ -1540,6 +1540,147 @@ begin
 end;
 $$;
 
+-- Custom repeats (frontend/src/lib/repeat.ts — keep the two in step; `npm
+-- run test:sql` checks they agree). Task.recurrence is 'daily' / 'weekly' /
+-- 'monthly' or a small iCalendar RRULE: FREQ=DAILY|WEEKLY|MONTHLY|YEARLY,
+-- INTERVAL=n, BYDAY=MO,WE (weekly) or 2TU / -1FR (monthly), BYMONTHDAY=d|-1,
+-- BYMONTH=m. Weeks start on Monday. `anchor` is the series' latest day: it
+-- fills in what a rule leaves out, as the app's parseRule does.
+create or replace function public.repeat_in_month(m1 date, bymd int, nth int, wd int)
+returns date
+language plpgsql
+immutable
+set search_path = public
+as $$
+declare
+  n int := extract(day from (m1 + interval '1 month')::date - 1)::int;
+  mlast date := m1 + (n - 1);
+begin
+  if nth is not null then
+    if nth > 0 then
+      return m1 + ((wd - extract(dow from m1)::int + 7) % 7) + 7 * (nth - 1);
+    end if;
+    return mlast - ((extract(dow from mlast)::int - wd + 7) % 7);
+  end if;
+  if bymd = -1 then
+    return mlast;
+  end if;
+  return m1 + (least(bymd, n) - 1);
+end;
+$$;
+
+-- The first day after `d` the rule lands on, counting d's own week / month /
+-- year as one it repeats in (nextAfter in the app). null: not a rule.
+create or replace function public.repeat_next(rule text, anchor date, d date)
+returns date
+language plpgsql
+immutable
+set search_path = public
+as $$
+declare
+  codes text[] := array['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  part text; k text; v text;
+  freq text; every int := 1; byday text; bymd int; bymonth int;
+  days int[] := '{}'; idx int; later int; nth int; wd int;
+  m date; tgt date; y int;
+begin
+  if rule is null then
+    return null;
+  end if;
+  foreach part in array string_to_array(rule, ';') loop
+    k := split_part(part, '=', 1);
+    v := split_part(part, '=', 2);
+    if k = 'FREQ' then freq := v;
+    elsif k = 'INTERVAL' then every := case when v ~ '^\d{1,3}$' then least(99, greatest(1, v::int)) else 1 end;
+    elsif k = 'BYDAY' then byday := v;
+    elsif k = 'BYMONTHDAY' then bymd := case when v ~ '^-?\d{1,2}$' then v::int end;
+    elsif k = 'BYMONTH' then bymonth := case when v ~ '^\d{1,2}$' then v::int end;
+    end if;
+  end loop;
+
+  if freq = 'DAILY' then
+    return d + every;
+  elsif freq = 'WEEKLY' then
+    -- Monday = 0 … Sunday = 6
+    foreach v in array coalesce(string_to_array(byday, ','), '{}') loop
+      idx := array_position(codes, v);
+      if idx is not null and not ((idx + 5) % 7 = any(days)) then
+        days := days || ((idx + 5) % 7);
+      end if;
+    end loop;
+    if cardinality(days) = 0 then
+      days := array[(extract(dow from anchor)::int + 6) % 7];
+    end if;
+    idx := (extract(dow from d)::int + 6) % 7;
+    select min(x) into later from unnest(days) x where x > idx;
+    if later is not null then
+      return d + (later - idx);
+    end if;
+    select min(x) into later from unnest(days) x;
+    return d + (7 * every - idx + later);
+  elsif freq = 'MONTHLY' then
+    if byday ~ '^(-1|[1-4])(SU|MO|TU|WE|TH|FR|SA)$' then
+      nth := substring(byday from '^(-1|[1-4])')::int;
+      wd := array_position(codes, substring(byday from '(SU|MO|TU|WE|TH|FR|SA)$')) - 1;
+      bymd := null;
+    elsif bymd is null or not (bymd = -1 or bymd between 1 and 31) then
+      bymd := extract(day from anchor)::int;
+    end if;
+    m := date_trunc('month', d)::date;
+    tgt := public.repeat_in_month(m, bymd, nth, wd);
+    if tgt > d then
+      return tgt;
+    end if;
+    return public.repeat_in_month((m + make_interval(months => every))::date, bymd, nth, wd);
+  elsif freq = 'YEARLY' then
+    if bymonth is null or bymonth not between 1 and 12 then
+      bymonth := extract(month from anchor)::int;
+    end if;
+    if bymd is null or bymd not between 1 and 31 then
+      bymd := extract(day from anchor)::int;
+    end if;
+    y := extract(year from d)::int;
+    tgt := public.repeat_in_month(make_date(y, bymonth, 1), bymd, null, null);
+    if tgt > d then
+      return tgt;
+    end if;
+    return public.repeat_in_month(make_date(y + every, bymonth, 1), bymd, null, null);
+  end if;
+  return null;
+end;
+$$;
+
+-- Does a series whose latest day is `anchor` land on `day` (occursOn)?
+create or replace function public.repeat_on(rule text, anchor date, day date)
+returns boolean
+language plpgsql
+immutable
+set search_path = public
+as $$
+declare
+  d date := anchor;
+  i int := 0;
+begin
+  if day is null or anchor is null or day <= anchor then
+    return false;
+  end if;
+  while d < day and i < 2000 loop
+    d := public.repeat_next(rule, anchor, d);
+    if d is null then
+      return false;
+    end if;
+    i := i + 1;
+  end loop;
+  return d = day;
+exception when others then
+  return false;
+end;
+$$;
+
+revoke execute on function public.repeat_in_month(date, int, int, int) from public, anon, authenticated;
+revoke execute on function public.repeat_next(text, date, date) from public, anon, authenticated;
+revoke execute on function public.repeat_on(text, date, date) from public, anon, authenticated;
+
 -- The reminders due at `moment`, per device: blocks starting `lead_minutes`
 -- from now in the device's time zone (sent up to 10 minutes late, if the
 -- timer was held up). A block's start is stored as the wall-clock time the
@@ -1592,7 +1733,8 @@ as $$
        and d.day > l.due
        and (l.recurrence = 'daily'
             or (l.recurrence = 'weekly' and (d.day - l.due) % 7 = 0)
-            or (l.recurrence = 'monthly' and extract(day from d.day) = extract(day from l.due)))
+            or (l.recurrence = 'monthly' and extract(day from d.day) = extract(day from l.due))
+            or (l.recurrence not in ('daily', 'weekly', 'monthly') and public.repeat_on(l.recurrence, l.due, d.day)))
        and not exists (select 1 from public.tasks x where x.series_id = l.series_id and x.due = d.day)
   ),
   blocks as (
