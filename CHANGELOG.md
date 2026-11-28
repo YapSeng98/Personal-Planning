@@ -6,6 +6,21 @@ rebuild + publish, no code change) aren't listed here — see [commit
 history](https://github.com/YapSeng98/Personal-Planning/commits/main) for
 those.
 
+## 2026-11-28
+
+- **3D objects in every look.** The style you picked: glossy 3D shapes float
+  behind the app while the interface stays crisp. There's a large ring whose
+  colours turn under a fixed highlight, three spheres lit from the top left
+  with a coloured rim light, and a slowly turning glass cube. Each look
+  tints them its own way: pink, violet and cyan in Nebula; blue and gold in
+  Galaxy; silver in Moon; indigo in Graphite; coral and amber in Liquid; and
+  in Ops a cyan wireframe cube. They drift a little as you move the mouse,
+  nearer ones more, and keep moving smoothly when you leave the app alone.
+  They take the place of each look's centrepiece (the planet, the galaxy,
+  the moon, the circuits, the network map); the stars, meteors and grids
+  stay. To get the old scenes back, choose **Settings → Background → Scene →
+  Classic**. [`d227717`](https://github.com/YapSeng98/Personal-Planning/commit/d227717)
+
 ## 2026-11-26
 
 - **Two professional looks: Graphite and Ops.** New in Settings → Background,
