@@ -8,6 +8,16 @@ those.
 
 ## 2026-11-28
 
+- **A cleaner, more professional look: line icons instead of emoji.** The
+  little emoji around the app (⭐ top task, 🔁 repeats, 📝 notes, ⏱ time,
+  🔔 reminders, 🔥 streaks, 🌙 Plan tomorrow, 📋 Daily Brief, 📎 files, the
+  greeting's ☀️ 🌤️ 🌙, a note's toolbar and the draw pad) are now thin line
+  icons in the app's own style. They take each look's colours, so they match
+  in Nebula, Graphite, Ops and the rest. The top-task star stays gold and the
+  streak flame orange. Mood faces, the ✦ AI sparkle and your habits' own
+  emoji are unchanged.
+  [`da0d789`](https://github.com/YapSeng98/Personal-Planning/commit/da0d789)
+
 - **Your old backgrounds are back, now in 3D.** Each look has its own scene
   again, with real depth. Nebula's planet is lit like a real sphere (a glossy
   highlight, a darker edge, a glowing atmosphere), its ring has bands with a
