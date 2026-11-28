@@ -142,3 +142,7 @@
   :root[data-bg='ops'] .nav-rail .nav-link, :root[data-bg='ops'] .nav-rail .nav-search-btn { border-radius: 3px !important; }
   :root[data-bg='ops'] .nav-rail .nav-link.active { box-shadow: inset 2px 0 0 #52D4E4 !important; }
 }
+
+/* Moon: the white moon behind a panel needs a deeper frost to keep white text readable */
+:root[data-lunar] { --v-card: rgba(14, 14, 20, 0.66); --v-card-hi: rgba(28, 28, 36, 0.7); }
+:root[data-lunar] .hx-row .hx { background: rgba(0, 0, 0, 0.18) !important; }
